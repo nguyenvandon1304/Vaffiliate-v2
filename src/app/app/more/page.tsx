@@ -1,8 +1,6 @@
 import ResponsiveAppShell from "@/components/app/ResponsiveAppShell";
-import Badge from "@/components/ui/Badge";
-import Card from "@/components/ui/Card";
-import SectionHeader from "@/components/ui/SectionHeader";
-import { moreMenuItems } from "@/lib/mock-data";
+import MembershipCard from "@/features/more/MembershipCard";
+import MoreMenuGrid from "@/features/more/MoreMenuGrid";
 
 export default function MorePage() {
   const desktopContent = (
@@ -20,46 +18,8 @@ export default function MorePage() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1.35fr)]">
-        <Card className="p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-[color:var(--text-muted)]">
-                Hạng thành viên
-              </p>
-              <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[color:var(--text)]">
-                Bạc
-              </p>
-              <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
-                Còn 10 đơn hợp lệ để lên hạng Vàng.
-              </p>
-            </div>
-            <Badge>Hạng Bạc</Badge>
-          </div>
-          <button
-            type="button"
-            className="mt-4 text-sm font-semibold text-[color:var(--brand-strong)]"
-          >
-            Xem quyền lợi →
-          </button>
-        </Card>
-
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2">
-          {moreMenuItems.map((item) => (
-            <Card key={item.title} className="p-5">
-              <div className="flex min-h-[148px] flex-col justify-between">
-                <div>
-                  <p className="font-semibold text-[color:var(--text)]">{item.title}</p>
-                  <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
-                    {item.subtitle}
-                  </p>
-                </div>
-                <span className="mt-4 text-sm font-semibold text-[color:var(--brand-strong)]">
-                  Mở mục →
-                </span>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <MembershipCard />
+        <MoreMenuGrid />
       </section>
     </div>
   );
@@ -81,49 +41,11 @@ export default function MorePage() {
       </section>
 
       <section className="mb-4">
-        <Card className="p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-[color:var(--text-muted)]">
-                Hạng thành viên
-              </p>
-              <p className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-[color:var(--text)]">
-                Bạc
-              </p>
-              <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
-                Còn 10 đơn hợp lệ để lên hạng Vàng.
-              </p>
-            </div>
-            <Badge>Hạng Bạc</Badge>
-          </div>
-          <button
-            type="button"
-            className="mt-4 text-sm font-semibold text-[color:var(--brand-strong)]"
-          >
-            Xem quyền lợi →
-          </button>
-        </Card>
+        <MembershipCard />
       </section>
 
       <section className="pb-8">
-        <SectionHeader title="Tiện ích" />
-        <div className="grid gap-3">
-          {moreMenuItems.map((item) => (
-            <Card key={item.title} className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1 pr-3">
-                  <p className="font-semibold text-[color:var(--text)]">{item.title}</p>
-                  <p className="mt-1 text-sm leading-6 text-[color:var(--text-muted)]">
-                    {item.subtitle}
-                  </p>
-                </div>
-                <span className="text-sm font-semibold text-[color:var(--text-muted)]">
-                  ›
-                </span>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <MoreMenuGrid />
       </section>
     </ResponsiveAppShell>
   );

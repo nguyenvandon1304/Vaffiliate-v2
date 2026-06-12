@@ -1,16 +1,25 @@
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
-  tone?: "primary" | "secondary";
-};
-
-export default function ActionButton({ tone = "primary", className = "", ...props }: Props) {
-  const base =
-    "rounded-[var(--radius-lg)] px-4 py-3 text-sm font-semibold shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5";
+export default function ActionButton({
+  children,
+  tone = "default",
+  className = "",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode;
+  tone?: "default" | "secondary";
+}) {
   const toneClasses =
-    tone === "primary"
-      ? "bg-[color:var(--brand)] text-white"
-      : "border border-[rgba(124,63,44,0.12)] bg-white/80 text-[color:var(--text)]";
+    tone === "secondary"
+      ? "border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.86)] shadow-[var(--shadow-sm)]"
+      : "bg-[color:var(--brand)] text-white shadow-[var(--shadow-sm)]";
 
-  return <button className={`${base} ${toneClasses} ${className}`.trim()} {...props} />;
+  return (
+    <button
+      {...props}
+      className={`rounded-[var(--radius-lg)] px-4 py-3 text-sm font-semibold transition-transform hover:-translate-y-0.5 ${toneClasses} ${className}`.trim()}
+    >
+      {children}
+    </button>
+  );
 }
