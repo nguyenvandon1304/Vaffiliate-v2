@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import ResponsiveAppShell from "@/components/app/ResponsiveAppShell";
-import { cashbackPlatforms } from "@/lib/mock-data";
+
+const upcomingPlatforms = ["Shopee Food", "Lazada", "Tiki", "Sendo"];
 
 type PlatformName = "Shopee" | "TikTok Shop";
 type FlowStep = "idle" | "result" | "modal";
@@ -218,7 +219,7 @@ export default function CashbackPage() {
             Sắp ra mắt
           </h2>
           <div className="flex flex-wrap gap-2">
-            {cashbackPlatforms.upcoming.map((item) => (
+            {upcomingPlatforms.map((item) => (
               <span
                 key={item}
                 className="rounded-full border border-[rgba(124,63,44,0.12)] bg-[rgba(255,252,249,0.74)] px-3 py-1 text-xs font-medium text-[color:var(--text-muted)] opacity-75"
@@ -260,7 +261,7 @@ export default function CashbackPage() {
               Sắp ra mắt
             </h2>
             <div className="flex flex-wrap gap-2">
-              {cashbackPlatforms.upcoming.map((item) => (
+              {upcomingPlatforms.map((item) => (
                 <span
                   key={item}
                   className="cursor-not-allowed rounded-full border border-[rgba(124,63,44,0.12)] bg-[rgba(255,252,249,0.74)] px-3 py-1 text-xs font-medium text-[color:var(--text-muted)] opacity-75"

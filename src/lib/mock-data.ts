@@ -1,4 +1,10 @@
-export const homeMetrics = [
+import type { CashbackPlatform } from "@/types/cashback";
+import type { DashboardSummary, HomeFeature, HomeMetric, HeroPreview, QuickAction } from "@/types/dashboard";
+import type { FinanceTransaction } from "@/types/finance";
+import type { MoreMenuItem } from "@/types/user";
+import type { RecentOrder } from "@/types/orders";
+
+export const homeMetrics: HomeMetric[] = [
   {
     label: "Hoàn tiền tháng này",
     value: "12,4 triệuđ",
@@ -14,7 +20,7 @@ export const homeMetrics = [
   },
 ];
 
-export const homeFeatures = [
+export const homeFeatures: HomeFeature[] = [
   {
     title: "Lấy link hoàn tiền",
     description:
@@ -32,7 +38,7 @@ export const homeFeatures = [
   },
 ];
 
-export const heroPreview = {
+export const heroPreview: HeroPreview = {
   balance: "2.450.000đ",
   monthlyCashback: "+186.000đ",
   upcomingPayout: "Tiền hoàn sẽ khả dụng sau khi đơn được ghi nhận, đối soát và duyệt hoa hồng.",
@@ -40,7 +46,7 @@ export const heroPreview = {
   upcomingStores: ["Shopee Food", "Lazada", "Tiki", "Sendo"],
 };
 
-export const dashboardSummary = {
+export const dashboardSummary: DashboardSummary = {
   greeting: "Chào buổi tối, Minh",
   title: "Ví hoàn tiền của bạn",
   description:
@@ -54,7 +60,7 @@ export const dashboardSummary = {
   upcomingPlatforms: ["Shopee Food", "Lazada", "Tiki", "Sendo"],
 };
 
-export const quickActions = [
+export const quickActions: QuickAction[] = [
   {
     title: "Lấy link",
     subtitle: "Lấy link hoàn tiền",
@@ -72,7 +78,7 @@ export const quickActions = [
   },
 ];
 
-export const recentOrders = [
+export const recentOrders: RecentOrder[] = [
   {
     store: "Shopee",
     item: "Máy sấy tóc ion âm",
@@ -115,22 +121,19 @@ export const recentOrders = [
   },
 ];
 
-export const cashbackPlatforms = {
-  active: [
-    {
-      name: "Shopee",
-      description: "Lấy link hoàn tiền và mua sắm như bình thường trên Shopee.",
-      cta: "Lấy link hoàn tiền",
-    },
-    {
-      name: "TikTok Shop",
-      description:
-        "Mua sắm qua link TikTok Shop và nhận hoàn tiền sau khi đơn được ghi nhận, hoa hồng được duyệt.",
-      cta: "Lấy link hoàn tiền",
-    },
-  ],
-  upcoming: ["Shopee Food", "Lazada", "Tiki", "Sendo"],
-};
+export const cashbackPlatforms: CashbackPlatform[] = [
+  {
+    name: "Shopee",
+    description: "Lấy link hoàn tiền và mua sắm như bình thường trên Shopee.",
+    cta: "Lấy link hoàn tiền",
+  },
+  {
+    name: "TikTok Shop",
+    description:
+      "Mua sắm qua link TikTok Shop và nhận hoàn tiền sau khi đơn được ghi nhận, hoa hồng được duyệt.",
+    cta: "Lấy link hoàn tiền",
+  },
+];
 
 export const orderFilters = [
   "Tất cả",
@@ -156,7 +159,7 @@ export const financeSummary = [
   },
 ];
 
-export const financeTransactions = [
+export const financeTransactions: FinanceTransaction[] = [
   {
     title: "Rút tiền về tài khoản",
     amount: "-500.000đ",
@@ -177,7 +180,7 @@ export const financeTransactions = [
   },
 ];
 
-export const moreMenuItems = [
+export const moreMenuItems: MoreMenuItem[] = [
   {
     title: "Mời bạn bè",
     subtitle: "Nhận thêm quyền lợi khi bạn bè mua hàng hợp lệ.",
