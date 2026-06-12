@@ -1,4 +1,9 @@
 import ResponsiveAppShell from "@/components/app/ResponsiveAppShell";
+import Badge from "@/components/ui/Badge";
+import Card from "@/components/ui/Card";
+import SectionHeader from "@/components/ui/SectionHeader";
+import StatCard from "@/components/ui/StatCard";
+import ActionButton from "@/components/ui/ActionButton";
 import {
   dashboardSummary,
   quickActions,
@@ -37,9 +42,7 @@ export default function AppDashboardPage() {
                 {dashboardSummary.description}
               </p>
             </div>
-            <div className="rounded-full bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[color:var(--brand-strong)]">
-              {dashboardSummary.tier}
-            </div>
+            <Badge>{dashboardSummary.tier}</Badge>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
@@ -56,35 +59,22 @@ export default function AppDashboardPage() {
 
             <div className="grid gap-3">
               {statItems.map((item) => (
-                <article
-                  key={item.label}
-                  className="rounded-[var(--radius-lg)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.82)] p-4 shadow-[var(--shadow-sm)]"
-                >
-                  <p className="text-xs font-medium text-[color:var(--text-muted)]">
-                    {item.label}
-                  </p>
-                  <p className="mt-2 text-xl font-semibold tracking-tight text-[color:var(--text)]">
-                    {item.value}
-                  </p>
-                </article>
+                <StatCard key={item.label} label={item.label} value={item.value} />
               ))}
             </div>
           </div>
         </div>
 
         <div className="grid gap-4">
-          <section className="rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.72)] p-5 shadow-[var(--shadow-sm)]">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-[color:var(--text)]">
-                Thao tác nhanh
-              </h2>
-            </div>
+          <Card className="bg-[rgba(255,250,246,0.72)] p-5">
+            <SectionHeader title="Thao tác nhanh" />
             <div className="grid grid-cols-2 gap-3">
               {quickActions.map((action) => (
-                <button
+                <ActionButton
                   key={action.title}
                   type="button"
-                  className="rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,252,249,0.92)] p-4 text-left shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5"
+                  tone="secondary"
+                  className="h-auto p-4 text-left"
                   aria-label={action.title}
                 >
                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[color:var(--accent-soft)] text-lg font-semibold text-[color:var(--brand-strong)]">
@@ -96,23 +86,18 @@ export default function AppDashboardPage() {
                   <p className="mt-1 text-xs font-medium leading-5 text-[color:var(--text-muted)]">
                     {action.subtitle}
                   </p>
-                </button>
+                </ActionButton>
               ))}
             </div>
-          </section>
+          </Card>
 
-          <section className="rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.72)] p-5 shadow-[var(--shadow-sm)]">
+          <Card className="bg-[rgba(255,250,246,0.72)] p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">
               Sàn đang hỗ trợ
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {dashboardSummary.activePlatforms.map((platform) => (
-                <span
-                  key={platform}
-                  className="rounded-full bg-[rgba(216,138,82,0.14)] px-3 py-1 text-xs font-semibold text-[color:var(--brand-strong)]"
-                >
-                  {platform}
-                </span>
+                <Badge key={platform}>{platform}</Badge>
               ))}
             </div>
             <p className="mt-5 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">
@@ -120,27 +105,20 @@ export default function AppDashboardPage() {
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {dashboardSummary.upcomingPlatforms.map((platform) => (
-                <span
-                  key={platform}
-                  className="rounded-full border border-[rgba(124,63,44,0.12)] px-3 py-1 text-xs font-medium text-[color:var(--text-muted)]"
-                >
+                <Badge key={platform} variant="neutral">
                   {platform}
-                </span>
+                </Badge>
               ))}
             </div>
-          </section>
+          </Card>
         </div>
       </section>
 
-      <section className="rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.72)] p-5 shadow-[var(--shadow-sm)]">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-[color:var(--text)]">
-            Đơn hàng gần đây
-          </h2>
-          <p className="text-sm text-[color:var(--text-muted)]">
-            Bảng tóm tắt giao dịch gần nhất
-          </p>
-        </div>
+      <Card className="bg-[rgba(255,250,246,0.72)] p-5">
+        <SectionHeader
+          title="Đơn hàng gần đây"
+          description="Bảng tóm tắt giao dịch gần nhất"
+        />
 
         <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[color:var(--line)] bg-white/70">
           <div className="grid grid-cols-[1.2fr_1.4fr_0.8fr_0.9fr_0.8fr] gap-3 border-b border-[color:var(--line)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
@@ -175,7 +153,7 @@ export default function AppDashboardPage() {
             ))}
           </div>
         </div>
-      </section>
+      </Card>
     </div>
   );
 
@@ -197,9 +175,7 @@ export default function AppDashboardPage() {
                 {dashboardSummary.description}
               </p>
             </div>
-            <div className="rounded-full bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[color:var(--brand-strong)]">
-              {dashboardSummary.tier}
-            </div>
+            <Badge>{dashboardSummary.tier}</Badge>
           </div>
 
           <div className="relative overflow-hidden rounded-[var(--radius-xl)] bg-[linear-gradient(135deg,var(--brand),var(--accent))] p-4 text-white shadow-[var(--shadow-glow)]">
@@ -217,32 +193,19 @@ export default function AppDashboardPage() {
 
       <section className="mb-4 grid grid-cols-3 gap-3 xl:hidden">
         {statItems.map((item) => (
-          <article
-            key={item.label}
-            className="rounded-[var(--radius-lg)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.82)] p-3 shadow-[var(--shadow-sm)]"
-          >
-            <p className="text-xs font-medium text-[color:var(--text-muted)]">
-              {item.label}
-            </p>
-            <p className="mt-2 text-base font-semibold tracking-tight text-[color:var(--text)]">
-              {item.value}
-            </p>
-          </article>
+          <StatCard key={item.label} label={item.label} value={item.value} />
         ))}
       </section>
 
       <section className="mb-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-[color:var(--text)]">
-            Thao tác nhanh
-          </h2>
-        </div>
+        <SectionHeader title="Thao tác nhanh" />
         <div className="grid grid-cols-3 gap-3">
           {quickActions.map((action) => (
-            <button
+            <ActionButton
               key={action.title}
               type="button"
-              className="rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.86)] p-3 text-left shadow-[var(--shadow-sm)]"
+              tone="secondary"
+              className="h-auto p-3 text-left"
               aria-label={action.title}
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[color:var(--accent-soft)] text-lg font-semibold text-[color:var(--brand-strong)]">
@@ -254,12 +217,12 @@ export default function AppDashboardPage() {
               <p className="mt-1 text-xs font-medium text-[color:var(--text-muted)]">
                 {action.subtitle}
               </p>
-            </button>
+            </ActionButton>
           ))}
         </div>
       </section>
 
-      <section className="mb-4 rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.62)] p-4 shadow-[var(--shadow-sm)]">
+      <Card className="mb-4 bg-[rgba(255,250,246,0.62)] p-4">
         <div className="grid gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">
@@ -267,12 +230,7 @@ export default function AppDashboardPage() {
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {dashboardSummary.activePlatforms.map((platform) => (
-                <span
-                  key={platform}
-                  className="rounded-full bg-[rgba(216,138,82,0.14)] px-3 py-1 text-xs font-semibold text-[color:var(--brand-strong)]"
-                >
-                  {platform}
-                </span>
+                <Badge key={platform}>{platform}</Badge>
               ))}
             </div>
           </div>
@@ -282,24 +240,17 @@ export default function AppDashboardPage() {
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {dashboardSummary.upcomingPlatforms.map((platform) => (
-                <span
-                  key={platform}
-                  className="rounded-full border border-[rgba(124,63,44,0.12)] px-3 py-1 text-xs font-medium text-[color:var(--text-muted)]"
-                >
+                <Badge key={platform} variant="neutral">
                   {platform}
-                </span>
+                </Badge>
               ))}
             </div>
           </div>
         </div>
-      </section>
+      </Card>
 
       <section className="pb-8">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-[color:var(--text)]">
-            Đơn hàng gần đây
-          </h2>
-        </div>
+        <SectionHeader title="Đơn hàng gần đây" />
         <div className="grid gap-3">
           {recentOrders.map((order) => (
             <article
@@ -320,9 +271,7 @@ export default function AppDashboardPage() {
                 </p>
               </div>
               <div className="mt-4 flex items-center justify-between text-sm">
-                <span className="rounded-full bg-[rgba(216,138,82,0.12)] px-3 py-1 font-medium text-[color:var(--brand-strong)]">
-                  {order.status}
-                </span>
+                <Badge>{order.status}</Badge>
                 <span className="font-medium text-[color:var(--text-muted)]">
                   {order.time}
                 </span>
