@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import EmptyState from "@/components/ui/EmptyState";
 
 const upcomingPlatforms = ["Shopee Food", "Lazada", "Tiki", "Sendo"];
 
@@ -155,6 +156,13 @@ export default function CashbackForm() {
           Kiểm tra hoàn tiền
         </button>
       </div>
+
+      {step === "idle" ? (
+        <EmptyState
+          title="Chưa có dữ liệu hoàn tiền"
+          description="Dán link sản phẩm và kiểm tra để tạo link hoàn tiền."
+        />
+      ) : null}
 
       {step === "result" || step === "modal" ? (
         <div className="mt-4 rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,248,242,0.92)] p-5 shadow-[var(--shadow-sm)]">

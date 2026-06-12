@@ -1,4 +1,6 @@
-import ResponsiveAppShell from "@/components/app/ResponsiveAppShell";
+import AppShell from "@/components/layout/AppShell";
+import AppSection from "@/components/layout/AppSection";
+import PageHeader from "@/components/layout/PageHeader";
 import OrdersFilters from "@/features/orders/OrdersFilters";
 import OrdersTable from "@/features/orders/OrdersTable";
 
@@ -23,23 +25,22 @@ export default function OrdersPage() {
   );
 
   return (
-    <ResponsiveAppShell desktopContent={desktopContent}>
-      <section className="mb-4">
-        <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
-          Theo dõi tiến trình đơn affiliate
-        </p>
-        <div className="surface-card overflow-hidden bg-[linear-gradient(180deg,rgba(255,252,249,0.9),rgba(248,238,231,0.92))] p-5">
-          <h1 className="text-[1.75rem] font-semibold tracking-[-0.04em] text-[color:var(--text)]">
-            Đơn hàng
-          </h1>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
-            Tiền hoàn không có ngay lập tức. Đơn cần được ghi nhận, đối soát và duyệt hoa hồng trước khi có thể rút.
-          </p>
-        </div>
-      </section>
-
-      <OrdersFilters />
+    <AppShell desktopContent={desktopContent}>
+      <AppSection>
+        <PageHeader
+          eyebrow={
+            <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
+              Theo dõi tiến trình đơn affiliate
+            </p>
+          }
+          title="Đơn hàng"
+          description="Tiền hoàn không có ngay lập tức. Đơn cần được ghi nhận, đối soát và duyệt hoa hồng trước khi có thể rút."
+        />
+      </AppSection>
+      <AppSection>
+        <OrdersFilters />
+      </AppSection>
       <OrdersTable />
-    </ResponsiveAppShell>
+    </AppShell>
   );
 }

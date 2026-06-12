@@ -1,6 +1,6 @@
+import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
 import SectionHeader from "@/components/ui/SectionHeader";
-import Badge from "@/components/ui/Badge";
 import { recentOrders } from "@/lib/mock-data";
 
 export default function RecentOrdersTable() {
@@ -27,9 +27,7 @@ export default function RecentOrdersTable() {
             >
               <span className="font-semibold text-[color:var(--text)]">{order.store}</span>
               <span className="font-medium text-[color:var(--text-muted)]">{order.item}</span>
-              <span className="inline-flex w-fit rounded-full bg-[rgba(216,138,82,0.12)] px-3 py-1 text-xs font-semibold text-[color:var(--brand-strong)]">
-                {order.status}
-              </span>
+              <Badge>{order.status}</Badge>
               <span className="font-semibold text-[color:var(--success)]">{order.amount}</span>
               <span className="font-medium text-[color:var(--text-muted)]">{order.time}</span>
             </div>

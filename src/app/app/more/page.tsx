@@ -1,4 +1,6 @@
-import ResponsiveAppShell from "@/components/app/ResponsiveAppShell";
+import AppShell from "@/components/layout/AppShell";
+import AppSection from "@/components/layout/AppSection";
+import PageHeader from "@/components/layout/PageHeader";
 import MembershipCard from "@/features/more/MembershipCard";
 import MoreMenuGrid from "@/features/more/MoreMenuGrid";
 
@@ -25,28 +27,24 @@ export default function MorePage() {
   );
 
   return (
-    <ResponsiveAppShell desktopContent={desktopContent}>
-      <section className="mb-4">
-        <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
-          Tiện ích và thông tin tài khoản
-        </p>
-        <div className="surface-card overflow-hidden bg-[linear-gradient(180deg,rgba(255,252,249,0.9),rgba(248,238,231,0.92))] p-5">
-          <h1 className="text-[1.75rem] font-semibold tracking-[-0.04em] text-[color:var(--text)]">
-            Thêm
-          </h1>
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
-            Xem hướng dẫn, điều kiện đơn hợp lệ và các mục thiết lập cần thiết cho trải nghiệm hoàn tiền.
-          </p>
-        </div>
-      </section>
-
-      <section className="mb-4">
+    <AppShell desktopContent={desktopContent}>
+      <AppSection>
+        <PageHeader
+          eyebrow={
+            <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
+              Tiện ích và thông tin tài khoản
+            </p>
+          }
+          title="Thêm"
+          description="Xem hướng dẫn, điều kiện đơn hợp lệ và các mục thiết lập cần thiết cho trải nghiệm hoàn tiền."
+        />
+      </AppSection>
+      <AppSection className="mb-4">
         <MembershipCard />
-      </section>
-
-      <section className="pb-8">
+      </AppSection>
+      <AppSection className="pb-8">
         <MoreMenuGrid />
-      </section>
-    </ResponsiveAppShell>
+      </AppSection>
+    </AppShell>
   );
 }

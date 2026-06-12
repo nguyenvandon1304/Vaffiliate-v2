@@ -2,13 +2,8 @@ import { orderFilters } from "@/lib/mock-data";
 
 export default function OrdersFilters() {
   return (
-    <section className="mb-4">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-base font-semibold text-[color:var(--text)]">
-          Bộ lọc trạng thái
-        </h2>
-      </div>
-      <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+    <section className="mb-4 rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.72)] p-5 shadow-[var(--shadow-sm)]">
+      <div className="no-scrollbar mb-4 -mx-1 flex flex-nowrap gap-2 overflow-x-auto px-1 pb-1">
         {orderFilters.map((filter, index) => (
           <button
             key={filter}
