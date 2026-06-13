@@ -1,5 +1,5 @@
 import { userService } from "@/services/user.service";
 
 export function useUser() {
-  return userService.getMoreMenuItems();
+  return userService.getUserData();
 }

@@ -5,3 +5,7 @@ export interface CashbackPlatform {
   description: string;
   cta: string;
 }
+
+export interface CashbackData {
+  platforms: CashbackPlatform[];
+}

@@ -1,4 +1,5 @@
 import type { PlatformLabel } from "./common";
+import type { RecentOrder } from "./orders";
 
 export interface HomeMetric {
   label: string;
@@ -36,4 +37,15 @@ export interface QuickAction {
   title: string;
   subtitle: string;
   icon: string;
+}
+
+export interface DashboardData {
+  summary: DashboardSummary;
+  metrics: HomeMetric[];
+  features: HomeFeature[];
+  hero: HeroPreview;
+  quickActions: QuickAction[];
+  activePlatforms: PlatformLabel[];
+  upcomingPlatforms: PlatformLabel[];
+  recentOrders: RecentOrder[];
 }

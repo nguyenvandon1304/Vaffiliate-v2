@@ -1,6 +1,12 @@
-import { getOrderFilters, getOrders } from "@/repositories/orders.repository";
+import { getOrderFilters, getOrders, getOrdersData } from "@/repositories/orders.repository";
+import type { OrdersData } from "@/types/orders";
 
 export const ordersService = {
-  getOrders,
   getOrderFilters,
+  getOrders,
+  getOrdersData,
 };
+
+export function getOrdersDataService(): OrdersData {
+  return getOrdersData();
+}

@@ -1,8 +1,10 @@
 import Link from "next/link";
 import BrandLogo from "@/components/shared/BrandLogo";
-import { heroPreview, homeFeatures, homeMetrics } from "@/lib/mock-data";
+import { useDashboard } from "@/hooks/useDashboard";
 
 export default function Home() {
+  const dashboard = useDashboard();
+
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 sm:py-8">
       <div className="page-shell">
@@ -45,7 +47,7 @@ export default function Home() {
               </div>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                {homeMetrics.map((metric) => (
+                {dashboard.metrics.map((metric) => (
                   <div
                     key={metric.label}
                     className="rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,252,249,0.78)] p-4 shadow-[var(--shadow-sm)] backdrop-blur"
@@ -82,7 +84,7 @@ export default function Home() {
                   Sàn đang hỗ trợ
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2 text-sm font-medium text-white/90">
-                  {heroPreview.stores.map((store) => (
+                  {dashboard.hero.stores.map((store) => (
                     <span
                       key={store}
                       className="rounded-full bg-white/10 px-3 py-1"
@@ -104,7 +106,7 @@ export default function Home() {
                         Số dư khả dụng
                       </p>
                       <p className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-[color:var(--text)]">
-                        {heroPreview.balance}
+                        {dashboard.hero.balance}
                       </p>
                     </div>
                     <div className="rounded-full bg-[color:var(--accent-soft)] px-3 py-1 text-xs font-semibold text-[color:var(--brand-strong)]">
@@ -115,9 +117,9 @@ export default function Home() {
                   <div className="mt-4 rounded-[var(--radius-lg)] bg-[linear-gradient(135deg,var(--brand),var(--accent))] p-4 text-white shadow-[var(--shadow-glow)]">
                     <p className="text-sm text-white/80">Hoàn tiền trong tháng</p>
                     <p className="mt-2 text-2xl font-semibold tracking-tight">
-                      {heroPreview.monthlyCashback}
+                      {dashboard.hero.monthlyCashback}
                     </p>
-                    <p className="mt-3 text-sm text-white/80">{heroPreview.upcomingPayout}</p>
+                    <p className="mt-3 text-sm text-white/80">{dashboard.hero.upcomingPayout}</p>
                   </div>
 
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -151,7 +153,7 @@ export default function Home() {
         </section>
 
         <section className="grid gap-4 pt-10 pb-6 sm:pt-12 lg:grid-cols-3">
-          {homeFeatures.map((feature, index) => (
+          {dashboard.features.map((feature, index) => (
             <article
               key={feature.title}
               className="surface-card bg-[rgba(255,252,249,0.82)] p-6 sm:p-7"

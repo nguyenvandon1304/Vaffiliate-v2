@@ -1,5 +1,5 @@
 import { dashboardService } from "@/services/dashboard.service";
 
 export function useDashboard() {
-  return dashboardService.getDashboardSummary();
+  return dashboardService.getDashboardData();
 }

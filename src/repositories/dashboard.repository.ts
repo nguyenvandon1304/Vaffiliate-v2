@@ -1,5 +1,7 @@
 import { API_ENDPOINTS } from "@/lib/constants/api";
 import { dashboardSummary, homeFeatures, homeMetrics, heroPreview, quickActions } from "@/lib/mock";
+import type { DashboardData } from "@/types/dashboard";
+import { recentOrders } from "@/lib/mock";
 
 export function getDashboardSummary() {
   void API_ENDPOINTS.DASHBOARD.SUMMARY;
@@ -24,4 +26,18 @@ export function getHeroPreview() {
 export function getQuickActions() {
   void API_ENDPOINTS.DASHBOARD.QUICK_ACTIONS;
   return quickActions;
+}
+
+export function getDashboardData(): DashboardData {
+  const summary = getDashboardSummary();
+  return {
+    summary,
+    metrics: getHomeMetrics(),
+    features: getHomeFeatures(),
+    hero: getHeroPreview(),
+    quickActions: getQuickActions(),
+    activePlatforms: summary.activePlatforms,
+    upcomingPlatforms: summary.upcomingPlatforms,
+    recentOrders,
+  };
 }

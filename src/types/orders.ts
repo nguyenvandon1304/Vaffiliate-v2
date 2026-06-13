@@ -15,3 +15,12 @@ export interface RecentOrder {
   total: string;
   time: string;
 }
+
+export type Order = RecentOrder;
+
+export type OrderFilter = string;
+
+export interface OrdersData {
+  filters: OrderFilter[];
+  orders: Order[];
+}

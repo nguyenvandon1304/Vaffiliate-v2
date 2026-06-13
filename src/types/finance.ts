@@ -6,3 +6,15 @@ export interface FinanceTransaction {
   time: string;
   status: FinanceTransactionStatus;
 }
+
+export interface FinanceSummaryItem {
+  label: string;
+  value: string;
+}
+
+export type FinanceSummary = FinanceSummaryItem[];
+
+export interface FinanceData {
+  summary: FinanceSummary;
+  transactions: FinanceTransaction[];
+}
