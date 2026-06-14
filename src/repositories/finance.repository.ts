@@ -2,7 +2,7 @@ import { apiClient } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/constants/api";
 import { financeSummary, financeTransactions } from "@/lib/mock";
 import type { ApiResponse } from "@/types/api";
-import type { FinanceData } from "@/types/finance";
+import type { FinanceData, FinanceSummary, FinanceTransaction } from "@/types/finance";
 
 export function getFinanceSummary() {
   void API_ENDPOINTS.FINANCE.SUMMARY;
@@ -21,6 +21,16 @@ export function getFinanceData(): FinanceData {
   };
 }
 
-export function getFinanceDataAsync(): Promise<ApiResponse<FinanceData>> {
-  return apiClient.get(getFinanceData());
+export async function getFinanceDataAsync(): Promise<ApiResponse<FinanceData>> {
+  const [summary, transactions] = await Promise.all([
+    apiClient.get<FinanceSummary>(API_ENDPOINTS.FINANCE.SUMMARY),
+    apiClient.get<FinanceTransaction[]>(API_ENDPOINTS.FINANCE.TRANSACTIONS),
+  ]);
+  return {
+    success: true,
+    data: {
+      summary: summary.data,
+      transactions: transactions.data,
+    },
+  };
 }
