@@ -1,5 +1,7 @@
+import { apiClient } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/constants/api";
 import { financeSummary, financeTransactions } from "@/lib/mock";
+import type { ApiResponse } from "@/types/api";
 import type { FinanceData } from "@/types/finance";
 
 export function getFinanceSummary() {
@@ -17,4 +19,8 @@ export function getFinanceData(): FinanceData {
     summary: getFinanceSummary(),
     transactions: getFinanceTransactions(),
   };
+}
+
+export function getFinanceDataAsync(): Promise<ApiResponse<FinanceData>> {
+  return apiClient.get(getFinanceData());
 }

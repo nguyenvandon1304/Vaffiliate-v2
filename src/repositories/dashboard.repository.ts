@@ -1,5 +1,7 @@
+import { apiClient } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/constants/api";
 import { dashboardSummary, homeFeatures, homeMetrics, heroPreview, quickActions } from "@/lib/mock";
+import type { ApiResponse } from "@/types/api";
 import type { DashboardData } from "@/types/dashboard";
 import { recentOrders } from "@/lib/mock";
 
@@ -40,4 +42,8 @@ export function getDashboardData(): DashboardData {
     upcomingPlatforms: summary.upcomingPlatforms,
     recentOrders,
   };
+}
+
+export function getDashboardDataAsync(): Promise<ApiResponse<DashboardData>> {
+  return apiClient.get(getDashboardData());
 }

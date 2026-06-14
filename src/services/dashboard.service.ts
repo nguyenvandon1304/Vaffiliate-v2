@@ -1,4 +1,5 @@
-import { getDashboardData, getDashboardSummary, getHomeFeatures, getHomeMetrics, getHeroPreview, getQuickActions } from "@/repositories/dashboard.repository";
+import { getDashboardData, getDashboardDataAsync, getDashboardSummary, getHomeFeatures, getHomeMetrics, getHeroPreview, getQuickActions } from "@/repositories/dashboard.repository";
+import type { ApiResponse } from "@/types/api";
 import type { DashboardData } from "@/types/dashboard";
 
 export const dashboardService = {
@@ -8,8 +9,13 @@ export const dashboardService = {
   getHeroPreview,
   getQuickActions,
   getDashboardData,
+  getDashboardDataAsync,
 };
 
 export function getDashboardDataService(): DashboardData {
   return getDashboardData();
+}
+
+export function getDashboardDataServiceAsync(): Promise<ApiResponse<DashboardData>> {
+  return getDashboardDataAsync();
 }
