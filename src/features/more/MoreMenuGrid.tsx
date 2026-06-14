@@ -1,9 +1,13 @@
-import { moreMenuItems } from "@/lib/mock-data";
+import type { MoreMenuItem } from "@/types/user";
 
-export default function MoreMenuGrid() {
+type MoreMenuGridProps = {
+  items: MoreMenuItem[];
+};
+
+export default function MoreMenuGrid({ items }: MoreMenuGridProps) {
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1.35fr)]">
-      {moreMenuItems.map((item) => (
+      {items.map((item) => (
         <div
           key={item.title}
           className="rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.88)] p-5 shadow-[var(--shadow-sm)]"

@@ -1,10 +1,14 @@
-import { orderFilters } from "@/lib/mock-data";
+import type { OrderFilter } from "@/types/orders";
 
-export default function OrdersFilters() {
+type OrdersFiltersProps = {
+  filters: OrderFilter[];
+};
+
+export default function OrdersFilters({ filters }: OrdersFiltersProps) {
   return (
     <section className="mb-4 rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.72)] p-5 shadow-[var(--shadow-sm)]">
       <div className="no-scrollbar mb-4 -mx-1 flex flex-nowrap gap-2 overflow-x-auto px-1 pb-1">
-        {orderFilters.map((filter, index) => (
+        {filters.map((filter, index) => (
           <button
             key={filter}
             type="button"

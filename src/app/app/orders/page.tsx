@@ -3,8 +3,11 @@ import AppSection from "@/components/layout/AppSection";
 import PageHeader from "@/components/layout/PageHeader";
 import OrdersFilters from "@/features/orders/OrdersFilters";
 import OrdersTable from "@/features/orders/OrdersTable";
+import { useOrdersAsync } from "@/hooks/useOrdersAsync";
 
-export default function OrdersPage() {
+export default async function OrdersPage() {
+  const { filters, orders } = await useOrdersAsync();
+
   const desktopContent = (
     <div className="space-y-6">
       <section className="surface-card overflow-hidden bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-6">
@@ -19,8 +22,8 @@ export default function OrdersPage() {
         </p>
       </section>
 
-      <OrdersFilters />
-      <OrdersTable />
+      <OrdersFilters filters={filters} />
+      <OrdersTable orders={orders} />
     </div>
   );
 
@@ -38,9 +41,9 @@ export default function OrdersPage() {
         />
       </AppSection>
       <AppSection>
-        <OrdersFilters />
+        <OrdersFilters filters={filters} />
       </AppSection>
-      <OrdersTable />
+      <OrdersTable orders={orders} />
     </AppShell>
   );
 }

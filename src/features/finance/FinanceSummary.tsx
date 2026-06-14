@@ -1,10 +1,14 @@
 import StatCard from "@/components/ui/StatCard";
-import { financeSummary } from "@/lib/mock-data";
+import type { FinanceSummary as FinanceSummaryData } from "@/types/finance";
 
-export default function FinanceSummary() {
+type FinanceSummaryProps = {
+  summary: FinanceSummaryData;
+};
+
+export default function FinanceSummary({ summary }: FinanceSummaryProps) {
   return (
     <section className="mb-4 grid grid-cols-3 gap-3">
-      {financeSummary.map((item) => (
+      {summary.map((item) => (
         <StatCard key={item.label} label={item.label} value={item.value} />
       ))}
     </section>

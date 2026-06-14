@@ -1,14 +1,18 @@
 import ActionButton from "@/components/ui/ActionButton";
 import Card from "@/components/ui/Card";
 import SectionHeader from "@/components/ui/SectionHeader";
-import { quickActions } from "@/lib/mock-data";
+import type { QuickAction } from "@/types/dashboard";
 
-export default function QuickActions() {
+type QuickActionsProps = {
+  actions: QuickAction[];
+};
+
+export default function QuickActions({ actions }: QuickActionsProps) {
   return (
     <Card className="bg-[rgba(255,250,246,0.72)] p-5">
       <SectionHeader title="Thao tác nhanh" />
       <div className="grid grid-cols-2 gap-3">
-        {quickActions.map((action) => (
+        {actions.map((action) => (
           <ActionButton
             key={action.title}
             type="button"

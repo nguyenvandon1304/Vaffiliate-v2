@@ -4,8 +4,11 @@ import PageHeader from "@/components/layout/PageHeader";
 import FinanceSummary from "@/features/finance/FinanceSummary";
 import TransactionHistory from "@/features/finance/TransactionHistory";
 import WithdrawCard from "@/features/finance/WithdrawCard";
+import { useFinanceAsync } from "@/hooks/useFinanceAsync";
 
-export default function FinancePage() {
+export default async function FinancePage() {
+  const { summary, transactions } = await useFinanceAsync();
+
   const desktopContent = (
     <div className="space-y-6">
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
@@ -24,8 +27,8 @@ export default function FinancePage() {
         <WithdrawCard />
       </section>
 
-      <FinanceSummary />
-      <TransactionHistory />
+      <FinanceSummary summary={summary} />
+      <TransactionHistory transactions={transactions} />
     </div>
   );
 
@@ -46,10 +49,10 @@ export default function FinancePage() {
         <WithdrawCard />
       </AppSection>
       <AppSection>
-        <FinanceSummary />
+        <FinanceSummary summary={summary} />
       </AppSection>
       <AppSection>
-        <TransactionHistory />
+        <TransactionHistory transactions={transactions} />
       </AppSection>
     </AppShell>
   );

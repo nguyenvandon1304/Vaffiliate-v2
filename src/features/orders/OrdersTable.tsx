@@ -1,10 +1,14 @@
-import { recentOrders } from "@/lib/mock-data";
+import type { Order } from "@/types/orders";
 
-export default function OrdersTable() {
+type OrdersTableProps = {
+  orders: Order[];
+};
+
+export default function OrdersTable({ orders }: OrdersTableProps) {
   return (
     <section className="pb-8">
       <div className="grid gap-3">
-        {recentOrders.map((order) => (
+        {orders.map((order) => (
           <article
             key={`${order.store}-${order.time}`}
             className="rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.86)] p-4 shadow-[var(--shadow-sm)]"

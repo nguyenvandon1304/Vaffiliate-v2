@@ -3,8 +3,11 @@ import AppSection from "@/components/layout/AppSection";
 import PageHeader from "@/components/layout/PageHeader";
 import MembershipCard from "@/features/more/MembershipCard";
 import MoreMenuGrid from "@/features/more/MoreMenuGrid";
+import { useUserAsync } from "@/hooks/useUserAsync";
 
-export default function MorePage() {
+export default async function MorePage() {
+  const { menuItems } = await useUserAsync();
+
   const desktopContent = (
     <div className="space-y-6">
       <section className="surface-card overflow-hidden bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-6">
@@ -21,7 +24,7 @@ export default function MorePage() {
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,1.35fr)]">
         <MembershipCard />
-        <MoreMenuGrid />
+        <MoreMenuGrid items={menuItems} />
       </section>
     </div>
   );
@@ -43,7 +46,7 @@ export default function MorePage() {
         <MembershipCard />
       </AppSection>
       <AppSection className="pb-8">
-        <MoreMenuGrid />
+        <MoreMenuGrid items={menuItems} />
       </AppSection>
     </AppShell>
   );

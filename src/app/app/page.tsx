@@ -2,16 +2,16 @@ import AppShell from "@/components/layout/AppShell";
 import DashboardHero from "@/features/dashboard/DashboardHero";
 import QuickActions from "@/features/dashboard/QuickActions";
 import RecentOrdersTable from "@/features/dashboard/RecentOrdersTable";
-import { useDashboard } from "@/hooks/useDashboard";
+import { useDashboardAsync } from "@/hooks/useDashboardAsync";
 
-export default function AppDashboardPage() {
-  const dashboard = useDashboard();
+export default async function AppDashboardPage() {
+  const dashboard = await useDashboardAsync();
 
   const desktopContent = (
     <div className="space-y-6">
-      <DashboardHero />
+      <DashboardHero summary={dashboard.summary} />
       <div className="grid gap-4">
-        <QuickActions />
+        <QuickActions actions={dashboard.quickActions} />
         <div className="rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.72)] p-5 shadow-[var(--shadow-sm)]">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">
             Sàn đang hỗ trợ
@@ -35,15 +35,15 @@ export default function AppDashboardPage() {
           </div>
         </div>
       </div>
-      <RecentOrdersTable />
+      <RecentOrdersTable orders={dashboard.recentOrders} />
     </div>
   );
 
   return (
     <AppShell desktopContent={desktopContent}>
       <div className="h-1 sm:h-0" aria-hidden="true" />
-      <DashboardHero />
-      <QuickActions />
+      <DashboardHero summary={dashboard.summary} />
+      <QuickActions actions={dashboard.quickActions} />
       <div className="mb-4 rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.62)] p-4 shadow-[var(--shadow-sm)]">
         <div className="grid gap-3">
           <div>
@@ -72,7 +72,7 @@ export default function AppDashboardPage() {
           </div>
         </div>
       </div>
-      <RecentOrdersTable />
+      <RecentOrdersTable orders={dashboard.recentOrders} />
     </AppShell>
   );
 }

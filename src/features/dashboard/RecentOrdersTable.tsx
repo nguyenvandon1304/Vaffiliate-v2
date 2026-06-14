@@ -1,9 +1,13 @@
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
 import SectionHeader from "@/components/ui/SectionHeader";
-import { recentOrders } from "@/lib/mock-data";
+import type { RecentOrder } from "@/types/orders";
 
-export default function RecentOrdersTable() {
+type RecentOrdersTableProps = {
+  orders: RecentOrder[];
+};
+
+export default function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
   return (
     <Card className="bg-[rgba(255,250,246,0.72)] p-5">
       <SectionHeader
@@ -20,7 +24,7 @@ export default function RecentOrdersTable() {
           <span>Thời gian</span>
         </div>
         <div className="divide-y divide-[color:var(--line)]">
-          {recentOrders.map((order) => (
+          {orders.map((order) => (
             <div
               key={`${order.store}-${order.time}`}
               className="grid grid-cols-[1.2fr_1.4fr_0.8fr_0.9fr_0.8fr] gap-3 px-4 py-4 text-sm"
