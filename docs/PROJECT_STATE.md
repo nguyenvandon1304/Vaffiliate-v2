@@ -1,5 +1,24 @@
 # Vaffiliate Project State
 
+## Current Status
+
+Current Phase:
+14B-B Complete
+
+Last Stable Tag:
+phase-14B-complete
+
+Route Count:
+17
+
+Build Status:
+PASS
+
+Last Verified Commit:
+05cd6f8
+
+---
+
 ## Current Architecture
 
 Page
@@ -57,6 +76,7 @@ Page
 ### Notification
 
 * Phase 14B-A Notification Foundation Complete
+* Phase 14B-B Notification Center UI Complete
 
 ---
 
@@ -111,10 +131,126 @@ Features:
 
 Status: Complete
 
+Features:
+
+* Cashback History
+* Cashback Statistics
+* Cashback Filters
+* Cashback Generator
+
 ### Notification
 
-Status: Foundation Complete
-Status: UI Not Started
+Status: Complete
+
+Features:
+
+* Notification Foundation
+* Notification Center
+* Notification Statistics
+* Notification Filters
+* Notification List
+
+---
+
+## Existing Async Domains
+
+### Dashboard
+
+Page
+→ useDashboardAsync
+→ dashboardService
+→ dashboardRepository
+→ apiClient
+→ mock-backend
+
+### Orders
+
+Page
+→ useOrdersAsync
+→ ordersService
+→ ordersRepository
+→ apiClient
+→ mock-backend
+
+### Finance
+
+Page
+→ useFinanceAsync
+→ financeService
+→ financeRepository
+→ apiClient
+→ mock-backend
+
+### User
+
+Page
+→ useUserAsync
+→ userService
+→ userRepository
+→ apiClient
+→ mock-backend
+
+### Affiliate
+
+Page
+→ useAffiliateAsync
+→ affiliateService
+→ affiliateRepository
+→ apiClient
+→ mock-backend
+
+Consumers:
+
+* Offer Center
+* Tracking Links
+* Conversions
+* Commission Dashboard
+* Revenue Analytics
+
+### Cashback
+
+Page
+→ useCashbackAsync
+→ cashbackService
+→ cashbackRepository
+→ apiClient
+→ mock-backend
+
+### Notification
+
+Page
+→ useNotificationAsync
+→ notificationService
+→ notificationRepository
+→ apiClient
+→ mock-backend
+
+---
+
+## Current Routes
+
+Public:
+
+* /
+* /login
+* /register
+
+App:
+
+* /app
+* /app/orders
+* /app/finance
+* /app/more
+* /app/offers
+* /app/tracking-links
+* /app/conversions
+* /app/commission
+* /app/revenue
+* /app/cashback
+* /app/notifications
+
+Total:
+17 routes
 
 ---
 
@@ -124,42 +260,75 @@ Status: UI Not Started
 * phase-11-stable
 * phase-14A-stable
 * phase-14B-foundation-stable
+* phase-14B-ui-stable
+* phase-14B-complete
 
 ---
 
-## Current Route Count
+## Current Repository State
 
-16 routes
+Affiliate Core:
+COMPLETE
+
+Cashback:
+COMPLETE
+
+Notification:
+COMPLETE
+
+All current routes:
+Static ○
+
+Build:
+PASS
+
+TypeScript:
+PASS
+
+No architectural violations detected.
 
 ---
 
 ## Next Planned Phase
 
-Phase 14B-B Notification Center UI
+Phase 14C-A Profile Foundation
 
 Goal:
 
-* Create /app/notifications
-* useNotificationAsync
-* NotificationStats
-* NotificationFilters
-* NotificationTable
-* Shopee/TikTok only
-* Server Component only
-* No client fetching
+* Create Profile domain foundation
+* Follow Page → Async Hook → Service → Repository → apiClient → mock-backend
+* No second data path
+* Server Component first
+* Shopee/TikTok-only ecosystem remains unchanged
+* Build foundation before UI
 
 ---
 
 ## Notes
 
-Notification domain already exists:
+The following architecture is now considered the source of truth:
 
-* types
-* mock
-* repository
-* service
-* hook
-* endpoint
-* mock-backend registry
+Page
+→ Async Hook
+→ Service
+→ Repository
+→ apiClient
+→ mock-backend
 
-Only UI layer remains.
+All future phases must preserve this flow.
+
+Do not introduce:
+
+* React Query
+* SWR
+* Redux
+* Zustand
+* Context-based data loading
+* Direct mock imports
+* Client-side fetching
+
+Notification domain is fully implemented.
+
+Next milestone:
+
+Phase 14C-A Profile Foundation.
