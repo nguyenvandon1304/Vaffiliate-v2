@@ -1,6 +1,11 @@
 ﻿import type { MoreMenuItem } from "@/types/user";
 
 export const moreMenuItems: MoreMenuItem[] = [
+  {
+    title: "Thông báo",
+    subtitle: "Cập nhật đơn, hoa hồng và chiến dịch Shopee, TikTok Shop.",
+    href: "/app/notifications",
+  },
   { title: "Mời bạn bè", subtitle: "Nhận thêm quyền lợi khi bạn bè mua hàng hợp lệ." },
   { title: "Cấp bậc & quyền lợi", subtitle: "Theo dõi cấp bậc và quyền lợi hoàn tiền." },
   { title: "Hướng dẫn nhận hoàn tiền", subtitle: "Các bước lấy link và mua hàng đúng cách." },

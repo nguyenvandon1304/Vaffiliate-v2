@@ -8,6 +8,7 @@ export const API_ENDPOINTS = {
   },
   CASHBACK: {
     PLATFORMS: "/cashback/platforms",
+    HISTORY: "/cashback/history",
   },
   ORDERS: {
     LIST: "/orders/list",
@@ -19,5 +20,15 @@ export const API_ENDPOINTS = {
   },
   USER: {
     MORE_MENU: "/user/more-menu",
+  },
+  AFFILIATE: {
+    ADVERTISERS: "/affiliate/advertisers",
+    CAMPAIGNS: "/affiliate/campaigns",
+    OFFERS: "/affiliate/offers",
+    TRACKING_LINKS: "/affiliate/tracking-links",
+    CONVERSIONS: "/affiliate/conversions",
+  },
+  NOTIFICATION: {
+    LIST: "/notification/list",
   },
 } as const;

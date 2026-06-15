@@ -2,8 +2,51 @@ import AppShell from "@/components/layout/AppShell";
 import AppSection from "@/components/layout/AppSection";
 import PageHeader from "@/components/layout/PageHeader";
 import CashbackForm from "@/features/cashback/CashbackForm";
+import CashbackFilters from "@/features/cashback/CashbackFilters";
+import CashbackHistoryTable from "@/features/cashback/CashbackHistoryTable";
+import CashbackStats from "@/features/cashback/CashbackStats";
+import { useCashbackAsync } from "@/hooks/useCashbackAsync";
+import type { CashbackPlatformName, CashbackStat } from "@/types/cashback";
 
-export default function CashbackPage() {
+const supportedPlatforms: CashbackPlatformName[] = ["Shopee", "TikTok Shop"];
+
+function parseAmount(amount: string): number {
+  return Number(amount.replace(/[^\d]/g, ""));
+}
+
+function formatVnd(amount: number): string {
+  return `${Math.round(amount).toLocaleString("de-DE")}đ`;
+}
+
+export default async function CashbackPage() {
+  const { history } = await useCashbackAsync();
+
+  const supportedHistory = history.filter((item) =>
+    supportedPlatforms.includes(item.platform)
+  );
+
+  const available = supportedHistory
+    .filter((item) => item.status === "approved" || item.status === "paid")
+    .reduce((sum, item) => sum + parseAmount(item.amount), 0);
+  const shopeeTotal = supportedHistory
+    .filter((item) => item.platform === "Shopee")
+    .reduce((sum, item) => sum + parseAmount(item.amount), 0);
+  const tiktokTotal = supportedHistory
+    .filter((item) => item.platform === "TikTok Shop")
+    .reduce((sum, item) => sum + parseAmount(item.amount), 0);
+
+  const stats: CashbackStat[] = [
+    { label: "Cashback khả dụng", value: formatVnd(available) },
+    { label: "Cashback Shopee", value: formatVnd(shopeeTotal) },
+    { label: "Cashback TikTok", value: formatVnd(tiktokTotal) },
+  ];
+
+  const platformsInUse = supportedPlatforms.filter((platform) =>
+    supportedHistory.some((item) => item.platform === platform)
+  );
+
+  const filters = ["Tất cả", ...platformsInUse];
+
   const desktopContent = (
     <div className="space-y-6">
       <section className="surface-card overflow-hidden bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-6">
@@ -18,7 +61,12 @@ export default function CashbackPage() {
         </p>
       </section>
 
+      <CashbackStats stats={stats} />
+
       <CashbackForm />
+
+      <CashbackFilters filters={filters} />
+      <CashbackHistoryTable history={supportedHistory} />
 
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <div className="rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.72)] p-5 shadow-[var(--shadow-sm)]">
@@ -60,8 +108,17 @@ export default function CashbackPage() {
       </AppSection>
 
       <AppSection>
+        <CashbackStats stats={stats} />
+      </AppSection>
+
+      <AppSection>
         <CashbackForm />
       </AppSection>
+
+      <AppSection>
+        <CashbackFilters filters={filters} />
+      </AppSection>
+      <CashbackHistoryTable history={supportedHistory} />
 
       <AppSection className="mt-4 pb-8">
         <div className="rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.62)] p-4 shadow-[var(--shadow-sm)]">
