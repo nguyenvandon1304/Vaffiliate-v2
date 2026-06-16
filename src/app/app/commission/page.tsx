@@ -4,11 +4,13 @@ import PageHeader from "@/components/layout/PageHeader";
 import CommissionCampaignTable from "@/features/commission/CommissionCampaignTable";
 import CommissionPlatformBreakdown from "@/features/commission/CommissionPlatformBreakdown";
 import CommissionStats from "@/features/commission/CommissionStats";
+import CommissionTopLinksTable from "@/features/commission/CommissionTopLinksTable";
+import CommissionTrendTable from "@/features/commission/CommissionTrendTable";
 import { useAffiliateAsync } from "@/hooks/useAffiliateAsync";
 import type {
   CampaignCommission,
   CommissionStat,
-  PlatformCommission,
+  ConversionStatus,
   SupportedPlatformLabel,
 } from "@/types/affiliate";
 import type { PlatformLabel } from "@/types/common";
@@ -30,10 +32,30 @@ function parseRate(commissionRate: string): number {
   return Number(commissionRate.replace(/[^\d.]/g, ""));
 }
 
+function formatDate(value: string): string {
+  const [datePart] = value.split("T");
+  const [year, month, day] = datePart.split("-");
+  if (!year || !month || !day) return value;
+  return `${day}/${month}/${year}`;
+}
+
 type CommissionRow = {
   platform: SupportedPlatformLabel;
   campaignName: string;
+  offerTitle: string;
+  trackingCode: string;
+  date: string;
+  status: ConversionStatus;
   commission: number;
+};
+
+type CommissionPlatformAnalytics = {
+  platform: SupportedPlatformLabel;
+  totalCommission: string;
+  approvedCommission: string;
+  pendingCommission: string;
+  rejectedCommission: string;
+  share: number;
 };
 
 export default async function CommissionPage() {
@@ -58,28 +80,52 @@ export default async function CommissionPage() {
       {
         platform,
         campaignName: campaign.name,
+        offerTitle: offer.title,
+        trackingCode: link.shortCode,
+        date: conversion.occurredAt,
+        status: conversion.status,
         commission: (order * rate) / 100,
       },
     ];
   });
 
   const totalCommission = rows.reduce((sum, row) => sum + row.commission, 0);
+  const approvedTotal = rows
+    .filter((row) => row.status === "approved" || row.status === "paid")
+    .reduce((sum, row) => sum + row.commission, 0);
+  const pendingTotal = rows
+    .filter((row) => row.status === "pending")
+    .reduce((sum, row) => sum + row.commission, 0);
+  const rejectedTotal = rows
+    .filter((row) => row.status === "rejected")
+    .reduce((sum, row) => sum + row.commission, 0);
 
-  const platformTotals = new Map<SupportedPlatformLabel, { conversions: number; commission: number }>();
+  const platformTotals = new Map<
+    SupportedPlatformLabel,
+    { total: number; approved: number; pending: number; rejected: number }
+  >();
   const campaignTotals = new Map<
     string,
     { campaignName: string; platform: SupportedPlatformLabel; conversions: number; commission: number }
   >();
+  const trackingTotals = new Map<
+    string,
+    { trackingCode: string; platform: SupportedPlatformLabel; conversions: number; commission: number }
+  >();
+  const dateTotals = new Map<string, { shopee: number; tiktok: number }>();
 
   for (const row of rows) {
-    const p = platformTotals.get(row.platform) ?? { conversions: 0, commission: 0 };
-    p.conversions += 1;
-    p.commission += row.commission;
+    const p =
+      platformTotals.get(row.platform) ?? { total: 0, approved: 0, pending: 0, rejected: 0 };
+    p.total += row.commission;
+    if (row.status === "approved" || row.status === "paid") p.approved += row.commission;
+    else if (row.status === "pending") p.pending += row.commission;
+    else if (row.status === "rejected") p.rejected += row.commission;
     platformTotals.set(row.platform, p);
 
-    const key = `${row.campaignName}__${row.platform}`;
+    const campaignKey = `${row.campaignName}__${row.platform}`;
     const c =
-      campaignTotals.get(key) ?? {
+      campaignTotals.get(campaignKey) ?? {
         campaignName: row.campaignName,
         platform: row.platform,
         conversions: 0,
@@ -87,38 +133,91 @@ export default async function CommissionPage() {
       };
     c.conversions += 1;
     c.commission += row.commission;
-    campaignTotals.set(key, c);
+    campaignTotals.set(campaignKey, c);
+
+    const t =
+      trackingTotals.get(row.trackingCode) ?? {
+        trackingCode: row.trackingCode,
+        platform: row.platform,
+        conversions: 0,
+        commission: 0,
+      };
+    t.conversions += 1;
+    t.commission += row.commission;
+    trackingTotals.set(row.trackingCode, t);
+
+    const dateKey = row.date.split("T")[0];
+    const d = dateTotals.get(dateKey) ?? { shopee: 0, tiktok: 0 };
+    if (row.platform === "Shopee") d.shopee += row.commission;
+    else d.tiktok += row.commission;
+    dateTotals.set(dateKey, d);
   }
 
-  const shopeeTotal = platformTotals.get("Shopee")?.commission ?? 0;
-  const tiktokTotal = platformTotals.get("TikTok Shop")?.commission ?? 0;
+  const shopeeTotal = platformTotals.get("Shopee")?.total ?? 0;
+  const tiktokTotal = platformTotals.get("TikTok Shop")?.total ?? 0;
+  const avgCommissionPerConversion = rows.length === 0 ? 0 : totalCommission / rows.length;
+
+  const campaignCommissions: CampaignCommission[] = Array.from(campaignTotals.values())
+    .sort(
+      (a, b) => b.commission - a.commission || a.campaignName.localeCompare(b.campaignName)
+    )
+    .map((item) => ({
+      campaignName: item.campaignName,
+      platform: item.platform,
+      conversions: item.conversions,
+      totalCommission: formatVnd(item.commission),
+    }));
+
+  const topCampaign = campaignCommissions.length > 0 ? campaignCommissions[0] : null;
 
   const stats: CommissionStat[] = [
     { label: "Tổng hoa hồng", value: formatVnd(totalCommission) },
     { label: "Hoa hồng Shopee", value: formatVnd(shopeeTotal) },
     { label: "Hoa hồng TikTok", value: formatVnd(tiktokTotal) },
-    { label: "Chuyển đổi CPS", value: String(rows.length) },
+    { label: "Hoa hồng đã duyệt", value: formatVnd(approvedTotal) },
+    { label: "Hoa hồng chờ duyệt", value: formatVnd(pendingTotal) },
+    { label: "Hoa hồng từ chối", value: formatVnd(rejectedTotal) },
+    { label: "Hoa hồng TB / chuyển đổi", value: formatVnd(avgCommissionPerConversion) },
+    {
+      label: "Chiến dịch hoa hồng cao nhất",
+      value: topCampaign ? topCampaign.campaignName : "—",
+    },
   ];
 
-  const breakdown: PlatformCommission[] = (["Shopee", "TikTok Shop"] as const)
+  const breakdown: CommissionPlatformAnalytics[] = (["Shopee", "TikTok Shop"] as const)
     .filter((platform) => platformTotals.has(platform))
     .map((platform) => {
       const totals = platformTotals.get(platform)!;
+      const share = totalCommission === 0 ? 0 : (totals.total / totalCommission) * 100;
       return {
         platform,
-        conversions: totals.conversions,
-        totalCommission: formatVnd(totals.commission),
+        totalCommission: formatVnd(totals.total),
+        approvedCommission: formatVnd(totals.approved),
+        pendingCommission: formatVnd(totals.pending),
+        rejectedCommission: formatVnd(totals.rejected),
+        share,
       };
     });
 
-  const campaignCommissions: CampaignCommission[] = Array.from(campaignTotals.values()).map(
-    (item) => ({
-      campaignName: item.campaignName,
+  const commissionTrend = Array.from(dateTotals.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, totals]) => ({
+      date: formatDate(date),
+      shopee: formatVnd(totals.shopee),
+      tiktok: formatVnd(totals.tiktok),
+      total: formatVnd(totals.shopee + totals.tiktok),
+    }));
+
+  const commissionTopLinks = Array.from(trackingTotals.values())
+    .sort(
+      (a, b) => b.commission - a.commission || a.trackingCode.localeCompare(b.trackingCode)
+    )
+    .map((item) => ({
+      trackingCode: item.trackingCode,
       platform: item.platform,
+      commission: formatVnd(item.commission),
       conversions: item.conversions,
-      totalCommission: formatVnd(item.commission),
-    })
-  );
+    }));
 
   const desktopContent = (
     <div className="space-y-6">
@@ -136,6 +235,8 @@ export default async function CommissionPage() {
 
       <CommissionStats stats={stats} />
       <CommissionPlatformBreakdown breakdown={breakdown} />
+      <CommissionTrendTable trend={commissionTrend} />
+      <CommissionTopLinksTable links={commissionTopLinks} />
       <CommissionCampaignTable campaigns={campaignCommissions} />
     </div>
   );
@@ -158,6 +259,12 @@ export default async function CommissionPage() {
       </AppSection>
       <AppSection>
         <CommissionPlatformBreakdown breakdown={breakdown} />
+      </AppSection>
+      <AppSection>
+        <CommissionTrendTable trend={commissionTrend} />
+      </AppSection>
+      <AppSection>
+        <CommissionTopLinksTable links={commissionTopLinks} />
       </AppSection>
       <CommissionCampaignTable campaigns={campaignCommissions} />
     </AppShell>

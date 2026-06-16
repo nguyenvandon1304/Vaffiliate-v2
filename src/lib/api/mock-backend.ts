@@ -4,6 +4,7 @@ import {
   campaigns,
   cashbackHistory,
   cashbackPlatforms,
+  clicks,
   conversions,
   dashboardSummary,
   financeSummary,
@@ -39,6 +40,7 @@ const backend: Record<string, () => unknown> = {
   [API_ENDPOINTS.AFFILIATE.TRACKING_LINKS]: () => trackingLinks,
   [API_ENDPOINTS.AFFILIATE.CONVERSIONS]: () => conversions,
   [API_ENDPOINTS.NOTIFICATION.LIST]: () => notifications,
+  [API_ENDPOINTS.CLICK.LIST]: () => clicks,
 };
 
 export function resolveMockEndpoint(endpoint: string): unknown {

@@ -31,4 +31,7 @@ export const API_ENDPOINTS = {
   NOTIFICATION: {
     LIST: "/notification/list",
   },
+  CLICK: {
+    LIST: "/click/list",
+  },
 } as const;

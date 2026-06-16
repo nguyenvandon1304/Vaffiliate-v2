@@ -5,3 +5,4 @@ export * from "./finance";
 export * from "./user";
 export * from "./affiliate";
 export * from "./notification";
+export * from "./click";

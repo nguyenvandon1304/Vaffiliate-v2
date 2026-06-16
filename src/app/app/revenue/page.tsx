@@ -5,6 +5,8 @@ import RevenueCampaignTable from "@/features/revenue/RevenueCampaignTable";
 import RevenueOfferTable from "@/features/revenue/RevenueOfferTable";
 import RevenuePlatformBreakdown from "@/features/revenue/RevenuePlatformBreakdown";
 import RevenueStats from "@/features/revenue/RevenueStats";
+import RevenueTopLinksTable from "@/features/revenue/RevenueTopLinksTable";
+import RevenueTrendTable from "@/features/revenue/RevenueTrendTable";
 import { useAffiliateAsync } from "@/hooks/useAffiliateAsync";
 import type {
   RevenueCampaign,
@@ -32,14 +34,27 @@ function parseRate(commissionRate: string): number {
   return Number(commissionRate.replace(/[^\d.]/g, ""));
 }
 
+function formatDate(value: string): string {
+  const [datePart] = value.split("T");
+  const [year, month, day] = datePart.split("-");
+  if (!year || !month || !day) return value;
+  return `${day}/${month}/${year}`;
+}
+
 type RevenueRow = {
   platform: SupportedPlatformLabel;
   campaignName: string;
   campaignId: string;
   offerTitle: string;
   offerId: string;
+  trackingCode: string;
+  date: string;
   revenue: number;
   commission: number;
+};
+
+type RevenuePlatformAnalytics = RevenuePlatform & {
+  share: number;
 };
 
 export default async function RevenuePage() {
@@ -68,6 +83,8 @@ export default async function RevenuePage() {
         campaignId: campaign.id,
         offerTitle: offer.title,
         offerId: offer.id,
+        trackingCode: link.shortCode,
+        date: conversion.occurredAt,
         revenue: order,
         commission,
       },
@@ -76,18 +93,7 @@ export default async function RevenuePage() {
 
   const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0);
   const totalCommission = rows.reduce((sum, row) => sum + row.commission, 0);
-  const activeCampaignIds = new Set(
-    rows
-      .map((row) => row.campaignId)
-      .filter((id) => campaigns.some((c) => c.id === id && c.status === "active"))
-  );
-
-  const stats: RevenueStat[] = [
-    { label: "Tổng doanh thu đơn hàng", value: formatVnd(totalRevenue) },
-    { label: "Tổng hoa hồng dự kiến", value: formatVnd(totalCommission) },
-    { label: "Tổng chuyển đổi", value: String(rows.length) },
-    { label: "Chiến dịch hoạt động", value: String(activeCampaignIds.size) },
-  ];
+  const totalConversions = rows.length;
 
   const platformTotals = new Map<
     SupportedPlatformLabel,
@@ -113,6 +119,17 @@ export default async function RevenuePage() {
       conversionCount: number;
     }
   >();
+  const trackingTotals = new Map<
+    string,
+    {
+      trackingCode: string;
+      platform: SupportedPlatformLabel;
+      revenue: number;
+      commission: number;
+      conversionCount: number;
+    }
+  >();
+  const dateTotals = new Map<string, { revenue: number; conversionCount: number }>();
 
   for (const row of rows) {
     const p = platformTotals.get(row.platform) ?? { revenue: 0, commission: 0, conversions: 0 };
@@ -148,22 +165,45 @@ export default async function RevenuePage() {
     o.commission += row.commission;
     o.conversionCount += 1;
     offerTotals.set(offerKey, o);
+
+    const t =
+      trackingTotals.get(row.trackingCode) ?? {
+        trackingCode: row.trackingCode,
+        platform: row.platform,
+        revenue: 0,
+        commission: 0,
+        conversionCount: 0,
+      };
+    t.revenue += row.revenue;
+    t.commission += row.commission;
+    t.conversionCount += 1;
+    trackingTotals.set(row.trackingCode, t);
+
+    const dateKey = row.date.split("T")[0];
+    const d = dateTotals.get(dateKey) ?? { revenue: 0, conversionCount: 0 };
+    d.revenue += row.revenue;
+    d.conversionCount += 1;
+    dateTotals.set(dateKey, d);
   }
 
-  const platforms: RevenuePlatform[] = (["Shopee", "TikTok Shop"] as const)
+  const platforms: RevenuePlatformAnalytics[] = (["Shopee", "TikTok Shop"] as const)
     .filter((platform) => platformTotals.has(platform))
     .map((platform) => {
       const totals = platformTotals.get(platform)!;
+      const share = totalRevenue === 0 ? 0 : (totals.revenue / totalRevenue) * 100;
       return {
         platform,
         revenue: formatVnd(totals.revenue),
         commission: formatVnd(totals.commission),
         conversions: totals.conversions,
+        share,
       };
     });
 
   const revenueCampaigns: RevenueCampaign[] = Array.from(campaignTotals.values())
-    .sort((a, b) => b.revenue - a.revenue)
+    .sort(
+      (a, b) => b.revenue - a.revenue || a.campaignName.localeCompare(b.campaignName)
+    )
     .map((item) => ({
       campaignName: item.campaignName,
       platform: item.platform,
@@ -173,7 +213,7 @@ export default async function RevenuePage() {
     }));
 
   const revenueOffers: RevenueOffer[] = Array.from(offerTotals.values())
-    .sort((a, b) => b.revenue - a.revenue)
+    .sort((a, b) => b.revenue - a.revenue || a.offerTitle.localeCompare(b.offerTitle))
     .map((item) => ({
       offerTitle: item.offerTitle,
       platform: item.platform,
@@ -181,6 +221,44 @@ export default async function RevenuePage() {
       commission: formatVnd(item.commission),
       conversionCount: item.conversionCount,
     }));
+
+  const revenueTrend = Array.from(dateTotals.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, totals]) => ({
+      date: formatDate(date),
+      revenue: formatVnd(totals.revenue),
+      conversionCount: totals.conversionCount,
+    }));
+
+  const revenueTopLinks = Array.from(trackingTotals.values())
+    .sort(
+      (a, b) => b.revenue - a.revenue || a.trackingCode.localeCompare(b.trackingCode)
+    )
+    .map((item) => ({
+      trackingCode: item.trackingCode,
+      platform: item.platform,
+      revenue: formatVnd(item.revenue),
+      commission: formatVnd(item.commission),
+      conversionCount: item.conversionCount,
+    }));
+
+  const avgRevenuePerConversion =
+    rows.length === 0 ? 0 : totalRevenue / rows.length;
+
+  const topOffer = revenueOffers.length > 0 ? revenueOffers[0] : null;
+  const topCampaign = revenueCampaigns.length > 0 ? revenueCampaigns[0] : null;
+  const topLink = revenueTopLinks.length > 0 ? revenueTopLinks[0] : null;
+
+  const stats: RevenueStat[] = [
+    { label: "Tổng doanh thu đơn hàng", value: formatVnd(totalRevenue) },
+    { label: "Doanh thu Shopee", value: formatVnd(platformTotals.get("Shopee")?.revenue ?? 0) },
+    { label: "Doanh thu TikTok", value: formatVnd(platformTotals.get("TikTok Shop")?.revenue ?? 0) },
+    { label: "Offer doanh thu cao nhất", value: topOffer ? topOffer.offerTitle : "—" },
+    { label: "Chiến dịch doanh thu cao nhất", value: topCampaign ? topCampaign.campaignName : "—" },
+    { label: "Link doanh thu cao nhất", value: topLink ? topLink.trackingCode : "—" },
+    { label: "Doanh thu TB / chuyển đổi", value: formatVnd(avgRevenuePerConversion) },
+    { label: "Tổng chuyển đổi", value: String(rows.length) },
+  ];
 
   const desktopContent = (
     <div className="space-y-6">
@@ -198,6 +276,8 @@ export default async function RevenuePage() {
 
       <RevenueStats stats={stats} />
       <RevenuePlatformBreakdown platforms={platforms} />
+      <RevenueTrendTable trend={revenueTrend} />
+      <RevenueTopLinksTable links={revenueTopLinks} />
       <RevenueCampaignTable campaigns={revenueCampaigns} />
       <RevenueOfferTable offers={revenueOffers} />
     </div>
@@ -221,6 +301,12 @@ export default async function RevenuePage() {
       </AppSection>
       <AppSection>
         <RevenuePlatformBreakdown platforms={platforms} />
+      </AppSection>
+      <AppSection>
+        <RevenueTrendTable trend={revenueTrend} />
+      </AppSection>
+      <AppSection>
+        <RevenueTopLinksTable links={revenueTopLinks} />
       </AppSection>
       <AppSection>
         <RevenueCampaignTable campaigns={revenueCampaigns} />
