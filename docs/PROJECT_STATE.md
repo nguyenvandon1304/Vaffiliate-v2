@@ -6,7 +6,7 @@ Current Phase:
 15D Complete
 
 Last Stable Tag:
-phase-14B-complete
+phase-15D-complete
 
 Route Count:
 15
@@ -15,7 +15,7 @@ Build Status:
 PASS
 
 Last Verified Commit:
-05cd6f8
+0f276de
 
 ---
 
@@ -45,6 +45,79 @@ Page
 * Joins and aggregations live in page layer
 * Shopee and TikTok Shop only
 * No generic affiliate network abstraction
+
+---
+
+## Analytics Architecture Rules
+
+### Click Domain
+
+Standalone domain.
+
+Page
+→ useClickAsync
+→ clickService
+→ clickRepository
+→ apiClient
+→ mock-backend
+
+### Conversion Analytics
+
+Uses:
+
+useAffiliateAsync()
+
+No dedicated repository.
+
+No dedicated service.
+
+No dedicated hook.
+
+Analytics are page-level aggregations.
+
+### Revenue Analytics
+
+Uses:
+
+useAffiliateAsync()
+
+No dedicated repository.
+
+No dedicated service.
+
+No dedicated hook.
+
+Analytics are page-level aggregations.
+
+### Commission Analytics
+
+Uses:
+
+useAffiliateAsync()
+
+No dedicated repository.
+
+No dedicated service.
+
+No dedicated hook.
+
+Analytics are page-level aggregations.
+
+Do NOT create:
+
+* useConversionAsync
+* useRevenueAsync
+* useCommissionAsync
+
+---
+
+## Commission Business Rules
+
+paid status is treated as approved
+
+Commission reconciliation must satisfy:
+
+approved + pending + rejected = total commission
 
 ---
 
@@ -78,7 +151,7 @@ Page
 * Phase 14B-A Notification Foundation Complete
 * Phase 14B-B Notification Center UI Complete
 
-### Analytics
+### Analytics Center
 
 * Phase 15A Click Analytics Center Complete
 * Phase 15B Conversion Analytics Center Complete
@@ -219,10 +292,10 @@ Page
 Consumers:
 
 * Offer Center
-* Tracking Links
-* Conversions
-* Commission Dashboard
-* Revenue Analytics
+* Tracking Links Center
+* Conversion Analytics Center
+* Revenue Analytics Center
+* Commission Analytics Center
 
 ### Cashback
 
@@ -255,13 +328,13 @@ Page
 
 ## Current Routes
 
-Public:
+### Public
 
 * /
 * /login
 * /register
 
-App:
+### App
 
 * /app
 * /app/orders
@@ -289,6 +362,7 @@ Total:
 * phase-14B-foundation-stable
 * phase-14B-ui-stable
 * phase-14B-complete
+* phase-15D-complete
 
 ---
 
@@ -301,6 +375,18 @@ Cashback:
 COMPLETE
 
 Notification:
+COMPLETE
+
+Click Analytics:
+COMPLETE
+
+Conversion Analytics:
+COMPLETE
+
+Revenue Analytics:
+COMPLETE
+
+Commission Analytics:
 COMPLETE
 
 All current routes:
@@ -329,11 +415,27 @@ Goal:
 * Shopee/TikTok-only ecosystem remains unchanged
 * Build foundation before UI
 
+Create:
+
+* src/types/profile.ts
+* src/lib/mock/profile.ts
+* src/repositories/profile.repository.ts
+* src/services/profile.service.ts
+* src/hooks/useProfileAsync.ts
+
+No route.
+
+No page.
+
+No UI.
+
+Data layer only.
+
 ---
 
 ## Notes
 
-The following architecture is now considered the source of truth:
+The following architecture is the source of truth:
 
 Page
 → Async Hook
@@ -355,6 +457,8 @@ Do not introduce:
 * Client-side fetching
 
 Notification domain is fully implemented.
+
+Analytics Center is fully implemented through Phase 15D.
 
 Working tree reconciled with roadmap.
 
