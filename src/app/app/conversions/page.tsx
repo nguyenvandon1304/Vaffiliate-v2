@@ -7,37 +7,28 @@ import ConversionStats from "@/features/conversions/ConversionStats";
 import ConversionTable from "@/features/conversions/ConversionTable";
 import ConversionTopLinksTable from "@/features/conversions/ConversionTopLinksTable";
 import ConversionTrendTable from "@/features/conversions/ConversionTrendTable";
-import { useAffiliateAsync } from "@/hooks/useAffiliateAsync";
-import { useClickAsync } from "@/hooks/useClickAsync";
+import { loadAffiliateAsync } from "@/hooks/loadAffiliateAsync";
+import { loadClickAsync } from "@/hooks/loadClickAsync";
+import {
+  formatDate,
+  formatVnd,
+  isApprovedStatus,
+  parseOrderValue,
+  parseRate,
+  supportedPlatforms,
+} from "@/lib/analytics/format";
 import type { ConversionStat, ConversionView, SupportedPlatformLabel } from "@/types/affiliate";
-import type { PlatformLabel } from "@/types/common";
-
-const supportedPlatforms: Partial<Record<PlatformLabel, SupportedPlatformLabel>> = {
-  Shopee: "Shopee",
-  "TikTok Shop": "TikTok Shop",
-};
-
-function formatVnd(amount: number): string {
-  return `${Math.round(amount).toLocaleString("de-DE")}đ`;
-}
 
 function computeCommission(orderValue: string, commissionRate: string): string {
-  const order = Number(orderValue.replace(/[^\d]/g, ""));
-  const rate = Number(commissionRate.replace(/[^\d.]/g, ""));
+  const order = parseOrderValue(orderValue);
+  const rate = parseRate(commissionRate);
   if (!Number.isFinite(order) || !Number.isFinite(rate)) return "—";
   return formatVnd((order * rate) / 100);
 }
 
-function formatDate(value: string): string {
-  const [datePart] = value.split("T");
-  const [year, month, day] = datePart.split("-");
-  if (!year || !month || !day) return value;
-  return `${day}/${month}/${year}`;
-}
-
 export default async function ConversionsPage() {
-  const { advertisers, campaigns, offers, trackingLinks, conversions } = await useAffiliateAsync();
-  const { clicks } = await useClickAsync();
+  const { advertisers, campaigns, offers, trackingLinks, conversions } = await loadAffiliateAsync();
+  const { clicks } = await loadClickAsync();
 
   const conversionViews: ConversionView[] = conversions.flatMap((conversion) => {
     const link = trackingLinks.find((item) => item.id === conversion.trackingLinkId);
@@ -72,7 +63,7 @@ export default async function ConversionsPage() {
 
   const shopeeCount = conversionViews.filter((item) => item.platform === "Shopee").length;
   const tiktokCount = conversionViews.filter((item) => item.platform === "TikTok Shop").length;
-  const approvedCount = conversionViews.filter((item) => item.status === "approved").length;
+  const approvedCount = conversionViews.filter((item) => isApprovedStatus(item.status)).length;
   const pendingCount = conversionViews.filter((item) => item.status === "pending").length;
   const rejectedCount = conversionViews.filter((item) => item.status === "rejected").length;
 
@@ -107,7 +98,7 @@ export default async function ConversionsPage() {
       return {
         platform,
         conversions: items.length,
-        approved: items.filter((item) => item.status === "approved").length,
+        approved: items.filter((item) => isApprovedStatus(item.status)).length,
         clicks: clickCount,
         conversionRate: platformRate,
       };

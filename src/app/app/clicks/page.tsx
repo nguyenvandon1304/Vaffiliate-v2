@@ -4,7 +4,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import ClickFilters from "@/features/clicks/ClickFilters";
 import ClickStats from "@/features/clicks/ClickStats";
 import ClickTable from "@/features/clicks/ClickTable";
-import { useClickAsync } from "@/hooks/useClickAsync";
+import { loadClickAsync } from "@/hooks/loadClickAsync";
 import type { ClickPlatform } from "@/types/click";
 
 const SUPPORTED_PLATFORMS: ClickPlatform[] = [
@@ -13,7 +13,7 @@ const SUPPORTED_PLATFORMS: ClickPlatform[] = [
 ];
 
 export default async function ClicksPage() {
-  const { clicks } = await useClickAsync();
+  const { clicks } = await loadClickAsync();
 
   const supportedClicks = clicks.filter((item) =>
     SUPPORTED_PLATFORMS.includes(item.platform)

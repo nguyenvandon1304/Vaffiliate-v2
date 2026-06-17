@@ -3,10 +3,10 @@ import AppSection from "@/components/layout/AppSection";
 import PageHeader from "@/components/layout/PageHeader";
 import OrdersFilters from "@/features/orders/OrdersFilters";
 import OrdersTable from "@/features/orders/OrdersTable";
-import { useOrdersAsync } from "@/hooks/useOrdersAsync";
+import { loadOrdersAsync } from "@/hooks/loadOrdersAsync";
 
 export default async function OrdersPage() {
-  const { filters, orders } = await useOrdersAsync();
+  const { filters, orders } = await loadOrdersAsync();
 
   const desktopContent = (
     <div className="space-y-6">

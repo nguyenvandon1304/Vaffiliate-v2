@@ -4,13 +4,13 @@ import PageHeader from "@/components/layout/PageHeader";
 import NotificationFilters from "@/features/notifications/NotificationFilters";
 import NotificationStats from "@/features/notifications/NotificationStats";
 import NotificationTable from "@/features/notifications/NotificationTable";
-import { useNotificationAsync } from "@/hooks/useNotificationAsync";
+import { loadNotificationAsync } from "@/hooks/loadNotificationAsync";
 import type { NotificationPlatform, NotificationStat } from "@/types/notification";
 
 const supportedPlatforms: NotificationPlatform[] = ["Shopee", "TikTok Shop"];
 
 export default async function NotificationsPage() {
-  const { notifications } = await useNotificationAsync();
+  const { notifications } = await loadNotificationAsync();
 
   const supportedNotifications = notifications.filter((item) =>
     supportedPlatforms.includes(item.platform)

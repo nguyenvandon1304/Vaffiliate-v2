@@ -4,7 +4,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import TrackingLinkFilters from "@/features/tracking-links/TrackingLinkFilters";
 import TrackingLinkStats from "@/features/tracking-links/TrackingLinkStats";
 import TrackingLinkTable from "@/features/tracking-links/TrackingLinkTable";
-import { useAffiliateAsync } from "@/hooks/useAffiliateAsync";
+import { loadAffiliateAsync } from "@/hooks/loadAffiliateAsync";
 import type { SupportedPlatformLabel, TrackingLinkStat, TrackingLinkView } from "@/types/affiliate";
 import type { PlatformLabel } from "@/types/common";
 
@@ -14,7 +14,7 @@ const supportedPlatforms: Partial<Record<PlatformLabel, SupportedPlatformLabel>>
 };
 
 export default async function TrackingLinksPage() {
-  const { advertisers, campaigns, offers, trackingLinks } = await useAffiliateAsync();
+  const { advertisers, campaigns, offers, trackingLinks } = await loadAffiliateAsync();
 
   const activeCampaignIds = new Set<string>();
 

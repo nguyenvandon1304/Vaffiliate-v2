@@ -5,7 +5,8 @@ import CashbackForm from "@/features/cashback/CashbackForm";
 import CashbackFilters from "@/features/cashback/CashbackFilters";
 import CashbackHistoryTable from "@/features/cashback/CashbackHistoryTable";
 import CashbackStats from "@/features/cashback/CashbackStats";
-import { useCashbackAsync } from "@/hooks/useCashbackAsync";
+import { loadCashbackAsync } from "@/hooks/loadCashbackAsync";
+import { isApprovedStatus } from "@/lib/analytics/format";
 import type { CashbackPlatformName, CashbackStat } from "@/types/cashback";
 
 const supportedPlatforms: CashbackPlatformName[] = ["Shopee", "TikTok Shop"];
@@ -19,14 +20,14 @@ function formatVnd(amount: number): string {
 }
 
 export default async function CashbackPage() {
-  const { history } = await useCashbackAsync();
+  const { history } = await loadCashbackAsync();
 
   const supportedHistory = history.filter((item) =>
     supportedPlatforms.includes(item.platform)
   );
 
   const available = supportedHistory
-    .filter((item) => item.status === "approved" || item.status === "paid")
+    .filter((item) => isApprovedStatus(item.status))
     .reduce((sum, item) => sum + parseAmount(item.amount), 0);
   const shopeeTotal = supportedHistory
     .filter((item) => item.platform === "Shopee")

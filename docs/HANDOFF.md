@@ -6,19 +6,22 @@ Project: Vaffiliate
 
 Architecture Version: V2 Async Architecture
 
-Current Phase: 15D Complete
+Current Phase: 15E Complete
 
 Current Stable Tag:
 phase-15D-complete
 
 Latest Verified Commit:
-0f276de
+0f276de (working tree ahead — 15E changes uncommitted)
 
 Build Status:
 PASS
 
 TypeScript:
 PASS
+
+Lint:
+PASS (0 errors)
 
 Route Status:
 All routes static (○)
@@ -46,7 +49,7 @@ PROJECT_STATE.md is the authoritative source.
 Mandatory flow:
 
 Page
-→ Async Hook
+→ Async Loader
 → Service
 → Repository
 → apiClient
@@ -107,7 +110,7 @@ Status: Complete
 Chain:
 
 Page
-→ useDashboardAsync
+→ loadDashboardAsync
 → dashboardService
 → dashboardRepository
 → apiClient
@@ -122,7 +125,7 @@ Status: Complete
 Chain:
 
 Page
-→ useOrdersAsync
+→ loadOrdersAsync
 → ordersService
 → ordersRepository
 → apiClient
@@ -137,7 +140,7 @@ Status: Complete
 Chain:
 
 Page
-→ useFinanceAsync
+→ loadFinanceAsync
 → financeService
 → financeRepository
 → apiClient
@@ -160,7 +163,7 @@ User is NOT an identity/profile domain.
 Chain:
 
 Page
-→ useUserAsync
+→ loadUserAsync
 → userService
 → userRepository
 → apiClient
@@ -175,7 +178,7 @@ Status: Complete
 Chain:
 
 Page
-→ useAffiliateAsync
+→ loadAffiliateAsync
 → affiliateService
 → affiliateRepository
 → apiClient
@@ -201,9 +204,9 @@ Affiliate remains the single source of truth for:
 
 Do NOT create:
 
-* useConversionAsync
-* useRevenueAsync
-* useCommissionAsync
+* loadConversionAsync
+* loadRevenueAsync
+* loadCommissionAsync
 
 Analytics must remain page-level compositions.
 
@@ -216,7 +219,7 @@ Status: Complete
 Chain:
 
 Page
-→ useCashbackAsync
+→ loadCashbackAsync
 → cashbackService
 → cashbackRepository
 → apiClient
@@ -231,7 +234,7 @@ Status: Complete
 Chain:
 
 Page
-→ useNotificationAsync
+→ loadNotificationAsync
 → notificationService
 → notificationRepository
 → apiClient
@@ -248,7 +251,7 @@ Standalone domain.
 Chain:
 
 Page
-→ useClickAsync
+→ loadClickAsync
 → clickService
 → clickRepository
 → apiClient
@@ -264,7 +267,7 @@ src/repositories/click.repository.ts
 
 src/services/click.service.ts
 
-src/hooks/useClickAsync.ts
+src/hooks/loadClickAsync.ts
 
 Route:
 
@@ -300,11 +303,11 @@ Complete
 
 Uses:
 
-useAffiliateAsync
+loadAffiliateAsync
 
 Additional data:
 
-useClickAsync
+loadClickAsync
 
 Components:
 
@@ -330,7 +333,7 @@ Complete
 
 Uses:
 
-useAffiliateAsync
+loadAffiliateAsync
 
 Components:
 
@@ -364,7 +367,7 @@ Complete
 
 Uses:
 
-useAffiliateAsync
+loadAffiliateAsync
 
 Components:
 
@@ -439,6 +442,58 @@ Do not split them into separate repositories/services/hooks.
 
 Keep aggregations inside page.tsx.
 
+### Phase 15E Stabilization Decisions
+
+Single async data flow (route level):
+
+No route uses the legacy sync hook path. The landing route / was migrated
+to loadDashboardAsync. All 15 routes now flow through Page → Async Loader →
+Service → Repository → apiClient → mock-backend.
+
+paid is treated as approved:
+
+The canonical predicate isApprovedStatus(status) in src/lib/analytics/format.ts
+is the single source for approved-bucket logic. Used by conversions, commission,
+and cashback. approved + pending + rejected = total now holds on every analytics
+page (previously the conversions page excluded paid).
+
+Shared analytics helpers:
+
+formatVnd, formatDate, parseRate, parseOrderValue, supportedPlatforms, and
+isApprovedStatus live in src/lib/analytics/format.ts. The commission, revenue,
+and conversions pages import them instead of redefining local copies.
+
+Joins and Map aggregations remain inline in each page.tsx (page-layer rule
+unchanged). Only the pure stateless helpers were extracted.
+
+Async loaders renamed:
+
+The 8 useXAsync loaders were renamed to loadXAsync (files included). They are
+server-side async data loaders, not React hooks, so the use* prefix was wrong
+and triggered react-hooks/rules-of-hooks lint errors. Renaming fixed all 14
+errors; lint now passes with 0 errors.
+
+Legacy sync architecture DELETED (Step 2, completed):
+
+The entire legacy sync data path is gone. Removed:
+
+* 5 sync hook files: useDashboard, useFinance, useOrders, useCashback, useUser
+* 5 *Service objects: dashboardService, financeService, ordersService,
+  cashbackService, userService (consumed only by the deleted sync hooks)
+* 5 get*DataService() sync wrappers in the service files
+* 5 sync get*Data() repository methods
+* sync helper getters: getDashboardSummary, getHomeMetrics, getHomeFeatures,
+  getHeroPreview, getQuickActions, getFinanceSummary, getFinanceTransactions,
+  getOrders, getOrderFilters, getCashbackPlatforms, getCashbackHistory,
+  getMoreMenuItems
+* the now-orphaned @/lib/mock imports in the dashboard/finance/orders/
+  cashback/user repositories
+
+Each service now exports only get*DataServiceAsync(); each repository exports
+only get*DataAsync() backed by apiClient. The "no direct mock imports" rule
+now holds at the file level, not just the route level. git grep confirms zero
+matches for the deleted symbols outside historical docs.
+
 ---
 
 ## Current Stable Tags
@@ -491,7 +546,7 @@ src/repositories/profile.repository.ts
 
 src/services/profile.service.ts
 
-src/hooks/useProfileAsync.ts
+src/hooks/loadProfileAsync.ts
 
 Phase Scope:
 
@@ -534,16 +589,24 @@ PASS
 TypeScript:
 PASS
 
+Lint:
+PASS (0 errors; 4 pre-existing unused-var warnings unrelated to 15E)
+
 Static Routes:
-PASS
+PASS (15/15 static, including / as async Server Component)
 
 Architecture:
-PASS
+PASS at file level — single async data flow only. Legacy sync path fully
+deleted; no direct @/lib/mock imports remain in the dashboard/finance/orders/
+cashback/user repositories. paid normalized across all analytics + cashback.
 
-No known architectural violations.
+Known remaining debt:
+None from the sync architecture — fully removed. Only 4 cosmetic unused-var
+lint warnings remain (revenue page totalCommission/totalConversions,
+CashbackForm upcomingPlatforms, CommissionCampaignTable Badge import).
 
 Last Reconciled State:
 
 phase-15D-complete
 
-commit 0f276de
+commit 0f276de (working tree ahead — 15E changes uncommitted)

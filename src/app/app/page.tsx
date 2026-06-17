@@ -2,10 +2,10 @@ import AppShell from "@/components/layout/AppShell";
 import DashboardHero from "@/features/dashboard/DashboardHero";
 import QuickActions from "@/features/dashboard/QuickActions";
 import RecentOrdersTable from "@/features/dashboard/RecentOrdersTable";
-import { useDashboardAsync } from "@/hooks/useDashboardAsync";
+import { loadDashboardAsync } from "@/hooks/loadDashboardAsync";
 
 export default async function AppDashboardPage() {
-  const dashboard = await useDashboardAsync();
+  const dashboard = await loadDashboardAsync();
 
   const desktopContent = (
     <div className="space-y-6">

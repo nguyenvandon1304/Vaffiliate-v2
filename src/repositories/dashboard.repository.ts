@@ -1,6 +1,5 @@
 import { apiClient } from "@/lib/api/client";
 import { API_ENDPOINTS } from "@/lib/constants/api";
-import { dashboardSummary, homeFeatures, homeMetrics, heroPreview, quickActions } from "@/lib/mock";
 import type { ApiResponse } from "@/types/api";
 import type {
   DashboardData,
@@ -11,46 +10,6 @@ import type {
   QuickAction,
 } from "@/types/dashboard";
 import type { RecentOrder } from "@/types/orders";
-import { recentOrders } from "@/lib/mock";
-
-export function getDashboardSummary() {
-  void API_ENDPOINTS.DASHBOARD.SUMMARY;
-  return dashboardSummary;
-}
-
-export function getHomeMetrics() {
-  void API_ENDPOINTS.DASHBOARD.METRICS;
-  return homeMetrics;
-}
-
-export function getHomeFeatures() {
-  void API_ENDPOINTS.DASHBOARD.FEATURES;
-  return homeFeatures;
-}
-
-export function getHeroPreview() {
-  void API_ENDPOINTS.DASHBOARD.HERO;
-  return heroPreview;
-}
-
-export function getQuickActions() {
-  void API_ENDPOINTS.DASHBOARD.QUICK_ACTIONS;
-  return quickActions;
-}
-
-export function getDashboardData(): DashboardData {
-  const summary = getDashboardSummary();
-  return {
-    summary,
-    metrics: getHomeMetrics(),
-    features: getHomeFeatures(),
-    hero: getHeroPreview(),
-    quickActions: getQuickActions(),
-    activePlatforms: summary.activePlatforms,
-    upcomingPlatforms: summary.upcomingPlatforms,
-    recentOrders,
-  };
-}
 
 export async function getDashboardDataAsync(): Promise<ApiResponse<DashboardData>> {
   const [summary, metrics, features, hero, quickActions, orders] = await Promise.all([

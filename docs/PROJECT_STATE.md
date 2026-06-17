@@ -3,7 +3,7 @@
 ## Current Status
 
 Current Phase:
-15D Complete
+15E Complete
 
 Last Stable Tag:
 phase-15D-complete
@@ -14,15 +14,18 @@ Route Count:
 Build Status:
 PASS
 
+Lint Status:
+PASS (0 errors)
+
 Last Verified Commit:
-0f276de
+0f276de (working tree ahead — 15E changes uncommitted)
 
 ---
 
 ## Current Architecture
 
 Page
-→ Async Hook
+→ Async Loader
 → Service
 → Repository
 → apiClient
@@ -55,7 +58,7 @@ Page
 Standalone domain.
 
 Page
-→ useClickAsync
+→ loadClickAsync
 → clickService
 → clickRepository
 → apiClient
@@ -65,7 +68,7 @@ Page
 
 Uses:
 
-useAffiliateAsync()
+loadAffiliateAsync()
 
 No dedicated repository.
 
@@ -79,7 +82,7 @@ Analytics are page-level aggregations.
 
 Uses:
 
-useAffiliateAsync()
+loadAffiliateAsync()
 
 No dedicated repository.
 
@@ -93,7 +96,7 @@ Analytics are page-level aggregations.
 
 Uses:
 
-useAffiliateAsync()
+loadAffiliateAsync()
 
 No dedicated repository.
 
@@ -105,9 +108,9 @@ Analytics are page-level aggregations.
 
 Do NOT create:
 
-* useConversionAsync
-* useRevenueAsync
-* useCommissionAsync
+* loadConversionAsync
+* loadRevenueAsync
+* loadCommissionAsync
 
 ---
 
@@ -157,6 +160,26 @@ approved + pending + rejected = total commission
 * Phase 15B Conversion Analytics Center Complete
 * Phase 15C Revenue Analytics Center Complete
 * Phase 15D Commission Analytics Center Complete
+
+### Stabilization
+
+* Phase 15E Architecture Stabilization Complete
+
+Done:
+
+* Landing route / migrated to async (loadDashboardAsync); no route uses the sync path
+* paid normalized as approved across conversions, commission, cashback (isApprovedStatus)
+* Pure analytics helpers extracted to src/lib/analytics/format.ts
+* Async loaders renamed useXAsync → loadXAsync (8 loaders + files); they are
+  server-side data loaders, not React hooks. Fixes react-hooks/rules-of-hooks
+  lint errors (was 14 errors; lint now passes with 0 errors).
+* Legacy sync architecture DELETED. Removed the 5 sync hook files
+  (useDashboard/useFinance/useOrders/useCashback/useUser), the 5 *Service
+  objects + get*DataService() sync wrappers, the sync get*Data() repository
+  methods, the sync helper getters (getDashboardSummary/getHomeMetrics/
+  getOrders/getCashbackPlatforms/getMoreMenuItems/etc.), and the now-orphaned
+  @/lib/mock imports in the dashboard/finance/orders/cashback/user repositories.
+  Single async path only.
 
 ---
 
@@ -247,7 +270,7 @@ Features:
 ### Dashboard
 
 Page
-→ useDashboardAsync
+→ loadDashboardAsync
 → dashboardService
 → dashboardRepository
 → apiClient
@@ -256,7 +279,7 @@ Page
 ### Orders
 
 Page
-→ useOrdersAsync
+→ loadOrdersAsync
 → ordersService
 → ordersRepository
 → apiClient
@@ -265,7 +288,7 @@ Page
 ### Finance
 
 Page
-→ useFinanceAsync
+→ loadFinanceAsync
 → financeService
 → financeRepository
 → apiClient
@@ -274,7 +297,7 @@ Page
 ### User
 
 Page
-→ useUserAsync
+→ loadUserAsync
 → userService
 → userRepository
 → apiClient
@@ -283,7 +306,7 @@ Page
 ### Affiliate
 
 Page
-→ useAffiliateAsync
+→ loadAffiliateAsync
 → affiliateService
 → affiliateRepository
 → apiClient
@@ -300,7 +323,7 @@ Consumers:
 ### Cashback
 
 Page
-→ useCashbackAsync
+→ loadCashbackAsync
 → cashbackService
 → cashbackRepository
 → apiClient
@@ -309,7 +332,7 @@ Page
 ### Notification
 
 Page
-→ useNotificationAsync
+→ loadNotificationAsync
 → notificationService
 → notificationRepository
 → apiClient
@@ -318,7 +341,7 @@ Page
 ### Click
 
 Page
-→ useClickAsync
+→ loadClickAsync
 → clickService
 → clickRepository
 → apiClient
@@ -398,7 +421,16 @@ PASS
 TypeScript:
 PASS
 
-No architectural violations detected.
+Lint:
+PASS (0 errors)
+
+Phase 15E note:
+Legacy sync data path fully deleted. Only the async path remains:
+Page → Async Loader → Service → Repository → apiClient → mock-backend.
+The 5 sync hooks, *Service objects, get*DataService() wrappers, sync
+get*Data() repository methods, sync helper getters, and orphaned @/lib/mock
+imports are all gone. "No direct mock imports" now holds at the file level,
+not just the route level.
 
 ---
 
@@ -409,7 +441,7 @@ Phase 16A Profile Foundation
 Goal:
 
 * Create Profile domain foundation
-* Follow Page → Async Hook → Service → Repository → apiClient → mock-backend
+* Follow Page → Async Loader → Service → Repository → apiClient → mock-backend
 * No second data path
 * Server Component first
 * Shopee/TikTok-only ecosystem remains unchanged
@@ -421,7 +453,7 @@ Create:
 * src/lib/mock/profile.ts
 * src/repositories/profile.repository.ts
 * src/services/profile.service.ts
-* src/hooks/useProfileAsync.ts
+* src/hooks/loadProfileAsync.ts
 
 No route.
 
@@ -438,7 +470,7 @@ Data layer only.
 The following architecture is the source of truth:
 
 Page
-→ Async Hook
+→ Async Loader
 → Service
 → Repository
 → apiClient
@@ -459,6 +491,17 @@ Do not introduce:
 Notification domain is fully implemented.
 
 Analytics Center is fully implemented through Phase 15D.
+
+Phase 15E (Stabilization) is complete:
+* `/` migrated to the async data path (no route uses sync hooks).
+* `paid` is now treated as `approved` across all analytics pages and cashback,
+  via the single shared predicate `isApprovedStatus` in src/lib/analytics/format.ts.
+* Pure helpers (formatVnd/formatDate/parseRate/parseOrderValue/supportedPlatforms)
+  extracted to src/lib/analytics/format.ts; joins and aggregations remain in the page layer.
+* Async loaders renamed useXAsync → loadXAsync (server loaders, not React hooks).
+* Legacy sync architecture fully deleted (5 sync hooks, *Service objects,
+  get*DataService() wrappers, sync get*Data() repo methods, sync helper getters,
+  orphaned @/lib/mock imports). Single async path only.
 
 Working tree reconciled with roadmap.
 

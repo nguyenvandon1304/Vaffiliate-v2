@@ -6,38 +6,21 @@ import CommissionPlatformBreakdown from "@/features/commission/CommissionPlatfor
 import CommissionStats from "@/features/commission/CommissionStats";
 import CommissionTopLinksTable from "@/features/commission/CommissionTopLinksTable";
 import CommissionTrendTable from "@/features/commission/CommissionTrendTable";
-import { useAffiliateAsync } from "@/hooks/useAffiliateAsync";
+import { loadAffiliateAsync } from "@/hooks/loadAffiliateAsync";
+import {
+  formatDate,
+  formatVnd,
+  isApprovedStatus,
+  parseOrderValue,
+  parseRate,
+  supportedPlatforms,
+} from "@/lib/analytics/format";
 import type {
   CampaignCommission,
   CommissionStat,
   ConversionStatus,
   SupportedPlatformLabel,
 } from "@/types/affiliate";
-import type { PlatformLabel } from "@/types/common";
-
-const supportedPlatforms: Partial<Record<PlatformLabel, SupportedPlatformLabel>> = {
-  Shopee: "Shopee",
-  "TikTok Shop": "TikTok Shop",
-};
-
-function formatVnd(amount: number): string {
-  return `${Math.round(amount).toLocaleString("de-DE")}đ`;
-}
-
-function parseOrderValue(orderValue: string): number {
-  return Number(orderValue.replace(/[^\d]/g, ""));
-}
-
-function parseRate(commissionRate: string): number {
-  return Number(commissionRate.replace(/[^\d.]/g, ""));
-}
-
-function formatDate(value: string): string {
-  const [datePart] = value.split("T");
-  const [year, month, day] = datePart.split("-");
-  if (!year || !month || !day) return value;
-  return `${day}/${month}/${year}`;
-}
 
 type CommissionRow = {
   platform: SupportedPlatformLabel;
@@ -59,7 +42,7 @@ type CommissionPlatformAnalytics = {
 };
 
 export default async function CommissionPage() {
-  const { advertisers, campaigns, offers, trackingLinks, conversions } = await useAffiliateAsync();
+  const { advertisers, campaigns, offers, trackingLinks, conversions } = await loadAffiliateAsync();
 
   const rows: CommissionRow[] = conversions.flatMap((conversion) => {
     const link = trackingLinks.find((item) => item.id === conversion.trackingLinkId);
@@ -91,7 +74,7 @@ export default async function CommissionPage() {
 
   const totalCommission = rows.reduce((sum, row) => sum + row.commission, 0);
   const approvedTotal = rows
-    .filter((row) => row.status === "approved" || row.status === "paid")
+    .filter((row) => isApprovedStatus(row.status))
     .reduce((sum, row) => sum + row.commission, 0);
   const pendingTotal = rows
     .filter((row) => row.status === "pending")
@@ -118,7 +101,7 @@ export default async function CommissionPage() {
     const p =
       platformTotals.get(row.platform) ?? { total: 0, approved: 0, pending: 0, rejected: 0 };
     p.total += row.commission;
-    if (row.status === "approved" || row.status === "paid") p.approved += row.commission;
+    if (isApprovedStatus(row.status)) p.approved += row.commission;
     else if (row.status === "pending") p.pending += row.commission;
     else if (row.status === "rejected") p.rejected += row.commission;
     platformTotals.set(row.platform, p);

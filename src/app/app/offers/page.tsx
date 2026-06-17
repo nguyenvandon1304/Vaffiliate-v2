@@ -4,7 +4,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import OfferFilters from "@/features/offers/OfferFilters";
 import OfferStats from "@/features/offers/OfferStats";
 import OfferTable from "@/features/offers/OfferTable";
-import { useAffiliateAsync } from "@/hooks/useAffiliateAsync";
+import { loadAffiliateAsync } from "@/hooks/loadAffiliateAsync";
 import type { OfferPlatform, OfferStat, OfferView } from "@/types/affiliate";
 import type { PlatformLabel } from "@/types/common";
 
@@ -19,7 +19,7 @@ const platformFilterLabels: Record<OfferPlatform, string> = {
 };
 
 export default async function OffersPage() {
-  const { advertisers, campaigns, offers } = await useAffiliateAsync();
+  const { advertisers, campaigns, offers } = await loadAffiliateAsync();
 
   const offerViews: OfferView[] = offers.flatMap((offer) => {
     const campaign = campaigns.find((item) => item.id === offer.campaignId);

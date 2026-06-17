@@ -4,10 +4,10 @@ import PageHeader from "@/components/layout/PageHeader";
 import FinanceSummary from "@/features/finance/FinanceSummary";
 import TransactionHistory from "@/features/finance/TransactionHistory";
 import WithdrawCard from "@/features/finance/WithdrawCard";
-import { useFinanceAsync } from "@/hooks/useFinanceAsync";
+import { loadFinanceAsync } from "@/hooks/loadFinanceAsync";
 
 export default async function FinancePage() {
-  const { summary, transactions } = await useFinanceAsync();
+  const { summary, transactions } = await loadFinanceAsync();
 
   const desktopContent = (
     <div className="space-y-6">

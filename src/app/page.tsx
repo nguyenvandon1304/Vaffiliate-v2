@@ -1,9 +1,9 @@
 import Link from "next/link";
 import BrandLogo from "@/components/shared/BrandLogo";
-import { useDashboard } from "@/hooks/useDashboard";
+import { loadDashboardAsync } from "@/hooks/loadDashboardAsync";
 
-export default function Home() {
-  const dashboard = useDashboard();
+export default async function Home() {
+  const dashboard = await loadDashboardAsync();
 
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 sm:py-8">

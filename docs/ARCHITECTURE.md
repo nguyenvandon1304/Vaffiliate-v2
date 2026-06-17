@@ -3,7 +3,7 @@
 ## Core Data Flow
 
 Page
-→ Async Hook
+→ Async Loader
 → Service
 → Repository
 → apiClient
@@ -34,7 +34,7 @@ Page
 ### Dashboard
 
 Page
-→ useDashboardAsync
+→ loadDashboardAsync
 → dashboardService
 → dashboardRepository
 → apiClient
@@ -43,7 +43,7 @@ Page
 ### Orders
 
 Page
-→ useOrdersAsync
+→ loadOrdersAsync
 → ordersService
 → ordersRepository
 → apiClient
@@ -52,7 +52,7 @@ Page
 ### Finance
 
 Page
-→ useFinanceAsync
+→ loadFinanceAsync
 → financeService
 → financeRepository
 → apiClient
@@ -61,7 +61,7 @@ Page
 ### User
 
 Page
-→ useUserAsync
+→ loadUserAsync
 → userService
 → userRepository
 → apiClient
@@ -70,7 +70,7 @@ Page
 ### Affiliate
 
 Page
-→ useAffiliateAsync
+→ loadAffiliateAsync
 → affiliateService
 → affiliateRepository
 → apiClient
@@ -87,7 +87,7 @@ Features:
 ### Cashback
 
 Page
-→ useCashbackAsync
+→ loadCashbackAsync
 → cashbackService
 → cashbackRepository
 → apiClient
@@ -96,7 +96,7 @@ Page
 ### Notification
 
 Page
-→ useNotificationAsync
+→ loadNotificationAsync
 → notificationService
 → notificationRepository
 → apiClient

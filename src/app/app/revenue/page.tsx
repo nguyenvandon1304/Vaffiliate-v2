@@ -7,7 +7,14 @@ import RevenuePlatformBreakdown from "@/features/revenue/RevenuePlatformBreakdow
 import RevenueStats from "@/features/revenue/RevenueStats";
 import RevenueTopLinksTable from "@/features/revenue/RevenueTopLinksTable";
 import RevenueTrendTable from "@/features/revenue/RevenueTrendTable";
-import { useAffiliateAsync } from "@/hooks/useAffiliateAsync";
+import { loadAffiliateAsync } from "@/hooks/loadAffiliateAsync";
+import {
+  formatDate,
+  formatVnd,
+  parseOrderValue,
+  parseRate,
+  supportedPlatforms,
+} from "@/lib/analytics/format";
 import type {
   RevenueCampaign,
   RevenueOffer,
@@ -15,31 +22,6 @@ import type {
   RevenueStat,
   SupportedPlatformLabel,
 } from "@/types/affiliate";
-import type { PlatformLabel } from "@/types/common";
-
-const supportedPlatforms: Partial<Record<PlatformLabel, SupportedPlatformLabel>> = {
-  Shopee: "Shopee",
-  "TikTok Shop": "TikTok Shop",
-};
-
-function formatVnd(amount: number): string {
-  return `${Math.round(amount).toLocaleString("de-DE")}đ`;
-}
-
-function parseOrderValue(orderValue: string): number {
-  return Number(orderValue.replace(/[^\d]/g, ""));
-}
-
-function parseRate(commissionRate: string): number {
-  return Number(commissionRate.replace(/[^\d.]/g, ""));
-}
-
-function formatDate(value: string): string {
-  const [datePart] = value.split("T");
-  const [year, month, day] = datePart.split("-");
-  if (!year || !month || !day) return value;
-  return `${day}/${month}/${year}`;
-}
 
 type RevenueRow = {
   platform: SupportedPlatformLabel;
@@ -58,7 +40,7 @@ type RevenuePlatformAnalytics = RevenuePlatform & {
 };
 
 export default async function RevenuePage() {
-  const { advertisers, campaigns, offers, trackingLinks, conversions } = await useAffiliateAsync();
+  const { advertisers, campaigns, offers, trackingLinks, conversions } = await loadAffiliateAsync();
 
   const rows: RevenueRow[] = conversions.flatMap((conversion) => {
     const link = trackingLinks.find((item) => item.id === conversion.trackingLinkId);

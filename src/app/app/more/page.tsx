@@ -3,10 +3,10 @@ import AppSection from "@/components/layout/AppSection";
 import PageHeader from "@/components/layout/PageHeader";
 import MembershipCard from "@/features/more/MembershipCard";
 import MoreMenuGrid from "@/features/more/MoreMenuGrid";
-import { useUserAsync } from "@/hooks/useUserAsync";
+import { loadUserAsync } from "@/hooks/loadUserAsync";
 
 export default async function MorePage() {
-  const { menuItems } = await useUserAsync();
+  const { menuItems } = await loadUserAsync();
 
   const desktopContent = (
     <div className="space-y-6">
