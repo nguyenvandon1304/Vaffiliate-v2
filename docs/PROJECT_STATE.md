@@ -3,13 +3,13 @@
 ## Current Status
 
 Current Phase:
-16A Complete
+16B Complete
 
 Last Stable Tag:
-phase-15D-complete
+phase-16A-complete
 
 Route Count:
-15
+16
 
 Build Status:
 PASS
@@ -18,7 +18,7 @@ Lint Status:
 PASS (0 errors)
 
 Last Verified Commit:
-885dc0c (phase-15E committed; 16A changes uncommitted)
+phase-16A-complete (16B changes uncommitted)
 
 ---
 
@@ -265,17 +265,30 @@ Features:
 
 ### Profile
 
-Status: Foundation Complete (data layer only)
+Status: Complete (data layer + UI)
 
 Standalone domain. NOT part of User. Owns identity + payout account.
 
-No route. No page. No UI yet.
+Route: /app/profile (static ○, async Server Component).
+
+Reuses loadProfileAsync — no new data layer added in 16B.
 
 Features (data layer):
 
 * Profile identity (name, email, phone, avatar, member tier, joined date)
 * Preferred platforms (Shopee / TikTok Shop)
 * Payout account
+
+UI components (presentational, props-driven):
+
+* ProfileHeader (initials avatar from fullName; avatarUrl not rendered yet)
+* ProfileInfoCard (name, email, phone, joined date — read-only)
+* PayoutAccountCard (method, provider, account number, holder — read-only)
+* ProfileStatsCard (preferred platforms count, member tier, joined year —
+  derived in page layer)
+
+Not built (deferred): edit form, avatar upload, payout editing, withdrawal,
+membership, referral, settings.
 
 ---
 
@@ -363,8 +376,8 @@ Page
 
 ### Profile
 
-(no page yet — data layer only)
-loadProfileAsync
+Page (/app/profile)
+→ loadProfileAsync
 → getProfileDataServiceAsync
 → profileRepository (getProfileDataAsync)
 → apiClient
@@ -394,9 +407,10 @@ loadProfileAsync
 * /app/cashback
 * /app/notifications
 * /app/clicks
+* /app/profile
 
 Total:
-15 routes
+16 routes
 
 ---
 
@@ -459,27 +473,20 @@ not just the route level.
 
 ## Next Planned Phase
 
-Phase 16B Profile UI
+Phase 16C (Profile — next increment)
 
 Status: Not Started (do not begin without approval)
 
-Goal:
+16B Profile UI is complete:
 
-* Build the Profile UI on top of the 16A data foundation
-* Follow Page → Async Loader → Service → Repository → apiClient → mock-backend
-* Reuse loadProfileAsync (do not create a second data path)
-* Server Component first
-* Shopee/TikTok-only ecosystem remains unchanged
+* Route /app/profile (static ○, async Server Component)
+* Page reuses loadProfileAsync — no second data path
+* Components: ProfileHeader, ProfileInfoCard, PayoutAccountCard, ProfileStatsCard
+  (presentational, props-driven, in src/features/profile/)
+* Stats derived in page layer (preferred platforms count, member tier, joined year)
 
-16A Profile Foundation is complete (data layer only):
-
-* src/types/profile.ts
-* src/lib/mock/profile.ts
-* src/repositories/profile.repository.ts
-* src/services/profile.service.ts
-* src/hooks/loadProfileAsync.ts
-
-No route / page / UI was created in 16A.
+Deferred to a later phase: edit profile form, avatar upload, payout editing,
+withdrawal, membership, referral, settings, and Profile navigation entry.
 
 ---
 
@@ -526,6 +533,9 @@ Working tree reconciled with roadmap.
 Phase 16A Profile Foundation is complete (data layer only — standalone Profile
 domain, not part of User).
 
+Phase 16B Profile UI is complete (route /app/profile + presentational
+components, reusing loadProfileAsync; no new data layer).
+
 Next milestone:
 
-Phase 16B Profile UI.
+Phase 16C (Profile — next increment).

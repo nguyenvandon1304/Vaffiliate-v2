@@ -6,13 +6,13 @@ Project: Vaffiliate
 
 Architecture Version: V2 Async Architecture
 
-Current Phase: 16A Complete
+Current Phase: 16B Complete
 
 Current Stable Tag:
-phase-15D-complete
+phase-16A-complete
 
 Latest Verified Commit:
-885dc0c (phase-15E committed; 16A changes uncommitted)
+phase-16A-complete (16B changes uncommitted)
 
 Build Status:
 PASS
@@ -27,7 +27,7 @@ Route Status:
 All routes static (○)
 
 Total Routes:
-15
+16
 
 ---
 
@@ -95,9 +95,10 @@ App Routes
 /app/cashback
 /app/notifications
 /app/clicks
+/app/profile
 
 Total:
-15 routes
+16 routes
 
 ---
 
@@ -277,7 +278,7 @@ Route:
 
 ### Profile
 
-Status: Foundation Complete (data layer only)
+Status: Complete (data layer + UI)
 
 Standalone domain. NOT part of User.
 
@@ -287,13 +288,14 @@ platforms, and payout account.
 
 Chain:
 
-loadProfileAsync
+Page (/app/profile)
+→ loadProfileAsync
 → getProfileDataServiceAsync
 → profileRepository (getProfileDataAsync)
 → apiClient
 → mock-backend
 
-Files:
+Data layer files (16A — reused, unchanged):
 
 src/types/profile.ts
 
@@ -305,6 +307,18 @@ src/services/profile.service.ts
 
 src/hooks/loadProfileAsync.ts
 
+UI files (16B):
+
+src/app/app/profile/page.tsx (async Server Component, static ○)
+
+src/features/profile/ProfileHeader.tsx
+
+src/features/profile/ProfileInfoCard.tsx
+
+src/features/profile/PayoutAccountCard.tsx
+
+src/features/profile/ProfileStatsCard.tsx
+
 Endpoints:
 
 /profile/detail
@@ -312,12 +326,22 @@ Endpoints:
 
 Route:
 
-None (no page, no UI — data layer only).
+/app/profile (static ○)
 
-Note:
+Notes:
 
-profile.service.ts follows the 15E-cleaned convention: it exports only the
-standalone getProfileDataServiceAsync(), no service object.
+* profile.service.ts follows the 15E-cleaned convention: it exports only the
+  standalone getProfileDataServiceAsync(), no service object.
+* 16B added UI only. No new loader/service/repository/mock; the page reuses
+  loadProfileAsync(). Single data path preserved.
+* Components are presentational and props-driven (no data loading, no
+  "use client"). ProfileStatsCard values are derived in the page layer.
+* ProfileHeader renders an initials avatar from fullName; profile.avatarUrl is
+  kept in the data model but not rendered yet (no public asset added in 16B).
+* Profile is reachable by URL only — no navigation entry was added (out of
+  16B scope).
+* Not built (deferred): edit form, avatar upload, payout editing, withdrawal,
+  membership, referral, settings.
 
 ---
 
@@ -612,9 +636,30 @@ No UI.
 
 No profile screen yet.
 
+---
+
+### Phase 16B — Profile UI
+
+Status:
+Complete
+
+Delivered:
+
+* Route /app/profile (async Server Component, static ○)
+* Page reuses loadProfileAsync — no new data layer, single data path
+* Components in src/features/profile/ (presentational, props-driven):
+  ProfileHeader, ProfileInfoCard, PayoutAccountCard, ProfileStatsCard
+* ProfileStatsCard values derived in the page layer
+* Initials avatar from fullName (avatarUrl kept in model, not rendered)
+* No navigation entry added (out of scope)
+
+Not built (deferred): edit form, avatar upload, payout editing, withdrawal,
+membership, referral, settings.
+
 Next:
 
-Phase 16B (Profile UI) — not started. Do not begin without approval.
+Phase 16C (Profile — next increment) — not started. Do not begin without
+approval.
 
 ---
 
