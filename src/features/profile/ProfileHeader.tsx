@@ -1,3 +1,4 @@
+import Image from "next/image";
 import type { Profile } from "@/types/profile";
 
 type ProfileHeaderProps = {
@@ -13,13 +14,25 @@ function getInitials(fullName: string): string {
 }
 
 export default function ProfileHeader({ profile }: ProfileHeaderProps) {
+  const avatarContent = profile.avatarUrl ? (
+    <Image
+      src={profile.avatarUrl}
+      alt={`${profile.fullName} avatar`}
+      width={64}
+      height={64}
+      className="h-full w-full rounded-full object-cover"
+    />
+  ) : (
+    getInitials(profile.fullName)
+  );
+
   return (
     <div className="surface-card flex items-center gap-4 bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-6">
       <div
         aria-hidden
-        className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--brand),var(--accent))] text-xl font-semibold text-white shadow-[var(--shadow-sm)]"
+        className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[linear-gradient(135deg,var(--brand),var(--accent))] text-xl font-semibold text-white shadow-[var(--shadow-sm)]"
       >
-        {getInitials(profile.fullName)}
+        {avatarContent}
       </div>
       <div className="min-w-0">
         <p className="truncate text-xl font-semibold tracking-[-0.03em] text-[color:var(--text)]">

@@ -16,12 +16,11 @@ import {
   notifications,
   offers,
   orderFilters,
-  payoutAccount,
-  profile,
   quickActions,
   recentOrders,
   trackingLinks,
 } from "@/lib/mock";
+import { getMockProfile, updateMockPayoutAccount, updateMockProfile } from "@/lib/mock/profile-store";
 
 const backend: Record<string, () => unknown> = {
   [API_ENDPOINTS.DASHBOARD.SUMMARY]: () => dashboardSummary,
@@ -43,8 +42,10 @@ const backend: Record<string, () => unknown> = {
   [API_ENDPOINTS.AFFILIATE.CONVERSIONS]: () => conversions,
   [API_ENDPOINTS.NOTIFICATION.LIST]: () => notifications,
   [API_ENDPOINTS.CLICK.LIST]: () => clicks,
-  [API_ENDPOINTS.PROFILE.DETAIL]: () => profile,
-  [API_ENDPOINTS.PROFILE.PAYOUT_ACCOUNT]: () => payoutAccount,
+  [API_ENDPOINTS.PROFILE.DETAIL]: () => getMockProfile(),
+  [API_ENDPOINTS.PROFILE.PAYOUT_ACCOUNT]: () => getMockProfile().payoutAccount,
+  [API_ENDPOINTS.PROFILE.UPDATE]: (body?: unknown) => updateMockProfile(body as never),
+  [API_ENDPOINTS.PROFILE.PAYOUT_UPDATE]: (body?: unknown) => updateMockPayoutAccount(body as never),
 };
 
 export function resolveMockEndpoint(endpoint: string): unknown {

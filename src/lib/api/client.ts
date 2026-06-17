@@ -5,18 +5,33 @@ const ok = <T>(data: T): Promise<ApiResponse<T>> =>
   Promise.resolve({ success: true, data });
 
 export const apiClient = {
-  get: async <T>(endpoint: string): Promise<ApiResponse<T>> =>
-    ok(resolveMockEndpoint(endpoint) as T),
-  post: async <T>(endpoint: string, body: T): Promise<ApiResponse<T>> => {
-    void endpoint;
-    return ok(body);
+  get: async <TResponse>(endpoint: string): Promise<ApiResponse<TResponse>> =>
+    ok(resolveMockEndpoint(endpoint) as TResponse),
+  post: async <TResponse, TBody = unknown>(
+    endpoint: string,
+    body: TBody,
+  ): Promise<ApiResponse<TResponse>> => {
+    if (typeof resolveMockEndpoint(endpoint) !== "undefined") {
+      return ok(resolveMockEndpoint(endpoint) as TResponse);
+    }
+    void body;
+    return ok(body as unknown as TResponse);
   },
-  put: async <T>(endpoint: string, body: T): Promise<ApiResponse<T>> => {
-    void endpoint;
-    return ok(body);
+  put: async <TResponse, TBody = unknown>(
+    endpoint: string,
+    body: TBody,
+  ): Promise<ApiResponse<TResponse>> => {
+    if (typeof resolveMockEndpoint(endpoint) !== "undefined") {
+      return ok(resolveMockEndpoint(endpoint) as TResponse);
+    }
+    void body;
+    return ok(body as unknown as TResponse);
   },
-  delete: async <T>(endpoint: string, body: T): Promise<ApiResponse<T>> => {
+  delete: async <TResponse, TBody = unknown>(
+    endpoint: string,
+    body: TBody,
+  ): Promise<ApiResponse<TResponse>> => {
     void endpoint;
-    return ok(body);
+    return ok(body as unknown as TResponse);
   },
 };

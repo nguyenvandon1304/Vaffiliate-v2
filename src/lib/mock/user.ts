@@ -10,6 +10,10 @@ export const moreMenuItems: MoreMenuItem[] = [
   { title: "Cấp bậc & quyền lợi", subtitle: "Theo dõi cấp bậc và quyền lợi hoàn tiền." },
   { title: "Hướng dẫn nhận hoàn tiền", subtitle: "Các bước lấy link và mua hàng đúng cách." },
   { title: "Điều kiện đơn hợp lệ", subtitle: "Những trường hợp đơn được ghi nhận hoặc bị từ chối." },
-  { title: "Hồ sơ", subtitle: "Thông tin cá nhân và tài khoản nhận tiền." },
+  {
+    title: "Hồ sơ",
+    subtitle: "Thông tin cá nhân và tài khoản nhận tiền.",
+    href: "/app/profile",
+  },
   { title: "Cài đặt", subtitle: "Thông báo, bảo mật và tuỳ chọn ứng dụng." },
 ];

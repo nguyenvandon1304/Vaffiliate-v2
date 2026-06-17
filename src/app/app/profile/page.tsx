@@ -1,8 +1,10 @@
+import Link from "next/link";
 import AppShell from "@/components/layout/AppShell";
 import AppSection from "@/components/layout/AppSection";
 import PageHeader from "@/components/layout/PageHeader";
 import ProfileHeader from "@/features/profile/ProfileHeader";
 import ProfileInfoCard from "@/features/profile/ProfileInfoCard";
+import ProfileManagementPanel from "@/features/profile/ProfileManagementPanel";
 import PayoutAccountCard from "@/features/profile/PayoutAccountCard";
 import ProfileStatsCard from "@/features/profile/ProfileStatsCard";
 import { loadProfileAsync } from "@/hooks/loadProfileAsync";
@@ -20,6 +22,7 @@ export default async function ProfilePage() {
         <ProfileInfoCard profile={profile} />
         <PayoutAccountCard payoutAccount={profile.payoutAccount} />
       </section>
+      <ProfileManagementPanel profile={profile} />
       <ProfileStatsCard
         preferredPlatformsCount={preferredPlatformsCount}
         memberTier={profile.memberTier}
@@ -39,6 +42,14 @@ export default async function ProfilePage() {
           }
           title="Hồ sơ"
           description="Thông tin cá nhân và tài khoản nhận hoàn tiền của bạn."
+          trailing={
+            <Link
+              href="#profile-edit"
+              className="rounded-[var(--radius-lg)] bg-[color:var(--brand)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow-sm)]"
+            >
+              Chỉnh sửa
+            </Link>
+          }
         />
       </AppSection>
       <AppSection className="mb-4">
@@ -46,6 +57,9 @@ export default async function ProfilePage() {
       </AppSection>
       <AppSection className="mb-4">
         <ProfileInfoCard profile={profile} />
+      </AppSection>
+      <AppSection className="mb-4">
+        <ProfileManagementPanel profile={profile} />
       </AppSection>
       <AppSection className="mb-4">
         <PayoutAccountCard payoutAccount={profile.payoutAccount} />
