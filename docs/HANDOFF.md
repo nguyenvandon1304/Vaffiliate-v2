@@ -6,13 +6,13 @@ Project: Vaffiliate
 
 Architecture Version: V2 Async Architecture
 
-Current Phase: 15E Complete
+Current Phase: 16A Complete
 
 Current Stable Tag:
 phase-15D-complete
 
 Latest Verified Commit:
-0f276de (working tree ahead — 15E changes uncommitted)
+885dc0c (phase-15E committed; 16A changes uncommitted)
 
 Build Status:
 PASS
@@ -275,6 +275,52 @@ Route:
 
 ---
 
+### Profile
+
+Status: Foundation Complete (data layer only)
+
+Standalone domain. NOT part of User.
+
+User owns: More menu + navigation items.
+Profile owns: identity, avatar, email, phone, member tier, preferred
+platforms, and payout account.
+
+Chain:
+
+loadProfileAsync
+→ getProfileDataServiceAsync
+→ profileRepository (getProfileDataAsync)
+→ apiClient
+→ mock-backend
+
+Files:
+
+src/types/profile.ts
+
+src/lib/mock/profile.ts
+
+src/repositories/profile.repository.ts
+
+src/services/profile.service.ts
+
+src/hooks/loadProfileAsync.ts
+
+Endpoints:
+
+/profile/detail
+/profile/payout-account
+
+Route:
+
+None (no page, no UI — data layer only).
+
+Note:
+
+profile.service.ts follows the 15E-cleaned convention: it exports only the
+standalone getProfileDataServiceAsync(), no service object.
+
+---
+
 ## Analytics Centers
 
 ### Phase 15A — Click Analytics Center
@@ -519,7 +565,7 @@ phase-15D-complete
 ### Phase 16A — Profile Foundation
 
 Status:
-Not Started
+Complete (data layer only)
 
 Architecture Decision:
 
@@ -536,7 +582,7 @@ Profile owns:
 * Personal information
 * Payout account information
 
-Planned Files:
+Created Files:
 
 src/types/profile.ts
 
@@ -548,7 +594,13 @@ src/services/profile.service.ts
 
 src/hooks/loadProfileAsync.ts
 
-Phase Scope:
+Wiring (shared infra, additive):
+
+src/lib/mock/index.ts (barrel export added)
+src/lib/constants/api.ts (PROFILE endpoints added)
+src/lib/api/mock-backend.ts (PROFILE handlers added)
+
+Phase Scope (delivered):
 
 Data layer only.
 
@@ -559,6 +611,10 @@ No page.
 No UI.
 
 No profile screen yet.
+
+Next:
+
+Phase 16B (Profile UI) — not started. Do not begin without approval.
 
 ---
 

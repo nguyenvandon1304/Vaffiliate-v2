@@ -6,3 +6,4 @@ export * from "./user";
 export * from "./affiliate";
 export * from "./notification";
 export * from "./click";
+export * from "./profile";

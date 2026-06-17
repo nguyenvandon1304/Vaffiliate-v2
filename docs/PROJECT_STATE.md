@@ -3,7 +3,7 @@
 ## Current Status
 
 Current Phase:
-15E Complete
+16A Complete
 
 Last Stable Tag:
 phase-15D-complete
@@ -18,7 +18,7 @@ Lint Status:
 PASS (0 errors)
 
 Last Verified Commit:
-0f276de (working tree ahead — 15E changes uncommitted)
+885dc0c (phase-15E committed; 16A changes uncommitted)
 
 ---
 
@@ -263,6 +263,20 @@ Features:
 * Click Filters
 * Click List
 
+### Profile
+
+Status: Foundation Complete (data layer only)
+
+Standalone domain. NOT part of User. Owns identity + payout account.
+
+No route. No page. No UI yet.
+
+Features (data layer):
+
+* Profile identity (name, email, phone, avatar, member tier, joined date)
+* Preferred platforms (Shopee / TikTok Shop)
+* Payout account
+
 ---
 
 ## Existing Async Domains
@@ -344,6 +358,15 @@ Page
 → loadClickAsync
 → clickService
 → clickRepository
+→ apiClient
+→ mock-backend
+
+### Profile
+
+(no page yet — data layer only)
+loadProfileAsync
+→ getProfileDataServiceAsync
+→ profileRepository (getProfileDataAsync)
 → apiClient
 → mock-backend
 
@@ -436,18 +459,19 @@ not just the route level.
 
 ## Next Planned Phase
 
-Phase 16A Profile Foundation
+Phase 16B Profile UI
+
+Status: Not Started (do not begin without approval)
 
 Goal:
 
-* Create Profile domain foundation
+* Build the Profile UI on top of the 16A data foundation
 * Follow Page → Async Loader → Service → Repository → apiClient → mock-backend
-* No second data path
+* Reuse loadProfileAsync (do not create a second data path)
 * Server Component first
 * Shopee/TikTok-only ecosystem remains unchanged
-* Build foundation before UI
 
-Create:
+16A Profile Foundation is complete (data layer only):
 
 * src/types/profile.ts
 * src/lib/mock/profile.ts
@@ -455,13 +479,7 @@ Create:
 * src/services/profile.service.ts
 * src/hooks/loadProfileAsync.ts
 
-No route.
-
-No page.
-
-No UI.
-
-Data layer only.
+No route / page / UI was created in 16A.
 
 ---
 
@@ -505,6 +523,9 @@ Phase 15E (Stabilization) is complete:
 
 Working tree reconciled with roadmap.
 
+Phase 16A Profile Foundation is complete (data layer only — standalone Profile
+domain, not part of User).
+
 Next milestone:
 
-Phase 16A Profile Foundation.
+Phase 16B Profile UI.

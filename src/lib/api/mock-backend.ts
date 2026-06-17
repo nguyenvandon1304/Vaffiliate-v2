@@ -16,6 +16,8 @@ import {
   notifications,
   offers,
   orderFilters,
+  payoutAccount,
+  profile,
   quickActions,
   recentOrders,
   trackingLinks,
@@ -41,6 +43,8 @@ const backend: Record<string, () => unknown> = {
   [API_ENDPOINTS.AFFILIATE.CONVERSIONS]: () => conversions,
   [API_ENDPOINTS.NOTIFICATION.LIST]: () => notifications,
   [API_ENDPOINTS.CLICK.LIST]: () => clicks,
+  [API_ENDPOINTS.PROFILE.DETAIL]: () => profile,
+  [API_ENDPOINTS.PROFILE.PAYOUT_ACCOUNT]: () => payoutAccount,
 };
 
 export function resolveMockEndpoint(endpoint: string): unknown {
