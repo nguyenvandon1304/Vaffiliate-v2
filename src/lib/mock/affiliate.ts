@@ -1,10 +1,75 @@
 import type {
   Advertiser,
   Campaign,
+  CampaignDetail,
   Conversion,
   Offer,
   TrackingLink,
 } from "@/types/affiliate";
+
+export const campaignDetails = {
+  "cmp-shopee-q2": {
+    campaign: {
+      id: "cmp-shopee-q2",
+      advertiserId: "adv-shopee",
+      name: "Shopee hoàn tiền quý 2",
+      status: "active",
+      startDate: "2026-04-01",
+      endDate: "2026-06-30",
+    },
+    advertiser: {
+      id: "adv-shopee",
+      name: "Shopee Việt Nam",
+      platform: "Shopee" as const,
+    },
+    commission: {
+      model: "CPS" as const,
+      rate: "8%",
+      note: "Áp dụng cho các offer thời trang và làm đẹp trong chiến dịch.",
+    },
+    trackingSettings: {
+      baseUrl: "https://vaffiliate.vn/go/shopee",
+      defaultDestinationUrl: "https://shopee.vn",
+      supportedParameters: ["ref", "click_id", "campaign_id"],
+    },
+    statistics: [
+      { label: "Tổng chuyển đổi", value: "128" },
+      { label: "Chuyển đổi duyệt", value: "96" },
+      { label: "Hoa hồng ước tính", value: "12.480.000đ" },
+      { label: "CTR", value: "4.8%" },
+    ],
+  },
+  "cmp-tiktok-launch": {
+    campaign: {
+      id: "cmp-tiktok-launch",
+      advertiserId: "adv-tiktok",
+      name: "TikTok Shop ra mắt hoàn tiền",
+      status: "active",
+      startDate: "2026-05-01",
+    },
+    advertiser: {
+      id: "adv-tiktok",
+      name: "TikTok Shop",
+      platform: "TikTok Shop" as const,
+    },
+    commission: {
+      model: "CPS" as const,
+      rate: "6%",
+      note: "Tập trung vào ngành hàng gia dụng và làm đẹp trong tháng ra mắt.",
+    },
+    trackingSettings: {
+      baseUrl: "https://vaffiliate.vn/go/tiktok-shop",
+      defaultDestinationUrl: "https://www.tiktok.com/shop",
+      supportedParameters: ["ref", "click_id", "campaign_id"],
+    },
+    statistics: [
+      { label: "Tổng chuyển đổi", value: "74" },
+      { label: "Chuyển đổi duyệt", value: "52" },
+      { label: "Hoa hồng ước tính", value: "6.120.000đ" },
+      { label: "CTR", value: "3.6%" },
+    ],
+  },
+} as const satisfies Record<string, CampaignDetail>;
 
 export const advertisers: Advertiser[] = [
   { id: "adv-shopee", name: "Shopee Việt Nam", platform: "Shopee" },

@@ -34,6 +34,7 @@ export default async function TrackingLinksPage() {
         shortCode: link.shortCode,
         destinationUrl: link.url,
         offerTitle: offer.title,
+        campaignId: campaign.id,
         campaignName: campaign.name,
         advertiserName: advertiser.name,
         platform,

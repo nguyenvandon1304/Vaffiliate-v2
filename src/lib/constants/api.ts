@@ -27,6 +27,8 @@ export const API_ENDPOINTS = {
     OFFERS: "/affiliate/offers",
     TRACKING_LINKS: "/affiliate/tracking-links",
     CONVERSIONS: "/affiliate/conversions",
+    CAMPAIGN_DETAIL: "/campaign/detail",
+    CAMPAIGN_STATISTICS: "/campaign/statistics",
   },
   NOTIFICATION: {
     LIST: "/notification/list",

@@ -4,6 +4,7 @@ import {
   campaigns,
   cashbackHistory,
   cashbackPlatforms,
+  campaignDetails,
   clicks,
   conversions,
   dashboardSummary,
@@ -21,8 +22,11 @@ import {
   trackingLinks,
 } from "@/lib/mock";
 import { getMockProfile, updateMockPayoutAccount, updateMockProfile } from "@/lib/mock/profile-store";
+import type { CampaignDetail } from "@/types/affiliate";
 
-const backend: Record<string, () => unknown> = {
+type MockHandler = () => unknown;
+
+const exactHandlers: Record<string, MockHandler> = {
   [API_ENDPOINTS.DASHBOARD.SUMMARY]: () => dashboardSummary,
   [API_ENDPOINTS.DASHBOARD.METRICS]: () => homeMetrics,
   [API_ENDPOINTS.DASHBOARD.FEATURES]: () => homeFeatures,
@@ -44,14 +48,57 @@ const backend: Record<string, () => unknown> = {
   [API_ENDPOINTS.CLICK.LIST]: () => clicks,
   [API_ENDPOINTS.PROFILE.DETAIL]: () => getMockProfile(),
   [API_ENDPOINTS.PROFILE.PAYOUT_ACCOUNT]: () => getMockProfile().payoutAccount,
-  [API_ENDPOINTS.PROFILE.UPDATE]: (body?: unknown) => updateMockProfile(body as never),
-  [API_ENDPOINTS.PROFILE.PAYOUT_UPDATE]: (body?: unknown) => updateMockPayoutAccount(body as never),
+  [API_ENDPOINTS.PROFILE.UPDATE]: () => updateMockProfile({} as never),
+  [API_ENDPOINTS.PROFILE.PAYOUT_UPDATE]: () => updateMockPayoutAccount({} as never),
 };
 
-export function resolveMockEndpoint(endpoint: string): unknown {
-  const handler = backend[endpoint];
-  if (!handler) {
-    throw new Error(`No mock backend handler for endpoint: ${endpoint}`);
+type RoutePattern = {
+  prefix: string;
+  paramName: string;
+  build: (campaignId: string) => MockHandler;
+};
+
+const parameterizedRoutes: RoutePattern[] = [
+  {
+    prefix: API_ENDPOINTS.AFFILIATE.CAMPAIGN_DETAIL,
+    paramName: "campaignId",
+    build: (campaignId) => () => {
+      const detail = (campaignDetails as Record<string, CampaignDetail>)[campaignId];
+      if (!detail) {
+        throw new Error(`No campaign detail for id: ${campaignId}`);
+      }
+      return detail;
+    },
+  },
+  {
+    prefix: API_ENDPOINTS.AFFILIATE.CAMPAIGN_STATISTICS,
+    paramName: "campaignId",
+    build: (campaignId) => () => {
+      const detail = (campaignDetails as Record<string, CampaignDetail>)[campaignId];
+      if (!detail) {
+        throw new Error(`No campaign statistics for id: ${campaignId}`);
+      }
+      return detail.statistics;
+    },
+  },
+];
+
+function resolveParameterizedRoute(endpoint: string): MockHandler | undefined {
+  for (const route of parameterizedRoutes) {
+    if (!endpoint.startsWith(`${route.prefix}/`)) continue;
+    const value = endpoint.slice(route.prefix.length + 1);
+    if (!value) continue;
+    return route.build(value);
   }
-  return handler();
+  return undefined;
+}
+
+export function resolveMockEndpoint(endpoint: string): unknown {
+  const exact = exactHandlers[endpoint];
+  if (exact) return exact();
+
+  const parameterized = resolveParameterizedRoute(endpoint);
+  if (parameterized) return parameterized();
+
+  throw new Error(`No mock backend handler for endpoint: ${endpoint}`);
 }

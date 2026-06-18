@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import type { TrackingLinkView } from "@/types/affiliate";
 
@@ -11,11 +12,14 @@ export default function TrackingLinkTable({ links }: { links: TrackingLinkView[]
             className="rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.86)] p-4 shadow-[var(--shadow-sm)]"
           >
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <p className="font-semibold text-[color:var(--text)]">{link.offerTitle}</p>
-                <p className="mt-1 text-sm font-medium text-[color:var(--text-muted)]">
+                <Link
+                  href={`/app/campaigns/${link.campaignId}`}
+                  className="mt-1 inline-block text-sm font-medium text-[color:var(--brand)] underline-offset-4 hover:underline"
+                >
                   {link.campaignName}
-                </p>
+                </Link>
               </div>
               <p className="text-sm font-semibold text-[color:var(--success)]">
                 {link.commissionRate}

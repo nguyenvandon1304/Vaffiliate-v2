@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import type { OfferPlatform, OfferView } from "@/types/affiliate";
 
@@ -23,7 +24,7 @@ export default function OfferTable({ offers }: { offers: OfferView[] }) {
             className="rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.86)] p-4 shadow-[var(--shadow-sm)]"
           >
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <p className="font-semibold text-[color:var(--text)]">{offer.title}</p>
                 <p className="mt-1 text-sm font-medium text-[color:var(--text-muted)]">
                   {offer.category}
@@ -38,6 +39,15 @@ export default function OfferTable({ offers }: { offers: OfferView[] }) {
                 {platformLabels[offer.platform]}
               </span>
               <Badge>{statusLabels[offer.status]}</Badge>
+            </div>
+            <div className="mt-3 flex items-center justify-between border-t border-[color:var(--line)] pt-3 text-sm">
+              <span className="font-medium text-[color:var(--text-muted)]">Chiến dịch</span>
+              <Link
+                href={`/app/campaigns/${offer.campaignId}`}
+                className="font-semibold text-[color:var(--brand)] underline-offset-4 hover:underline"
+              >
+                {offer.campaignName}
+              </Link>
             </div>
           </article>
         ))}

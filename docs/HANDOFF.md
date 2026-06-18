@@ -6,13 +6,13 @@ Project: Vaffiliate
 
 Architecture Version: V2 Async Architecture
 
-Current Phase: 16B Complete
+Current Phase: 17 Complete
 
 Current Stable Tag:
-phase-16A-complete
+phase-16C-complete
 
 Latest Verified Commit:
-phase-16A-complete (16B changes uncommitted)
+phase-16C-complete (17 changes uncommitted)
 
 Build Status:
 PASS
@@ -24,10 +24,7 @@ Lint:
 PASS (0 errors)
 
 Route Status:
-All routes static (○)
-
-Total Routes:
-16
+All routes static (○) / SSG (●)
 
 ---
 
@@ -96,9 +93,11 @@ App Routes
 /app/notifications
 /app/clicks
 /app/profile
+/app/campaigns/[campaignId]
 
 Total:
-16 routes
+17 routes (1 dynamic, pre-rendered via generateStaticParams
+for cmp-shopee-q2 and cmp-tiktok-launch)
 
 ---
 
@@ -345,6 +344,86 @@ Notes:
 
 ---
 
+### Campaign Detail
+
+Status:
+Complete (data layer + UI + drill-down)
+
+Part of Affiliate domain. NOT a separate domain.
+Affiliate remains the single source of truth for offers, tracking links,
+conversions, revenue, commission. Campaign Detail is a read-only drill-down
+composed on top of the Affiliate chain.
+
+Chain:
+
+Page (/app/campaigns/[campaignId])
+→ loadCampaignDetailAsync
+→ campaignDetailService (getCampaignDetailServiceAsync, getCampaignStatisticsServiceAsync)
+→ campaignDetailRepository (getCampaignDetailAsync, getCampaignStatisticsAsync)
+→ apiClient
+→ mock-backend
+→ campaignDetails map (keyed by campaignId)
+
+Data layer files:
+
+src/types/affiliate.ts (CampaignDetail, CampaignStatistic)
+
+src/lib/mock/affiliate.ts (campaignDetails map; second fixture added for
+cmp-tiktok-launch so multi-campaign resolution is exercised)
+
+src/repositories/campaign-detail.repository.ts
+
+src/services/campaign-detail.service.ts
+
+src/hooks/loadCampaignDetailAsync.ts
+
+Endpoints:
+
+/campaign/detail/:campaignId
+/campaign/statistics/:campaignId
+
+Routes:
+
+/app/campaigns/[campaignId] (SSG via generateStaticParams; uses
+loadAffiliateAsync().campaigns to enumerate ids; pre-rendered for
+cmp-shopee-q2 and cmp-tiktok-launch)
+
+UI files (Phase 17):
+
+src/features/campaigns/CampaignHeader.tsx
+
+src/features/campaigns/CampaignCommissionCard.tsx
+
+src/features/campaigns/CampaignTrackingCard.tsx
+
+src/features/campaigns/CampaignStatsGrid.tsx
+
+src/features/campaigns/CampaignNotFound.tsx
+
+Notes:
+
+* Mock backend refactored from a flat endpoint map to exact-match + prefix-
+  match routing. Exact handlers stay as `(endpoint) => data`. Parameterized
+  routes match `${prefix}/${value}` and pass the value into a builder. This
+  keeps the simple endpoints untouched while letting /campaign/detail/:id and
+  /campaign/statistics/:id resolve by campaignId. Unknown ids throw and the
+  page renders CampaignNotFound.
+* Components are presentational and props-driven (no data loading, no
+  "use client"). Joins and aggregations live in the page layer (e.g.
+  generateStaticParams composes loadAffiliateAsync().campaigns).
+* No top-level menu entry. Drill-down comes from Offers and Tracking Links
+  tables via the campaign name link (offerView.campaignId /
+  trackingLinkView.campaignId added to the view models).
+* Orphaned src/lib/mock/campaign-detail.ts (created during initial data-layer
+  scaffolding, never imported) was deleted. Canonical fixture is the
+  campaignDetails map inside src/lib/mock/affiliate.ts.
+* The 16C post endpoints (PROFILE.UPDATE / PROFILE.PAYOUT_UPDATE) still
+  return mutated mock state via the same exact handler; body arguments
+  continue to be ignored (same behavior as before the refactor — the body was
+  never actually plumbed through resolveMockEndpoint in the prior client.ts).
+
+---
+
 ## Analytics Centers
 
 ### Phase 15A — Click Analytics Center
@@ -582,84 +661,112 @@ phase-14B-complete
 
 phase-15D-complete
 
+phase-16A-complete
+
+phase-16B-complete
+
+phase-16C-complete
+
+phase-17-complete
+
 ---
 
 ## Next Planned Phase
 
-### Phase 16A — Profile Foundation
-
-Status:
-Complete (data layer only)
-
-Architecture Decision:
-
-Profile is a standalone domain.
-
-Profile is NOT a subdomain of User.
-
-Reason:
-
-User currently owns only More-menu navigation.
-
-Profile owns:
-
-* Personal information
-* Payout account information
-
-Created Files:
-
-src/types/profile.ts
-
-src/lib/mock/profile.ts
-
-src/repositories/profile.repository.ts
-
-src/services/profile.service.ts
-
-src/hooks/loadProfileAsync.ts
-
-Wiring (shared infra, additive):
-
-src/lib/mock/index.ts (barrel export added)
-src/lib/constants/api.ts (PROFILE endpoints added)
-src/lib/api/mock-backend.ts (PROFILE handlers added)
-
-Phase Scope (delivered):
-
-Data layer only.
-
-No route.
-
-No page.
-
-No UI.
-
-No profile screen yet.
+Phase 18 (TBD — not started. Do not begin without approval.)
 
 ---
 
-### Phase 16B — Profile UI
+### Phase 17 — Campaign Detail
 
 Status:
 Complete
 
-Delivered:
+Architecture Decision:
 
-* Route /app/profile (async Server Component, static ○)
-* Page reuses loadProfileAsync — no new data layer, single data path
-* Components in src/features/profile/ (presentational, props-driven):
-  ProfileHeader, ProfileInfoCard, PayoutAccountCard, ProfileStatsCard
-* ProfileStatsCard values derived in the page layer
-* Initials avatar from fullName (avatarUrl kept in model, not rendered)
-* No navigation entry added (out of scope)
+Campaign Detail is NOT a separate domain. It belongs to Affiliate.
 
-Not built (deferred): edit form, avatar upload, payout editing, withdrawal,
-membership, referral, settings.
+Reason:
 
-Next:
+Affiliate is already the single source of truth for offers, tracking links,
+conversions, revenue, and commission. Campaign Detail is a read-only
+composition on top of the Affiliate chain (campaign → commission + tracking
+settings + statistics). Creating a separate Campaign domain would have
+duplicated data paths.
 
-Phase 16C (Profile — next increment) — not started. Do not begin without
-approval.
+Created Files:
+
+src/repositories/campaign-detail.repository.ts
+
+src/services/campaign-detail.service.ts
+
+src/hooks/loadCampaignDetailAsync.ts
+
+src/features/campaigns/CampaignHeader.tsx
+
+src/features/campaigns/CampaignCommissionCard.tsx
+
+src/features/campaigns/CampaignTrackingCard.tsx
+
+src/features/campaigns/CampaignStatsGrid.tsx
+
+src/features/campaigns/CampaignNotFound.tsx
+
+src/app/app/campaigns/[campaignId]/page.tsx
+
+Modified Files:
+
+src/types/affiliate.ts (CampaignDetail, CampaignStatistic added; OfferView
+and TrackingLinkView gained campaignId + campaignName for drill-down)
+
+src/lib/mock/affiliate.ts (campaignDetails map keyed by id; cmp-shopee-q2
+plus new cmp-tiktok-launch fixture; satisfies Record<string, CampaignDetail>)
+
+src/lib/constants/api.ts (CAMPAIGN_DETAIL, CAMPAIGN_STATISTICS endpoints)
+
+src/lib/api/mock-backend.ts (refactored from flat endpoint map to
+exact-match + prefix-match routing so /campaign/detail/:id and
+/campaign/statistics/:id can resolve by id; existing endpoints unchanged)
+
+src/repositories/campaign-detail.repository.ts (uri-encoded ids)
+
+src/app/app/offers/page.tsx (offerViews now include campaignId, campaignName)
+
+src/features/offers/OfferTable.tsx (campaign name is now a link to
+/app/campaigns/[campaignId])
+
+src/app/app/tracking-links/page.tsx (linkViews now include campaignId,
+campaignName)
+
+src/features/tracking-links/TrackingLinkTable.tsx (campaign name is now a
+link to /app/campaigns/[campaignId])
+
+Deleted Files:
+
+src/lib/mock/campaign-detail.ts (orphaned duplicate of cmp-shopee-q2 fixture;
+canonical data lives in the campaignDetails map in src/lib/mock/affiliate.ts)
+
+Phase Scope (delivered):
+
+* Full data layer through Async Loader (page → loader → service → repository
+  → apiClient → mock-backend → campaignDetails[id]).
+* Dynamic route /app/campaigns/[campaignId], pre-rendered via
+  generateStaticParams using loadAffiliateAsync().campaigns as the source.
+* Five presentational, props-driven components (no client fetching).
+* Drill-down from Offers and Tracking Links tables via the campaign name
+  link. View models extended to carry the campaign id.
+* Mock backend now supports parameterized endpoints (prefix match); all
+  previous endpoints preserved unchanged.
+* No top-level menu entry (per scope).
+* No avatar, edit, or write capability for campaign detail (read-only).
+
+Not built (deferred to a future phase if needed):
+
+* Campaign CRUD (admin).
+* Campaign-level filters / aggregations on analytics pages (campaignId is
+  present on views; filtering is page-layer work for later).
+* Per-campaign offer/tracking-link/conversion lists (drill-down is to the
+  campaign detail page; offer/listing pages already exist).
 
 ---
 
@@ -691,15 +798,19 @@ TypeScript:
 PASS
 
 Lint:
-PASS (0 errors; 4 pre-existing unused-var warnings unrelated to 15E)
+PASS (0 errors; 4 pre-existing unused-var warnings unrelated to 15E/17)
 
 Static Routes:
-PASS (15/15 static, including / as async Server Component)
+PASS — 16 ○ static + 1 ● SSG dynamic. The dynamic /app/campaigns/[campaignId]
+is pre-rendered for cmp-shopee-q2 and cmp-tiktok-launch.
 
 Architecture:
-PASS at file level — single async data flow only. Legacy sync path fully
-deleted; no direct @/lib/mock imports remain in the dashboard/finance/orders/
-cashback/user repositories. paid normalized across all analytics + cashback.
+PASS at file level — single async data flow only. Phase 17 reuses the same
+chain; no React Query/SWR/Redux/Zustand/Context/direct-mock-imports were
+introduced. Campaign Detail is composed on top of the Affiliate chain
+(no duplicate data path). Mock backend was refactored from a flat map to
+exact-match + prefix-match routing while keeping every existing endpoint
+behavior identical.
 
 Known remaining debt:
 None from the sync architecture — fully removed. Only 4 cosmetic unused-var
@@ -708,6 +819,6 @@ CashbackForm upcomingPlatforms, CommissionCampaignTable Badge import).
 
 Last Reconciled State:
 
-phase-15D-complete
+phase-16C-complete (committed 90c29c9)
 
-commit 0f276de (working tree ahead — 15E changes uncommitted)
+working tree ahead — Phase 17 changes uncommitted

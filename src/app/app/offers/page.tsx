@@ -36,6 +36,8 @@ export default async function OffersPage() {
         category: offer.category ?? "",
         commissionRate: offer.commissionRate,
         status: campaign.status,
+        campaignId: campaign.id,
+        campaignName: campaign.name,
       },
     ];
   });

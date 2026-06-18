@@ -3,13 +3,14 @@
 ## Current Status
 
 Current Phase:
-16B Complete
+17 Complete
 
 Last Stable Tag:
-phase-16A-complete
+phase-16C-complete
 
 Route Count:
-16
+17 (16 ○ static + 1 ● SSG dynamic — /app/campaigns/[campaignId] pre-rendered
+for cmp-shopee-q2 and cmp-tiktok-launch)
 
 Build Status:
 PASS
@@ -181,6 +182,23 @@ Done:
   @/lib/mock imports in the dashboard/finance/orders/cashback/user repositories.
   Single async path only.
 
+### Profile
+
+* Phase 16A Profile Foundation Complete (data layer only)
+* Phase 16B Profile UI Complete (route /app/profile + presentational
+  components; reuses loadProfileAsync; no new data layer)
+* Phase 16C Profile Management + Navigation Complete (mock-only edit forms
+  for personal info and payout account, initials + avatarUrl rendering, "Hồ
+  sơ" link in /app/more)
+
+### Campaign Detail
+
+* Phase 17 Campaign Detail Complete (drill-down route
+  /app/campaigns/[campaignId] + presentational components; composed on top
+  of the Affiliate chain; no duplicate data path; multi-campaign resolution
+  via /campaign/detail/:id and /campaign/statistics/:id; orphaned
+  campaign-detail.ts mock deleted)
+
 ---
 
 ## Current Affiliate Scope
@@ -265,13 +283,13 @@ Features:
 
 ### Profile
 
-Status: Complete (data layer + UI)
+Status: Complete (data layer + UI + management + navigation)
 
 Standalone domain. NOT part of User. Owns identity + payout account.
 
 Route: /app/profile (static ○, async Server Component).
 
-Reuses loadProfileAsync — no new data layer added in 16B.
+Reuses loadProfileAsync — no new data layer added in 16B/16C.
 
 Features (data layer):
 
@@ -281,14 +299,74 @@ Features (data layer):
 
 UI components (presentational, props-driven):
 
-* ProfileHeader (initials avatar from fullName; avatarUrl not rendered yet)
+* ProfileHeader (avatarUrl rendered when present; initials fallback from fullName)
 * ProfileInfoCard (name, email, phone, joined date — read-only)
-* PayoutAccountCard (method, provider, account number, holder — read-only)
+* PayoutAccountCard (method, provider, account number, holder, verification — read-only)
 * ProfileStatsCard (preferred platforms count, member tier, joined year —
   derived in page layer)
+* ProfileManagementPanel (mock-only editing for personal info + payout account)
 
-Not built (deferred): edit form, avatar upload, payout editing, withdrawal,
+Wiring (16C additions):
+
+* /app/more `Hồ sơ` menu item routes to /app/profile
+* ProfileManagementPanel uses saveProfileEditServiceAsync / savePayoutAccountServiceAsync
+  through profile-edit.repository and apiClient (mock-only persistence inside
+  the mock layer)
+* src/lib/mock/profile-store.ts holds the mutable mock state for the session
+
+Not built (deferred): avatar upload (URL-only rendering), withdrawal,
 membership, referral, settings.
+
+---
+
+### Campaign Detail
+
+Status: Complete (data layer + UI + drill-down)
+
+Part of Affiliate. NOT a separate domain.
+
+Routes:
+
+* /app/campaigns/[campaignId] (SSG ●, async Server Component,
+  pre-rendered for cmp-shopee-q2 and cmp-tiktok-launch via
+  generateStaticParams composed from loadAffiliateAsync().campaigns)
+
+Chain:
+
+Page (/app/campaigns/[campaignId])
+→ loadCampaignDetailAsync
+→ campaignDetailService (getCampaignDetailServiceAsync,
+   getCampaignStatisticsServiceAsync)
+→ campaignDetailRepository (getCampaignDetailAsync,
+   getCampaignStatisticsAsync)
+→ apiClient
+→ mock-backend
+→ campaignDetails map (keyed by campaignId)
+
+Endpoints:
+
+* /campaign/detail/:campaignId
+* /campaign/statistics/:campaignId
+
+UI components (presentational, props-driven):
+
+* CampaignHeader (campaign name + advertiser + status badge + date range)
+* CampaignCommissionCard (model + rate + note)
+* CampaignTrackingCard (base URL + destination + supported parameters)
+* CampaignStatsGrid (statistics tiles)
+* CampaignNotFound (rendered when loadCampaignDetailAsync throws on
+  unknown id)
+
+Drill-down:
+
+* OfferTable now renders campaign name as a link to
+  /app/campaigns/[campaignId] (offerViews include campaignId, campaignName)
+* TrackingLinkTable now renders campaign name as a link to
+  /app/campaigns/[campaignId] (linkViews include campaignId, campaignName)
+* No top-level menu entry.
+
+Not built (deferred): campaign CRUD, per-campaign offer/tracking-link lists
+on the detail page, write actions (mock backend is read-only here).
 
 ---
 
@@ -383,6 +461,18 @@ Page (/app/profile)
 → apiClient
 → mock-backend
 
+### Campaign Detail
+
+Page (/app/campaigns/[campaignId])
+→ loadCampaignDetailAsync
+→ campaignDetailService (getCampaignDetailServiceAsync,
+   getCampaignStatisticsServiceAsync)
+→ campaignDetailRepository (getCampaignDetailAsync,
+   getCampaignStatisticsAsync)
+→ apiClient
+→ mock-backend
+→ campaignDetails map (keyed by campaignId)
+
 ---
 
 ## Current Routes
@@ -408,9 +498,11 @@ Page (/app/profile)
 * /app/notifications
 * /app/clicks
 * /app/profile
+* /app/campaigns/[campaignId] (SSG ● — pre-rendered for cmp-shopee-q2
+  and cmp-tiktok-launch)
 
 Total:
-16 routes
+17 routes (16 ○ static + 1 ● SSG dynamic)
 
 ---
 
@@ -423,6 +515,10 @@ Total:
 * phase-14B-ui-stable
 * phase-14B-complete
 * phase-15D-complete
+* phase-16A-complete
+* phase-16B-complete
+* phase-16C-complete
+* phase-17-complete
 
 ---
 
@@ -450,7 +546,7 @@ Commission Analytics:
 COMPLETE
 
 All current routes:
-Static ○
+Static ○ or SSG ●
 
 Build:
 PASS
@@ -469,24 +565,36 @@ get*Data() repository methods, sync helper getters, and orphaned @/lib/mock
 imports are all gone. "No direct mock imports" now holds at the file level,
 not just the route level.
 
+Phase 17 note:
+Campaign Detail is composed on top of the Affiliate chain (no duplicate
+data path). Mock backend was refactored from a flat endpoint map to
+exact-match + prefix-match routing so /campaign/detail/:id and
+/campaign/statistics/:id can resolve by id; existing endpoints unchanged.
+All previous endpoints preserved identical behavior — the only behavioral
+change is that the campaign detail endpoint now resolves the entry from the
+campaignDetails map by id, and throws (rendered as not-found by the page
+layer) on an unknown id.
+
 ---
 
 ## Next Planned Phase
 
-Phase 16C (Profile — next increment)
+Phase 18 (TBD — not started. Do not begin without approval.)
 
-Status: Not Started (do not begin without approval)
+17 Campaign Detail is complete:
 
-16B Profile UI is complete:
-
-* Route /app/profile (static ○, async Server Component)
-* Page reuses loadProfileAsync — no second data path
-* Components: ProfileHeader, ProfileInfoCard, PayoutAccountCard, ProfileStatsCard
-  (presentational, props-driven, in src/features/profile/)
-* Stats derived in page layer (preferred platforms count, member tier, joined year)
-
-Deferred to a later phase: edit profile form, avatar upload, payout editing,
-withdrawal, membership, referral, settings, and Profile navigation entry.
+* Route /app/campaigns/[campaignId] (SSG ● via generateStaticParams)
+* Page composes loadCampaignDetailAsync — no new data path
+* Components: CampaignHeader, CampaignCommissionCard, CampaignTrackingCard,
+  CampaignStatsGrid, CampaignNotFound (presentational, props-driven, in
+  src/features/campaigns/)
+* Drill-down: OfferTable and TrackingLinkTable render campaign name as a
+  link to /app/campaigns/[campaignId] (offerViews and linkViews now carry
+  campaignId)
+* Multi-campaign resolution via /campaign/detail/:id (mock backend prefix
+  routing); cmp-shopee-q2 and cmp-tiktok-launch fixtures present
+* Orphaned src/lib/mock/campaign-detail.ts deleted; canonical fixture is the
+  campaignDetails map in src/lib/mock/affiliate.ts
 
 ---
 

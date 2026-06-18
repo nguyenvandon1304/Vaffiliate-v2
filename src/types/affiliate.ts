@@ -59,6 +59,27 @@ export interface AffiliateData {
   conversions: Conversion[];
 }
 
+export interface CampaignDetail {
+  campaign: Campaign;
+  advertiser: Advertiser;
+  commission: {
+    model: CommissionModel;
+    rate: string;
+    note?: string;
+  };
+  trackingSettings: {
+    baseUrl: string;
+    defaultDestinationUrl: string;
+    supportedParameters: string[];
+  };
+  statistics: CampaignStatistic[];
+}
+
+export interface CampaignStatistic {
+  label: string;
+  value: string;
+}
+
 export type OfferPlatform = "shopee" | "tiktok";
 
 export interface OfferView {
@@ -68,6 +89,8 @@ export interface OfferView {
   category: string;
   commissionRate: string;
   status: CampaignStatus;
+  campaignId: CampaignId;
+  campaignName: string;
 }
 
 export interface OfferStat {
@@ -82,6 +105,7 @@ export interface TrackingLinkView {
   shortCode: string;
   destinationUrl: string;
   offerTitle: string;
+  campaignId: CampaignId;
   campaignName: string;
   advertiserName: string;
   platform: SupportedPlatformLabel;
