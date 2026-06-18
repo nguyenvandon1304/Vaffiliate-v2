@@ -49,6 +49,15 @@ export default function OfferTable({ offers }: { offers: OfferView[] }) {
                 {offer.campaignName}
               </Link>
             </div>
+            <div className="mt-3 flex items-center justify-end">
+              <Link
+                href={`/app/offers/${offer.id}`}
+                className="inline-flex items-center gap-1 rounded-full bg-[color:var(--brand)] px-4 py-2 text-xs font-semibold text-white shadow-[var(--shadow-sm)] transition hover:opacity-90"
+              >
+                Xem chi tiết
+                <span aria-hidden="true">→</span>
+              </Link>
+            </div>
           </article>
         ))}
       </div>

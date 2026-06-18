@@ -7,16 +7,18 @@ import type {
   Campaign,
   Conversion,
   Offer,
+  OfferId,
   TrackingLink,
 } from "@/types/affiliate";
 
 export async function getAffiliateDataAsync(): Promise<ApiResponse<AffiliateData>> {
-  const [advertisers, campaigns, offers, trackingLinks, conversions] = await Promise.all([
+  const [advertisers, campaigns, offers, trackingLinks, conversions, joinedOfferIds] = await Promise.all([
     apiClient.get<Advertiser[]>(API_ENDPOINTS.AFFILIATE.ADVERTISERS),
     apiClient.get<Campaign[]>(API_ENDPOINTS.AFFILIATE.CAMPAIGNS),
     apiClient.get<Offer[]>(API_ENDPOINTS.AFFILIATE.OFFERS),
     apiClient.get<TrackingLink[]>(API_ENDPOINTS.AFFILIATE.TRACKING_LINKS),
     apiClient.get<Conversion[]>(API_ENDPOINTS.AFFILIATE.CONVERSIONS),
+    apiClient.get<OfferId[]>(API_ENDPOINTS.AFFILIATE.JOINED_OFFERS),
   ]);
   return {
     success: true,
@@ -26,6 +28,7 @@ export async function getAffiliateDataAsync(): Promise<ApiResponse<AffiliateData
       offers: offers.data,
       trackingLinks: trackingLinks.data,
       conversions: conversions.data,
+      joinedOfferIds: joinedOfferIds.data,
     },
   };
 }

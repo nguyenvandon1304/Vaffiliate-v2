@@ -4,6 +4,9 @@ import type {
   CampaignDetail,
   Conversion,
   Offer,
+  OfferId,
+  OfferRequirement,
+  OfferTrackingRules,
   TrackingLink,
 } from "@/types/affiliate";
 
@@ -144,6 +147,56 @@ export const trackingLinks: TrackingLink[] = [
     createdAt: "2026-06-08",
   },
 ];
+
+export const joinedOfferIds: OfferId[] = ["off-shopee-fashion"];
+
+export const offerRequirements: Record<OfferId, OfferRequirement[]> = {
+  "off-shopee-fashion": [
+    { label: "Loại traffic", value: "Blog, mạng xã hội, email marketing" },
+    { label: "Quốc gia nhắm đến", value: "Việt Nam" },
+    { label: "Ngành hàng", value: "Thời trang" },
+    { label: "Lưu ý tuân thủ", value: "Không chạy từ khóa brand Shopee" },
+  ],
+  "off-shopee-beauty": [
+    { label: "Loại traffic", value: "Beauty blogger, mạng xã hội" },
+    { label: "Quốc gia nhắm đến", value: "Việt Nam" },
+    { label: "Ngành hàng", value: "Làm đẹp" },
+    { label: "Lưu ý tuân thủ", value: "Hạn chế cashback layer trùng publisher" },
+  ],
+  "off-tiktok-home": [
+    { label: "Loại traffic", value: "TikTok creator, livestream" },
+    { label: "Quốc gia nhắm đến", value: "Việt Nam" },
+    { label: "Ngành hàng", value: "Gia dụng" },
+    { label: "Lưu ý tuân thủ", value: "Cần gắn tag #quangcao trong video" },
+  ],
+};
+
+export const offerTrackingRules: Record<OfferId, OfferTrackingRules> = {
+  "off-shopee-fashion": {
+    cookieDurationDays: 7,
+    allowedChannels: ["Blog cá nhân", "Facebook Page", "Email"],
+    trafficRules: [
+      "Không dùng từ khóa chứa brand Shopee trên Google Ads",
+      "Cấm cookie stuffing hoặc traffic giả mạo",
+    ],
+  },
+  "off-shopee-beauty": {
+    cookieDurationDays: 7,
+    allowedChannels: ["Instagram", "TikTok", "YouTube Review"],
+    trafficRules: [
+      "Không đặt link trong nội dung người lớn",
+      "Cần cập nhật creative mỗi 30 ngày",
+    ],
+  },
+  "off-tiktok-home": {
+    cookieDurationDays: 14,
+    allowedChannels: ["TikTok organic", "TikTok Shop live", "Cross-promo"],
+    trafficRules: [
+      "Bắt buộc hiển thị nhãn quảng cáo khi sử dụng paid traffic",
+      "Cấm self-conversion qua tài khoản cá nhân",
+    ],
+  },
+};
 
 export const conversions: Conversion[] = [
   {

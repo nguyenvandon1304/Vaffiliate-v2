@@ -57,6 +57,29 @@ export interface AffiliateData {
   offers: Offer[];
   trackingLinks: TrackingLink[];
   conversions: Conversion[];
+  joinedOfferIds: OfferId[];
+}
+
+export type OfferJoinStatus = "not_joined" | "joined" | "paused";
+
+export interface OfferRequirement {
+  label: string;
+  value: string;
+}
+
+export interface OfferTrackingRules {
+  cookieDurationDays: number;
+  allowedChannels: string[];
+  trafficRules: string[];
+}
+
+export interface OfferDetail {
+  offer: Offer;
+  campaign: Campaign;
+  advertiser: Advertiser;
+  joinStatus: OfferJoinStatus;
+  requirements: OfferRequirement[];
+  trackingRules: OfferTrackingRules;
 }
 
 export interface CampaignDetail {
