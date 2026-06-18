@@ -1,4 +1,5 @@
 import type { PlatformLabel } from "./common";
+import type { PublisherProfile } from "./publisher";
 
 export type AdvertiserId = string;
 export type CampaignId = string;
@@ -58,9 +59,27 @@ export interface AffiliateData {
   trackingLinks: TrackingLink[];
   conversions: Conversion[];
   joinedOfferIds: OfferId[];
+  publisherProfile: PublisherProfile;
+  trackingLinkStats: TrackingLinkStatsMap;
 }
 
 export type OfferJoinStatus = "not_joined" | "joined" | "paused";
+
+export interface TrackingLinkMetrics {
+  epc: number;
+  aov: number;
+  conversionRate: number;
+}
+
+export interface TrackingLinkStats {
+  clicks: number;
+  uniqueClicks: number;
+  conversionCount: number;
+  commission: string;
+  metrics: TrackingLinkMetrics;
+}
+
+export type TrackingLinkStatsMap = Record<TrackingLinkId, TrackingLinkStats>;
 
 export interface OfferRequirement {
   label: string;

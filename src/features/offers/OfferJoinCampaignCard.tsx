@@ -1,9 +1,11 @@
+import Link from "next/link";
 import Badge from "@/components/ui/Badge";
-import type { OfferDetail } from "@/types/affiliate";
+import type { OfferDetail, OfferId } from "@/types/affiliate";
 
 type Props = {
   joinStatus: OfferDetail["joinStatus"];
   campaignName: string;
+  offerId: OfferId;
 };
 
 const statusLabels: Record<OfferDetail["joinStatus"], string> = {
@@ -21,7 +23,10 @@ const statusVariant: Record<
   paused: "warning",
 };
 
-export default function OfferJoinCampaignCard({ joinStatus, campaignName }: Props) {
+export default function OfferJoinCampaignCard({ joinStatus, campaignName, offerId }: Props) {
+  const isJoined = joinStatus === "joined";
+  const ctaHref = `/app/tracking-links/generator/${offerId}`;
+
   return (
     <div className="rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-5 shadow-[var(--shadow-sm)]">
       <p className="text-sm font-medium text-[color:var(--text-muted)]">Trạng thái tham gia</p>
@@ -31,21 +36,31 @@ export default function OfferJoinCampaignCard({ joinStatus, campaignName }: Prop
       </div>
       <p className="mt-3 text-sm leading-6 text-[color:var(--text-muted)]">
         {joinStatus === "joined"
-          ? "Bạn đang là publisher của chiến dịch này. Có thể tạo tracking link ở phase tiếp theo."
+          ? "Bạn đang là publisher của chiến dịch này. Sẵn sàng tạo tracking link để bắt đầu chia sẻ."
           : joinStatus === "paused"
-            ? "Chiến dịch hiện đang tạm dừng. Tính năng tham gia sẽ mở lại khi advertiser kích hoạt."
-            : "Tính năng tham gia chiến dịch và tạo tracking link sẽ ra mắt ở phase tiếp theo."}
+            ? "Chiến dịch hiện đang tạm dừng. Tính năng tạo tracking link sẽ mở lại khi advertiser kích hoạt."
+            : "Tính năng tham gia chiến dịch sẽ ra mắt ở phase tiếp theo."}
       </p>
-      <button
-        type="button"
-        disabled
-        aria-disabled="true"
-        title="Tính năng sẽ ra mắt ở phase tiếp theo"
-        className="mt-4 inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-[rgba(124,63,44,0.12)] px-4 py-3 text-sm font-semibold text-[color:var(--text-muted)]"
-      >
-        Tham gia chiến dịch
-        <span aria-hidden="true">→</span>
-      </button>
+      {isJoined ? (
+        <Link
+          href={ctaHref}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[color:var(--brand)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition hover:opacity-90"
+        >
+          Generate Tracking Link
+          <span aria-hidden="true">→</span>
+        </Link>
+      ) : (
+        <button
+          type="button"
+          disabled
+          aria-disabled="true"
+          title="Tính năng sẽ ra mắt ở phase tiếp theo"
+          className="mt-4 inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-[rgba(124,63,44,0.12)] px-4 py-3 text-sm font-semibold text-[color:var(--text-muted)]"
+        >
+          {joinStatus === "paused" ? "Tạm dừng" : "Tham gia chiến dịch"}
+          <span aria-hidden="true">→</span>
+        </button>
+      )}
     </div>
   );
 }

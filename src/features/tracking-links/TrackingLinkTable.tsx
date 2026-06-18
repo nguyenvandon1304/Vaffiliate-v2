@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Badge from "@/components/ui/Badge";
 import type { TrackingLinkView } from "@/types/affiliate";
 
 export default function TrackingLinkTable({ links }: { links: TrackingLinkView[] }) {
@@ -33,7 +32,12 @@ export default function TrackingLinkTable({ links }: { links: TrackingLinkView[]
             </div>
             <div className="mt-3 flex items-center justify-between border-t border-[color:var(--line)] pt-3 text-sm">
               <span className="font-medium text-[color:var(--text-muted)]">Mã tracking</span>
-              <Badge variant="neutral">{link.shortCode}</Badge>
+              <Link
+                href={`/app/tracking-links/${link.id}`}
+                className="font-semibold text-[color:var(--brand)] underline-offset-4 hover:underline"
+              >
+                {link.shortCode}
+              </Link>
             </div>
           </article>
         ))}

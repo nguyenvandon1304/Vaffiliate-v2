@@ -82,6 +82,7 @@ export default async function OfferDetailPage({ params }: PageProps) {
         <OfferJoinCampaignCard
           joinStatus={offerDetail.joinStatus}
           campaignName={offerDetail.campaign.name}
+          offerId={offerDetail.offer.id}
         />
       </div>
       <div className="grid gap-4 xl:grid-cols-2">
@@ -113,6 +114,7 @@ export default async function OfferDetailPage({ params }: PageProps) {
           <OfferJoinCampaignCard
             joinStatus={offerDetail.joinStatus}
             campaignName={offerDetail.campaign.name}
+            offerId={offerDetail.offer.id}
           />
         </div>
       </AppSection>

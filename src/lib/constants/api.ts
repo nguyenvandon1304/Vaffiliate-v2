@@ -28,6 +28,8 @@ export const API_ENDPOINTS = {
     TRACKING_LINKS: "/affiliate/tracking-links",
     CONVERSIONS: "/affiliate/conversions",
     JOINED_OFFERS: "/affiliate/joined-offers",
+    PUBLISHER_PROFILE: "/affiliate/publisher-profile",
+    TRACKING_LINK_STATS: "/affiliate/tracking-link-stats",
     CAMPAIGN_DETAIL: "/campaign/detail",
     CAMPAIGN_STATISTICS: "/campaign/statistics",
   },

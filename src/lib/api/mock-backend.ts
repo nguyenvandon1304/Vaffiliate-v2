@@ -18,8 +18,10 @@ import {
   notifications,
   offers,
   orderFilters,
+  publisherProfile,
   quickActions,
   recentOrders,
+  trackingLinkStats,
   trackingLinks,
 } from "@/lib/mock";
 import { getMockProfile, updateMockPayoutAccount, updateMockProfile } from "@/lib/mock/profile-store";
@@ -46,6 +48,8 @@ const exactHandlers: Record<string, MockHandler> = {
   [API_ENDPOINTS.AFFILIATE.TRACKING_LINKS]: () => trackingLinks,
   [API_ENDPOINTS.AFFILIATE.CONVERSIONS]: () => conversions,
   [API_ENDPOINTS.AFFILIATE.JOINED_OFFERS]: () => joinedOfferIds,
+  [API_ENDPOINTS.AFFILIATE.PUBLISHER_PROFILE]: () => publisherProfile,
+  [API_ENDPOINTS.AFFILIATE.TRACKING_LINK_STATS]: () => trackingLinkStats,
   [API_ENDPOINTS.NOTIFICATION.LIST]: () => notifications,
   [API_ENDPOINTS.CLICK.LIST]: () => clicks,
   [API_ENDPOINTS.PROFILE.DETAIL]: () => getMockProfile(),

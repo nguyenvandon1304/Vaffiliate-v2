@@ -8,6 +8,7 @@ import type {
   OfferRequirement,
   OfferTrackingRules,
   TrackingLink,
+  TrackingLinkStatsMap,
 } from "@/types/affiliate";
 
 export const campaignDetails = {
@@ -149,6 +150,64 @@ export const trackingLinks: TrackingLink[] = [
 ];
 
 export const joinedOfferIds: OfferId[] = ["off-shopee-fashion"];
+
+export const publisherProfile = {
+  id: "pub-demo-user",
+  status: "approved" as const,
+  joinedCampaignIds: ["cmp-shopee-q2"],
+  trackingLinkIds: ["trk-001", "trk-002", "trk-003"],
+};
+
+export const trackingLinkStats: TrackingLinkStatsMap = {
+  "trk-001": {
+    clicks: 1842,
+    uniqueClicks: 1284,
+    conversionCount: 96,
+    commission: "12.480.000đ",
+    metrics: { epc: 6775, aov: 0, conversionRate: 0.0521 },
+  },
+  "trk-002": {
+    clicks: 968,
+    uniqueClicks: 712,
+    conversionCount: 41,
+    commission: "6.870.000đ",
+    metrics: { epc: 7097, aov: 0, conversionRate: 0.0424 },
+  },
+  "trk-003": {
+    clicks: 1245,
+    uniqueClicks: 902,
+    conversionCount: 58,
+    commission: "4.980.000đ",
+    metrics: { epc: 4000, aov: 0, conversionRate: 0.0466 },
+  },
+};
+
+export const offerDestinationUrls: Record<OfferId, string> = {
+  "off-shopee-fashion": "https://shopee.vn/Th%E1%BB%9Di-trang-Nam-cat.11013447",
+  "off-shopee-beauty": "https://shopee.vn/Lam-dep-cat.11013328",
+  "off-tiktok-home": "https://www.tiktok.com/shop/gia-dung",
+};
+
+export const offerTrackingParameters: Record<OfferId, {
+  label: string;
+  value: string;
+}[]> = {
+  "off-shopee-fashion": [
+    { label: "ref", value: "demo-user" },
+    { label: "click_id", value: "trk-001" },
+    { label: "campaign_id", value: "cmp-shopee-q2" },
+  ],
+  "off-shopee-beauty": [
+    { label: "ref", value: "demo-user" },
+    { label: "click_id", value: "trk-002" },
+    { label: "campaign_id", value: "cmp-shopee-q2" },
+  ],
+  "off-tiktok-home": [
+    { label: "ref", value: "demo-user" },
+    { label: "click_id", value: "trk-003" },
+    { label: "campaign_id", value: "cmp-tiktok-launch" },
+  ],
+};
 
 export const offerRequirements: Record<OfferId, OfferRequirement[]> = {
   "off-shopee-fashion": [
