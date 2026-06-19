@@ -7,9 +7,7 @@ import GeneratedLinkPreviewCard from "@/features/tracking-links/generator/Genera
 import OfferSummaryCard from "@/features/tracking-links/generator/OfferSummaryCard";
 import TrackingLinkGeneratorNotFound from "@/features/tracking-links/generator/TrackingLinkGeneratorNotFound";
 import TrackingParametersCard from "@/features/tracking-links/generator/TrackingParametersCard";
-import { loadAffiliateAsync } from "@/hooks/loadAffiliateAsync";
-import { offerDestinationUrls } from "@/lib/mock/affiliate";
-import type { TrackingLink } from "@/types/affiliate";
+import { loadAffiliateAsync, loadTrackingLinkGeneratorContextAsync } from "@/hooks/loadAffiliateAsync";
 import type { OfferId } from "@/types/ids";
 
 type RouteParams = {
@@ -36,27 +34,11 @@ function buildSyntheticShortCode(offerId: OfferId): string {
 }
 
 function buildSyntheticTrackingUrl(shortCode: string): string {
-  // clickId is created only when the future redirect handler
-  // receives GET /go/:shortCode.
   return `https://vaffiliate.vn/go/${encodeURIComponent(shortCode)}`;
 }
 
-function pickExistingLink(
-  trackingLinks: TrackingLink[],
-  offerId: OfferId,
-): TrackingLink | null {
-  return (
-    trackingLinks.find(
-      (trackingLink) => trackingLink.offerId === offerId,
-    ) ?? null
-  );
-}
-
 function renderNotFound(offerId: string) {
-  const content = (
-    <TrackingLinkGeneratorNotFound offerId={offerId} />
-  );
-
+  const content = <TrackingLinkGeneratorNotFound offerId={offerId} />;
   return (
     <AppShell desktopContent={content}>
       <AppSection className="pb-8">
@@ -68,50 +50,15 @@ function renderNotFound(offerId: string) {
 
 export async function generateStaticParams(): Promise<RouteParams[]> {
   const { offers } = await loadAffiliateAsync();
-
-  return offers.map((offer) => ({
-    offerId: offer.id,
-  }));
+  return offers.map((offer) => ({ offerId: offer.id }));
 }
 
 export default async function TrackingLinkGeneratorPage({
   params,
 }: PageProps) {
   const { offerId } = await params;
-
-  const {
-    offers,
-    campaigns,
-    advertisers,
-    trackingLinks,
-  } = await loadAffiliateAsync();
-
-  const offer = offers.find(
-    (item) => item.id === offerId,
-  );
-
-  if (!offer) {
-    return renderNotFound(offerId);
-  }
-
-  const campaign = campaigns.find(
-    (item) => item.id === offer.campaignId,
-  );
-
-  const advertiser = campaign
-    ? advertisers.find(
-        (item) => item.id === campaign.advertiserId,
-      )
-    : undefined;
-
-  if (!campaign || !advertiser) {
-    return renderNotFound(offerId);
-  }
-
-  const existingLink = pickExistingLink(
-    trackingLinks,
-    offer.id,
-  );
+  const { offer, campaign, advertiser, existingLink, defaultDestinationUrl } =
+    await loadTrackingLinkGeneratorContextAsync(offerId as OfferId);
 
   let destinationUrl: string;
   let shortCode: string;
@@ -120,61 +67,24 @@ export default async function TrackingLinkGeneratorPage({
   let parameters: TrackingParameter[];
 
   if (existingLink) {
-    // Existing entity:
-    // use the destination and tracking URL snapshot
-    // stored on the real tracking-link entity.
     const existingTrackingUrl =
-      existingLink.trackingUrl ??
-      existingLink.url;
-
+      existingLink.trackingUrl ?? existingLink.url;
     if (!existingTrackingUrl) {
       return renderNotFound(offerId);
     }
-
-    destinationUrl =
-      existingLink.destinationUrl;
-
-    shortCode =
-      existingLink.shortCode;
-
-    fullUrl =
-      existingTrackingUrl;
-
-    isPreview =
-      false;
-
-    parameters = [
-      {
-        label: "short_code",
-        value: existingLink.shortCode,
-      },
-    ];
+    destinationUrl = existingLink.destinationUrl;
+    shortCode = existingLink.shortCode;
+    fullUrl = existingTrackingUrl;
+    isPreview = false;
+    parameters = [{ label: "short_code", value: existingLink.shortCode }];
   } else {
-    // Preview only:
-    // no tracking-link entity has been persisted yet.
-    const previewShortCode =
-      buildSyntheticShortCode(offer.id);
-
-    destinationUrl =
-      offerDestinationUrls[offer.id] ??
-      "https://vaffiliate.vn";
-
-    shortCode =
-      previewShortCode;
-
-    fullUrl =
-      buildSyntheticTrackingUrl(
-        previewShortCode,
-      );
-
-    isPreview =
-      true;
-
+    const previewShortCode = buildSyntheticShortCode(offer.id);
+    destinationUrl = defaultDestinationUrl;
+    shortCode = previewShortCode;
+    fullUrl = buildSyntheticTrackingUrl(previewShortCode);
+    isPreview = true;
     parameters = [
-      {
-        label: "short_code",
-        value: `${previewShortCode} (preview)`,
-      },
+      { label: "short_code", value: `${previewShortCode} (preview)` },
     ];
   }
 
@@ -193,11 +103,9 @@ export default async function TrackingLinkGeneratorPage({
       <OfferSummaryCard
         offer={offer}
         categoryLabel={
-          categoryLabels[offer.category ?? ""] ??
-          null
+          categoryLabels[offer.category ?? ""] ?? null
         }
       />
-
       <CampaignSummaryCard
         campaign={campaign}
         advertiserName={advertiser.name}
@@ -207,13 +115,8 @@ export default async function TrackingLinkGeneratorPage({
 
   const destinationAndParametersCards = (
     <div className="grid gap-4 xl:grid-cols-2">
-      <DestinationUrlCard
-        destinationUrl={destinationUrl}
-      />
-
-      <TrackingParametersCard
-        parameters={parameters}
-      />
+      <DestinationUrlCard destinationUrl={destinationUrl} />
+      <TrackingParametersCard parameters={parameters} />
     </div>
   );
 
@@ -234,11 +137,11 @@ export default async function TrackingLinkGeneratorPage({
               {advertiser.platform} · {campaign.name}
             </p>
           }
-          title="Tạo tracking link"
+          title="Tạo link hoàn tiền"
           description={
             isPreview
-              ? "Xem trước tracking link cho offer đã tham gia. Link này chưa được lưu và chưa thể sử dụng để ghi nhận chuyển đổi."
-              : "Tracking link này đã được tạo. Bạn có thể sử dụng link để chia sẻ và ghi nhận chuyển đổi."
+              ? "Đây là bản xem trước. Link chưa được lưu và chưa thể sử dụng để ghi nhận giao dịch."
+              : "Link hoàn tiền này đã được tạo. Bạn có thể dùng link để mua hàng và ghi nhận cashback."
           }
         />
       </AppSection>

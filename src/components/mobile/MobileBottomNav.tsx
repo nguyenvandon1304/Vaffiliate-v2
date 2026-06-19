@@ -2,23 +2,36 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const navItems = [
-  { label: "Trang chủ", icon: "⌂", href: "/app" },
-  { label: "Hoàn tiền", icon: "↗", href: "/app/cashback" },
-  { label: "Đơn hàng", icon: "◫", href: "/app/orders" },
-  { label: "Tài chính", icon: "◔", href: "/app/finance" },
-  { label: "Thêm", icon: "⋯", href: "/app/more" },
-];
+import { primaryNavItems } from "../app/primaryNav";
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
 
+  const iconFor = (label: string): string => {
+    switch (label) {
+      case "Trang chủ":
+        return "⌂";
+      case "Tạo link":
+        return "↗";
+      case "Đơn hàng":
+        return "◫";
+      case "Ví tiền":
+        return "◔";
+      case "Tài khoản":
+        return "⋯";
+      default:
+        return "•";
+    }
+  };
+
   return (
-    <nav className="bottom-nav-safe fixed inset-x-0 bottom-0 z-30 sm:sticky sm:bottom-4">
+    <nav
+      className="bottom-nav-safe fixed inset-x-0 bottom-0 z-30 sm:sticky sm:bottom-4"
+      aria-label="Điều hướng chính"
+    >
       <div className="mx-auto w-full max-w-[430px] px-4 pb-2 sm:px-3">
         <div className="flex items-center justify-around rounded-[calc(var(--radius-xl)+0.2rem)] border border-[color:var(--line)] bg-[rgba(255,250,246,0.94)] px-3 py-2.5 shadow-[var(--shadow-lg)] backdrop-blur">
-          {navItems.map((item) => {
+          {primaryNavItems.map((item) => {
             const isActive = pathname === item.href;
 
             return (
@@ -33,7 +46,9 @@ export default function MobileBottomNav() {
                 aria-current={isActive ? "page" : undefined}
                 aria-label={item.label}
               >
-                <span className="text-base">{item.icon}</span>
+                <span className="text-base" aria-hidden="true">
+                  {iconFor(item.label)}
+                </span>
                 <span>{item.label}</span>
               </Link>
             );

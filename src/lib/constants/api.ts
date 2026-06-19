@@ -5,6 +5,7 @@ export const API_ENDPOINTS = {
     FEATURES: "/dashboard/features",
     HERO: "/dashboard/hero",
     QUICK_ACTIONS: "/dashboard/quick-actions",
+    POPULAR_OFFERS: "/dashboard/popular-offers",
   },
   CASHBACK: {
     PLATFORMS: "/cashback/platforms",
@@ -32,6 +33,9 @@ export const API_ENDPOINTS = {
     TRACKING_LINK_STATS: "/affiliate/tracking-link-stats",
     CAMPAIGN_DETAIL: "/campaign/detail",
     CAMPAIGN_STATISTICS: "/campaign/statistics",
+    OFFER_DESTINATION_URLS: "/affiliate/offer-destination-urls",
+    OFFER_REQUIREMENTS: "/affiliate/offer-requirements",
+    OFFER_TRACKING_RULES: "/affiliate/offer-tracking-rules",
   },
   NOTIFICATION: {
     LIST: "/notification/list",

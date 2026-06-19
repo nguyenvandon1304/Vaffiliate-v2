@@ -39,6 +39,15 @@ export interface QuickAction {
   icon: string;
 }
 
+export interface PopularOffer {
+  offerId: string;
+  platform: string;
+  title: string;
+  rewardLabel: string;
+  category: string;
+  description: string;
+}
+
 export interface DashboardData {
   summary: DashboardSummary;
   metrics: HomeMetric[];
@@ -48,4 +57,5 @@ export interface DashboardData {
   activePlatforms: PlatformLabel[];
   upcomingPlatforms: PlatformLabel[];
   recentOrders: RecentOrder[];
+  popularOffers?: PopularOffer[];
 }

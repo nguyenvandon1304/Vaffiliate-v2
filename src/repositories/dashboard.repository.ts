@@ -7,19 +7,22 @@ import type {
   HeroPreview,
   HomeFeature,
   HomeMetric,
+  PopularOffer,
   QuickAction,
 } from "@/types/dashboard";
 import type { RecentOrder } from "@/types/orders";
 
 export async function getDashboardDataAsync(): Promise<ApiResponse<DashboardData>> {
-  const [summary, metrics, features, hero, quickActions, orders] = await Promise.all([
-    apiClient.get<DashboardSummary>(API_ENDPOINTS.DASHBOARD.SUMMARY),
-    apiClient.get<HomeMetric[]>(API_ENDPOINTS.DASHBOARD.METRICS),
-    apiClient.get<HomeFeature[]>(API_ENDPOINTS.DASHBOARD.FEATURES),
-    apiClient.get<HeroPreview>(API_ENDPOINTS.DASHBOARD.HERO),
-    apiClient.get<QuickAction[]>(API_ENDPOINTS.DASHBOARD.QUICK_ACTIONS),
-    apiClient.get<RecentOrder[]>(API_ENDPOINTS.ORDERS.LIST),
-  ]);
+  const [summary, metrics, features, hero, quickActions, orders, popularOffers] =
+    await Promise.all([
+      apiClient.get<DashboardSummary>(API_ENDPOINTS.DASHBOARD.SUMMARY),
+      apiClient.get<HomeMetric[]>(API_ENDPOINTS.DASHBOARD.METRICS),
+      apiClient.get<HomeFeature[]>(API_ENDPOINTS.DASHBOARD.FEATURES),
+      apiClient.get<HeroPreview>(API_ENDPOINTS.DASHBOARD.HERO),
+      apiClient.get<QuickAction[]>(API_ENDPOINTS.DASHBOARD.QUICK_ACTIONS),
+      apiClient.get<RecentOrder[]>(API_ENDPOINTS.ORDERS.LIST),
+      apiClient.get<PopularOffer[]>(API_ENDPOINTS.DASHBOARD.POPULAR_OFFERS),
+    ]);
   return {
     success: true,
     data: {
@@ -31,6 +34,7 @@ export async function getDashboardDataAsync(): Promise<ApiResponse<DashboardData
       activePlatforms: summary.data.activePlatforms,
       upcomingPlatforms: summary.data.upcomingPlatforms,
       recentOrders: orders.data,
+      popularOffers: popularOffers.data,
     },
   };
 }

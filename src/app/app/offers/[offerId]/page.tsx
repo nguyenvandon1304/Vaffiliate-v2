@@ -7,9 +7,8 @@ import OfferJoinCampaignCard from "@/features/offers/OfferJoinCampaignCard";
 import OfferNotFound from "@/features/offers/OfferNotFound";
 import OfferRequirementCard from "@/features/offers/OfferRequirementCard";
 import OfferTrackingCard from "@/features/offers/OfferTrackingCard";
-import { loadAffiliateAsync } from "@/hooks/loadAffiliateAsync";
-import { offerRequirements, offerTrackingRules } from "@/lib/mock/affiliate";
-import type { OfferDetail, OfferJoinStatus } from "@/types/affiliate";
+import { loadAffiliateAsync, loadOfferDetailContextAsync } from "@/hooks/loadAffiliateAsync";
+import type { OfferJoinStatus } from "@/types/affiliate";
 
 type RouteParams = {
   offerId: string;
@@ -24,19 +23,13 @@ export async function generateStaticParams(): Promise<RouteParams[]> {
   return offers.map((offer) => ({ offerId: offer.id }));
 }
 
-function resolveJoinStatus(joinedOfferIds: string[], offerId: string, campaignStatus: string): OfferJoinStatus {
-  if (joinedOfferIds.includes(offerId)) {
-    return campaignStatus === "paused" ? "paused" : "joined";
-  }
-  return "not_joined";
-}
-
 export default async function OfferDetailPage({ params }: PageProps) {
   const { offerId } = await params;
-  const { offers, campaigns, advertisers, joinedOfferIds } = await loadAffiliateAsync();
 
-  const offer = offers.find((item) => item.id === offerId);
-  if (!offer) {
+  let ctx;
+  try {
+    ctx = await loadOfferDetailContextAsync(offerId);
+  } catch {
     return (
       <AppShell desktopContent={<OfferNotFound offerId={offerId} />}>
         <AppSection className="pb-8">
@@ -46,32 +39,15 @@ export default async function OfferDetailPage({ params }: PageProps) {
     );
   }
 
-  const campaign = campaigns.find((item) => item.id === offer.campaignId);
-  const advertiser = campaign
-    ? advertisers.find((item) => item.id === campaign.advertiserId)
-    : undefined;
+  const { offer, campaign, advertiser, joinStatus, requirements, trackingRules } = ctx;
 
-  if (!campaign || !advertiser) {
-    return (
-      <AppShell desktopContent={<OfferNotFound offerId={offerId} />}>
-        <AppSection className="pb-8">
-          <OfferNotFound offerId={offerId} />
-        </AppSection>
-      </AppShell>
-    );
-  }
-
-  const offerDetail: OfferDetail = {
+  const offerDetail = {
     offer,
     campaign,
     advertiser,
-    joinStatus: resolveJoinStatus(joinedOfferIds, offer.id, campaign.status),
-    requirements: offerRequirements[offer.id] ?? [],
-    trackingRules: offerTrackingRules[offer.id] ?? {
-      cookieDurationDays: 0,
-      allowedChannels: [],
-      trafficRules: [],
-    },
+    joinStatus: joinStatus as OfferJoinStatus,
+    requirements,
+    trackingRules,
   };
 
   const desktopContent = (
@@ -102,7 +78,7 @@ export default async function OfferDetailPage({ params }: PageProps) {
             </p>
           }
           title={offer.title}
-          description="Chi tiết offer, cơ chế hoa hồng, yêu cầu chương trình và cấu hình tracking."
+          description="Chi tiết chương trình, mức cashback, yêu cầu và cấu hình tracking."
         />
       </AppSection>
       <AppSection className="mb-4">
