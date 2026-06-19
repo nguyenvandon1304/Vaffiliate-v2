@@ -1,9 +1,13 @@
-import type { CampaignId, TrackingLinkId } from "./affiliate";
+import type {
+  CampaignId,
+  PublisherId,
+  TrackingLinkId,
+} from "./ids";
 
 export type PublisherStatus = "pending" | "approved" | "suspended";
 
 export interface PublisherProfile {
-  id: string;
+  id: PublisherId;
   status: PublisherStatus;
   joinedCampaignIds: CampaignId[];
   trackingLinkIds: TrackingLinkId[];

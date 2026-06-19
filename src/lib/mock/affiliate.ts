@@ -4,12 +4,12 @@ import type {
   CampaignDetail,
   Conversion,
   Offer,
-  OfferId,
   OfferRequirement,
   OfferTrackingRules,
   TrackingLink,
   TrackingLinkStatsMap,
 } from "@/types/affiliate";
+import type { OfferId } from "@/types/ids";
 
 export const campaignDetails = {
   "cmp-shopee-q2": {
@@ -32,9 +32,9 @@ export const campaignDetails = {
       note: "Áp dụng cho các offer thời trang và làm đẹp trong chiến dịch.",
     },
     trackingSettings: {
-      baseUrl: "https://vaffiliate.vn/go/shopee",
+      baseUrl: "https://vaffiliate.vn/go",
       defaultDestinationUrl: "https://shopee.vn",
-      supportedParameters: ["ref", "click_id", "campaign_id"],
+      supportedParameters: ["short_code"],
     },
     statistics: [
       { label: "Tổng chuyển đổi", value: "128" },
@@ -62,9 +62,9 @@ export const campaignDetails = {
       note: "Tập trung vào ngành hàng gia dụng và làm đẹp trong tháng ra mắt.",
     },
     trackingSettings: {
-      baseUrl: "https://vaffiliate.vn/go/tiktok-shop",
+      baseUrl: "https://vaffiliate.vn/go",
       defaultDestinationUrl: "https://www.tiktok.com/shop",
-      supportedParameters: ["ref", "click_id", "campaign_id"],
+      supportedParameters: ["short_code"],
     },
     statistics: [
       { label: "Tổng chuyển đổi", value: "74" },
@@ -125,27 +125,60 @@ export const offers: Offer[] = [
   },
 ];
 
+/**
+ * GET /go/:shortCode
+ *
+ * 1. Resolve TrackingLink by shortCode (no query params in public URL)
+ * 2. Check link status is active
+ * 3. Generate unique clickId (UUID v7 or snowflake)
+ * 4. Persist click record:
+ *    - clickId, trackingLinkId, publisherId, campaignId, offerId,
+ *    - timestamp, referrer, userAgent, IP hash (not raw IP)
+ * 5. Build merchant/network URL with clickId as sub_id
+ * 6. Redirect 302 to merchant URL
+ *
+ * NOTE: Public tracking URL is /go/:shortCode only.
+ * Internal parameters (publisherId, trackingLinkId, campaignId) are
+ * resolved server-side from the shortCode lookup. They are NOT encoded
+ * in the public URL. Network parameters (clickId, sub_id) are added
+ * during the redirect, not at link creation time.
+ */
 export const trackingLinks: TrackingLink[] = [
   {
     id: "trk-001",
+    publisherId: "pub-demo-user",
+    campaignId: "cmp-shopee-q2",
     offerId: "off-shopee-fashion",
-    url: "https://vaffiliate.vn/go/shopee?ref=demo-user&click_id=trk-001",
+    destinationUrl: "https://shopee.vn/Th%E1%BB%9Di-trang-Nam-cat.11013447",
+    trackingUrl: "https://vaffiliate.vn/go/VAF001",
     shortCode: "VAF001",
+    status: "active",
     createdAt: "2026-06-01",
+    url: "https://vaffiliate.vn/go/VAF001",
   },
   {
     id: "trk-002",
+    publisherId: "pub-demo-user",
+    campaignId: "cmp-shopee-q2",
     offerId: "off-shopee-beauty",
-    url: "https://vaffiliate.vn/go/shopee?ref=demo-user&click_id=trk-002",
+    destinationUrl: "https://shopee.vn/Lam-dep-cat.11013328",
+    trackingUrl: "https://vaffiliate.vn/go/VAF002",
     shortCode: "VAF002",
+    status: "active",
     createdAt: "2026-06-05",
+    url: "https://vaffiliate.vn/go/VAF002",
   },
   {
     id: "trk-003",
+    publisherId: "pub-demo-user",
+    campaignId: "cmp-tiktok-launch",
     offerId: "off-tiktok-home",
-    url: "https://vaffiliate.vn/go/tiktok-shop?ref=demo-user&click_id=trk-003",
+    destinationUrl: "https://www.tiktok.com/shop/gia-dung",
+    trackingUrl: "https://vaffiliate.vn/go/VAF003",
     shortCode: "VAF003",
+    status: "active",
     createdAt: "2026-06-08",
+    url: "https://vaffiliate.vn/go/VAF003",
   },
 ];
 
@@ -163,21 +196,21 @@ export const trackingLinkStats: TrackingLinkStatsMap = {
     clicks: 1842,
     uniqueClicks: 1284,
     conversionCount: 96,
-    commission: "12.480.000đ",
+    commission: { amount: 12480000, currency: "VND" },
     metrics: { epc: 6775, aov: 0, conversionRate: 0.0521 },
   },
   "trk-002": {
     clicks: 968,
     uniqueClicks: 712,
     conversionCount: 41,
-    commission: "6.870.000đ",
+    commission: { amount: 6870000, currency: "VND" },
     metrics: { epc: 7097, aov: 0, conversionRate: 0.0424 },
   },
   "trk-003": {
     clicks: 1245,
     uniqueClicks: 902,
     conversionCount: 58,
-    commission: "4.980.000đ",
+    commission: { amount: 4980000, currency: "VND" },
     metrics: { epc: 4000, aov: 0, conversionRate: 0.0466 },
   },
 };
@@ -193,19 +226,13 @@ export const offerTrackingParameters: Record<OfferId, {
   value: string;
 }[]> = {
   "off-shopee-fashion": [
-    { label: "ref", value: "demo-user" },
-    { label: "click_id", value: "trk-001" },
-    { label: "campaign_id", value: "cmp-shopee-q2" },
+    { label: "short_code", value: "VAF001" },
   ],
   "off-shopee-beauty": [
-    { label: "ref", value: "demo-user" },
-    { label: "click_id", value: "trk-002" },
-    { label: "campaign_id", value: "cmp-shopee-q2" },
+    { label: "short_code", value: "VAF002" },
   ],
   "off-tiktok-home": [
-    { label: "ref", value: "demo-user" },
-    { label: "click_id", value: "trk-003" },
-    { label: "campaign_id", value: "cmp-tiktok-launch" },
+    { label: "short_code", value: "VAF003" },
   ],
 };
 
@@ -257,26 +284,99 @@ export const offerTrackingRules: Record<OfferId, OfferTrackingRules> = {
   },
 };
 
+/**
+ * Rejected conversion keeps its estimated monetary snapshot.
+ * Reporting aggregations must exclude rejected status.
+ * Invariant: networkCommission.amount === userCashback.amount + platformProfit.amount
+ * for all conversions.
+ */
 export const conversions: Conversion[] = [
   {
     id: "cnv-001",
+    orderId: "ORD-SHP-001",
+    advertiserId: "adv-shopee",
+    campaignId: "cmp-shopee-q2",
+    offerId: "off-shopee-fashion",
+    publisherId: "pub-demo-user",
     trackingLinkId: "trk-001",
     status: "approved",
-    orderValue: "879.000đ",
+    orderAmount: { amount: 879000, currency: "VND" },
+    networkCommission: { amount: 70320, currency: "VND" },
+    userCashback: { amount: 43950, currency: "VND" },
+    platformProfit: { amount: 26370, currency: "VND" },
     occurredAt: "2026-06-02",
+    approvedAt: "2026-06-03",
+    orderValue: "879.000đ",
   },
   {
     id: "cnv-002",
+    orderId: "ORD-SHP-002",
+    advertiserId: "adv-shopee",
+    campaignId: "cmp-shopee-q2",
+    offerId: "off-shopee-beauty",
+    publisherId: "pub-demo-user",
     trackingLinkId: "trk-002",
     status: "pending",
-    orderValue: "520.000đ",
+    orderAmount: { amount: 520000, currency: "VND" },
+    networkCommission: { amount: 52000, currency: "VND" },
+    userCashback: { amount: 26000, currency: "VND" },
+    platformProfit: { amount: 26000, currency: "VND" },
     occurredAt: "2026-06-06",
+    orderValue: "520.000đ",
   },
   {
     id: "cnv-003",
+    orderId: "ORD-TT-003",
+    advertiserId: "adv-tiktok",
+    campaignId: "cmp-tiktok-launch",
+    offerId: "off-tiktok-home",
+    publisherId: "pub-demo-user",
     trackingLinkId: "trk-003",
     status: "paid",
-    orderValue: "1.290.000đ",
+    orderAmount: { amount: 1290000, currency: "VND" },
+    networkCommission: { amount: 77400, currency: "VND" },
+    userCashback: { amount: 38700, currency: "VND" },
+    platformProfit: { amount: 38700, currency: "VND" },
     occurredAt: "2026-06-09",
+    approvedAt: "2026-06-10",
+    payableAt: "2026-06-15",
+    paidAt: "2026-06-16",
+    orderValue: "1.290.000đ",
+  },
+  {
+    id: "cnv-004",
+    orderId: "ORD-SHP-004",
+    advertiserId: "adv-shopee",
+    campaignId: "cmp-shopee-q2",
+    offerId: "off-shopee-fashion",
+    publisherId: "pub-demo-user",
+    trackingLinkId: "trk-001",
+    status: "payable",
+    orderAmount: { amount: 680000, currency: "VND" },
+    networkCommission: { amount: 54400, currency: "VND" },
+    userCashback: { amount: 34000, currency: "VND" },
+    platformProfit: { amount: 20400, currency: "VND" },
+    occurredAt: "2026-06-14",
+    approvedAt: "2026-06-15",
+    payableAt: "2026-06-16",
+    orderValue: "680.000đ",
+  },
+  {
+    id: "cnv-005",
+    orderId: "ORD-SHP-005",
+    advertiserId: "adv-shopee",
+    campaignId: "cmp-shopee-q2",
+    offerId: "off-shopee-beauty",
+    publisherId: "pub-demo-user",
+    trackingLinkId: "trk-002",
+    status: "rejected",
+    orderAmount: { amount: 390000, currency: "VND" },
+    networkCommission: { amount: 39000, currency: "VND" },
+    userCashback: { amount: 19500, currency: "VND" },
+    platformProfit: { amount: 19500, currency: "VND" },
+    occurredAt: "2026-06-12",
+    rejectedAt: "2026-06-13",
+    rejectedReason: "Đơn hàng bị hoàn trả (refund) trước khi đối soát.",
+    orderValue: "390.000đ",
   },
 ];

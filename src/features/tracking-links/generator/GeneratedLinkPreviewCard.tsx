@@ -5,6 +5,7 @@ type Props = {
   fullUrl: string;
   commissionRate: string;
   offerTitle: string;
+  isPreview?: boolean;
 };
 
 export default function GeneratedLinkPreviewCard({
@@ -12,11 +13,17 @@ export default function GeneratedLinkPreviewCard({
   fullUrl,
   commissionRate,
   offerTitle,
+  isPreview = false,
 }: Props) {
   return (
     <div className="rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-5 shadow-[var(--shadow-sm)]">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-medium text-[color:var(--text-muted)]">Generated tracking link</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium text-[color:var(--text-muted)]">Generated tracking link</p>
+          {isPreview && (
+            <Badge variant="warning">Preview — chưa lưu</Badge>
+          )}
+        </div>
         <Badge variant="success">{commissionRate}</Badge>
       </div>
       <p className="mt-3 text-base font-semibold tracking-tight text-[color:var(--text)]">
@@ -27,8 +34,9 @@ export default function GeneratedLinkPreviewCard({
         {fullUrl}
       </p>
       <p className="mt-3 text-sm leading-6 text-[color:var(--text-muted)]">
-        Sao chép link trên để dán vào blog, mạng xã hội hoặc email. Mọi chuyển đổi từ link này sẽ
-        được ghi nhận cho offer tương ứng.
+        {isPreview
+          ? "Đây là bản xem trước. Link chưa được lưu. Tạo link thật để bắt đầu chia sẻ."
+          : "Sao chép link trên để dán vào blog, mạng xã hội hoặc email. Mọi chuyển đổi từ link này sẽ được ghi nhận cho offer tương ứng."}
       </p>
     </div>
   );

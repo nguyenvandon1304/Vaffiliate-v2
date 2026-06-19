@@ -11,8 +11,6 @@ import { loadAffiliateAsync } from "@/hooks/loadAffiliateAsync";
 import {
   formatDate,
   formatVnd,
-  parseOrderValue,
-  parseRate,
   supportedPlatforms,
 } from "@/lib/analytics/format";
 import type {
@@ -31,8 +29,8 @@ type RevenueRow = {
   offerId: string;
   trackingCode: string;
   date: string;
-  revenue: number;
-  commission: number;
+  gmv: number;
+  cashback: number;
 };
 
 type RevenuePlatformAnalytics = RevenuePlatform & {
@@ -42,7 +40,11 @@ type RevenuePlatformAnalytics = RevenuePlatform & {
 export default async function RevenuePage() {
   const { advertisers, campaigns, offers, trackingLinks, conversions } = await loadAffiliateAsync();
 
-  const rows: RevenueRow[] = conversions.flatMap((conversion) => {
+  const estimatedConversions = conversions.filter(
+    (c) => c.status !== "rejected"
+  );
+
+  const rows: RevenueRow[] = estimatedConversions.flatMap((conversion) => {
     const link = trackingLinks.find((item) => item.id === conversion.trackingLinkId);
     if (!link) return [];
     const offer = offers.find((item) => item.id === link.offerId);
@@ -53,11 +55,6 @@ export default async function RevenuePage() {
     if (!advertiser) return [];
     const platform = supportedPlatforms[advertiser.platform];
     if (!platform) return [];
-    const order = parseOrderValue(conversion.orderValue);
-    if (!Number.isFinite(order)) return [];
-    const rate = parseRate(offer.commissionRate);
-    const commission =
-      offer.commissionModel === "CPS" && Number.isFinite(rate) ? (order * rate) / 100 : 0;
     return [
       {
         platform,
@@ -67,27 +64,25 @@ export default async function RevenuePage() {
         offerId: offer.id,
         trackingCode: link.shortCode,
         date: conversion.occurredAt,
-        revenue: order,
-        commission,
+        gmv: conversion.orderAmount.amount,
+        cashback: conversion.userCashback.amount,
       },
     ];
   });
 
-  const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0);
-  const totalCommission = rows.reduce((sum, row) => sum + row.commission, 0);
-  const totalConversions = rows.length;
+  const totalGmv = rows.reduce((sum, row) => sum + row.gmv, 0);
 
   const platformTotals = new Map<
     SupportedPlatformLabel,
-    { revenue: number; commission: number; conversions: number }
+    { gmv: number; cashback: number; conversions: number }
   >();
   const campaignTotals = new Map<
     string,
     {
       campaignName: string;
       platform: SupportedPlatformLabel;
-      revenue: number;
-      commission: number;
+      gmv: number;
+      cashback: number;
       conversionCount: number;
     }
   >();
@@ -96,8 +91,8 @@ export default async function RevenuePage() {
     {
       offerTitle: string;
       platform: SupportedPlatformLabel;
-      revenue: number;
-      commission: number;
+      gmv: number;
+      cashback: number;
       conversionCount: number;
     }
   >();
@@ -106,17 +101,17 @@ export default async function RevenuePage() {
     {
       trackingCode: string;
       platform: SupportedPlatformLabel;
-      revenue: number;
-      commission: number;
+      gmv: number;
+      cashback: number;
       conversionCount: number;
     }
   >();
-  const dateTotals = new Map<string, { revenue: number; conversionCount: number }>();
+  const dateTotals = new Map<string, { gmv: number; conversionCount: number }>();
 
   for (const row of rows) {
-    const p = platformTotals.get(row.platform) ?? { revenue: 0, commission: 0, conversions: 0 };
-    p.revenue += row.revenue;
-    p.commission += row.commission;
+    const p = platformTotals.get(row.platform) ?? { gmv: 0, cashback: 0, conversions: 0 };
+    p.gmv += row.gmv;
+    p.cashback += row.cashback;
     p.conversions += 1;
     platformTotals.set(row.platform, p);
 
@@ -125,12 +120,12 @@ export default async function RevenuePage() {
       campaignTotals.get(campaignKey) ?? {
         campaignName: row.campaignName,
         platform: row.platform,
-        revenue: 0,
-        commission: 0,
+        gmv: 0,
+        cashback: 0,
         conversionCount: 0,
       };
-    c.revenue += row.revenue;
-    c.commission += row.commission;
+    c.gmv += row.gmv;
+    c.cashback += row.cashback;
     c.conversionCount += 1;
     campaignTotals.set(campaignKey, c);
 
@@ -139,12 +134,12 @@ export default async function RevenuePage() {
       offerTotals.get(offerKey) ?? {
         offerTitle: row.offerTitle,
         platform: row.platform,
-        revenue: 0,
-        commission: 0,
+        gmv: 0,
+        cashback: 0,
         conversionCount: 0,
       };
-    o.revenue += row.revenue;
-    o.commission += row.commission;
+    o.gmv += row.gmv;
+    o.cashback += row.cashback;
     o.conversionCount += 1;
     offerTotals.set(offerKey, o);
 
@@ -152,18 +147,18 @@ export default async function RevenuePage() {
       trackingTotals.get(row.trackingCode) ?? {
         trackingCode: row.trackingCode,
         platform: row.platform,
-        revenue: 0,
-        commission: 0,
+        gmv: 0,
+        cashback: 0,
         conversionCount: 0,
       };
-    t.revenue += row.revenue;
-    t.commission += row.commission;
+    t.gmv += row.gmv;
+    t.cashback += row.cashback;
     t.conversionCount += 1;
     trackingTotals.set(row.trackingCode, t);
 
     const dateKey = row.date.split("T")[0];
-    const d = dateTotals.get(dateKey) ?? { revenue: 0, conversionCount: 0 };
-    d.revenue += row.revenue;
+    const d = dateTotals.get(dateKey) ?? { gmv: 0, conversionCount: 0 };
+    d.gmv += row.gmv;
     d.conversionCount += 1;
     dateTotals.set(dateKey, d);
   }
@@ -172,11 +167,11 @@ export default async function RevenuePage() {
     .filter((platform) => platformTotals.has(platform))
     .map((platform) => {
       const totals = platformTotals.get(platform)!;
-      const share = totalRevenue === 0 ? 0 : (totals.revenue / totalRevenue) * 100;
+      const share = totalGmv === 0 ? 0 : (totals.gmv / totalGmv) * 100;
       return {
         platform,
-        revenue: formatVnd(totals.revenue),
-        commission: formatVnd(totals.commission),
+        gmv: { amount: totals.gmv, currency: "VND" },
+        publisherCashback: { amount: totals.cashback, currency: "VND" },
         conversions: totals.conversions,
         share,
       };
@@ -184,23 +179,23 @@ export default async function RevenuePage() {
 
   const revenueCampaigns: RevenueCampaign[] = Array.from(campaignTotals.values())
     .sort(
-      (a, b) => b.revenue - a.revenue || a.campaignName.localeCompare(b.campaignName)
+      (a, b) => b.gmv - a.gmv || a.campaignName.localeCompare(b.campaignName)
     )
     .map((item) => ({
       campaignName: item.campaignName,
       platform: item.platform,
-      revenue: formatVnd(item.revenue),
-      commission: formatVnd(item.commission),
+      gmv: { amount: item.gmv, currency: "VND" },
+      publisherCashback: { amount: item.cashback, currency: "VND" },
       conversionCount: item.conversionCount,
     }));
 
   const revenueOffers: RevenueOffer[] = Array.from(offerTotals.values())
-    .sort((a, b) => b.revenue - a.revenue || a.offerTitle.localeCompare(b.offerTitle))
+    .sort((a, b) => b.gmv - a.gmv || a.offerTitle.localeCompare(b.offerTitle))
     .map((item) => ({
       offerTitle: item.offerTitle,
       platform: item.platform,
-      revenue: formatVnd(item.revenue),
-      commission: formatVnd(item.commission),
+      gmv: { amount: item.gmv, currency: "VND" },
+      publisherCashback: { amount: item.cashback, currency: "VND" },
       conversionCount: item.conversionCount,
     }));
 
@@ -208,37 +203,37 @@ export default async function RevenuePage() {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, totals]) => ({
       date: formatDate(date),
-      revenue: formatVnd(totals.revenue),
+      revenue: formatVnd(totals.gmv),
       conversionCount: totals.conversionCount,
     }));
 
   const revenueTopLinks = Array.from(trackingTotals.values())
     .sort(
-      (a, b) => b.revenue - a.revenue || a.trackingCode.localeCompare(b.trackingCode)
+      (a, b) => b.gmv - a.gmv || a.trackingCode.localeCompare(b.trackingCode)
     )
     .map((item) => ({
       trackingCode: item.trackingCode,
       platform: item.platform,
-      revenue: formatVnd(item.revenue),
-      commission: formatVnd(item.commission),
+      revenue: formatVnd(item.gmv),
+      cashback: formatVnd(item.cashback),
       conversionCount: item.conversionCount,
     }));
 
-  const avgRevenuePerConversion =
-    rows.length === 0 ? 0 : totalRevenue / rows.length;
+  const avgGmvPerConversion =
+    rows.length === 0 ? 0 : totalGmv / rows.length;
 
   const topOffer = revenueOffers.length > 0 ? revenueOffers[0] : null;
   const topCampaign = revenueCampaigns.length > 0 ? revenueCampaigns[0] : null;
   const topLink = revenueTopLinks.length > 0 ? revenueTopLinks[0] : null;
 
   const stats: RevenueStat[] = [
-    { label: "Tổng doanh thu đơn hàng", value: formatVnd(totalRevenue) },
-    { label: "Doanh thu Shopee", value: formatVnd(platformTotals.get("Shopee")?.revenue ?? 0) },
-    { label: "Doanh thu TikTok", value: formatVnd(platformTotals.get("TikTok Shop")?.revenue ?? 0) },
-    { label: "Offer doanh thu cao nhất", value: topOffer ? topOffer.offerTitle : "—" },
-    { label: "Chiến dịch doanh thu cao nhất", value: topCampaign ? topCampaign.campaignName : "—" },
-    { label: "Link doanh thu cao nhất", value: topLink ? topLink.trackingCode : "—" },
-    { label: "Doanh thu TB / chuyển đổi", value: formatVnd(avgRevenuePerConversion) },
+    { label: "Tổng GMV", value: formatVnd(totalGmv) },
+    { label: "GMV Shopee", value: formatVnd(platformTotals.get("Shopee")?.gmv ?? 0) },
+    { label: "GMV TikTok", value: formatVnd(platformTotals.get("TikTok Shop")?.gmv ?? 0) },
+    { label: "Offer GMV cao nhất", value: topOffer ? topOffer.offerTitle : "—" },
+    { label: "Chiến dịch GMV cao nhất", value: topCampaign ? topCampaign.campaignName : "—" },
+    { label: "Link GMV cao nhất", value: topLink ? topLink.trackingCode : "—" },
+    { label: "GMV TB / chuyển đổi", value: formatVnd(avgGmvPerConversion) },
     { label: "Tổng chuyển đổi", value: String(rows.length) },
   ];
 
@@ -246,13 +241,13 @@ export default async function RevenuePage() {
     <div className="space-y-6">
       <section className="surface-card overflow-hidden bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-6">
         <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
-          Phân tích doanh thu từ Shopee và TikTok Shop
+          Phân tích GMV và cashback từ Shopee và TikTok Shop
         </p>
         <h1 className="text-[2rem] font-semibold tracking-[-0.04em] text-[color:var(--text)]">
           Revenue Analytics
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-[color:var(--text-muted)]">
-          Tổng hợp doanh thu đơn hàng và hoa hồng dự kiến theo nền tảng, chiến dịch và offer.
+          Tổng hợp GMV và cashback dự kiến cho publisher từ các chuyển đổi CPS (đã loại trừ rejected).
         </p>
       </section>
 
@@ -271,11 +266,11 @@ export default async function RevenuePage() {
         <PageHeader
           eyebrow={
             <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
-              Phân tích doanh thu từ Shopee và TikTok Shop
+              Phân tích GMV và cashback từ Shopee và TikTok Shop
             </p>
           }
           title="Revenue Analytics"
-          description="Tổng hợp doanh thu đơn hàng và hoa hồng dự kiến theo nền tảng, chiến dịch và offer."
+          description="Tổng hợp GMV và cashback dự kiến cho publisher từ các chuyển đổi CPS (đã loại trừ rejected)."
         />
       </AppSection>
       <AppSection>

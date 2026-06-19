@@ -1,5 +1,6 @@
 import Badge from "@/components/ui/Badge";
 import type { ConversionView } from "@/types/affiliate";
+import { formatMoney } from "@/lib/analytics/format";
 
 type BadgeVariant = "default" | "success" | "warning" | "neutral";
 
@@ -7,6 +8,7 @@ const statusLabels: Record<ConversionView["status"], string> = {
   pending: "Chờ đối soát",
   approved: "Đã duyệt",
   rejected: "Từ chối",
+  payable: "Sẵn thanh toán",
   paid: "Đã thanh toán",
 };
 
@@ -14,6 +16,7 @@ const statusVariants: Record<ConversionView["status"], BadgeVariant> = {
   pending: "warning",
   approved: "success",
   rejected: "neutral",
+  payable: "success",
   paid: "default",
 };
 
@@ -48,12 +51,14 @@ export default function ConversionTable({ conversions }: { conversions: Conversi
             <div className="mt-3 grid gap-2 border-t border-[color:var(--line)] pt-3 text-sm">
               <div className="flex items-center justify-between">
                 <span className="font-medium text-[color:var(--text-muted)]">Giá trị đơn</span>
-                <span className="font-medium text-[color:var(--text)]">{conversion.orderValue}</span>
+                <span className="font-medium text-[color:var(--text)]">
+                  {formatMoney(conversion.orderAmount)}
+                </span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="font-medium text-[color:var(--text-muted)]">Hoa hồng</span>
                 <span className="font-semibold text-[color:var(--success)]">
-                  {conversion.commissionValue}
+                  {formatMoney(conversion.userCashback)}
                 </span>
               </div>
               <div className="flex items-center justify-between">

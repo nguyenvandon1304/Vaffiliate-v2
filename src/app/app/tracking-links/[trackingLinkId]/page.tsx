@@ -71,10 +71,9 @@ export default async function TrackingLinkDetailPage({ params }: PageProps) {
     clicks: 0,
     uniqueClicks: 0,
     conversionCount: 0,
-    commission: "0đ",
+    commission: { amount: 0, currency: "VND" },
     metrics: { epc: 0, aov: 0, conversionRate: 0 },
   };
-  const headerStatus = linkConversions[0]?.status ?? "approved";
 
   const desktopContent = (
     <div className="space-y-6">
@@ -83,11 +82,10 @@ export default async function TrackingLinkDetailPage({ params }: PageProps) {
         offer={offer}
         campaign={campaign}
         advertiserName={advertiser.name}
-        status={headerStatus}
       />
       <TrackingLinkStatsCard stats={stats} />
       <div className="grid gap-4 xl:grid-cols-2">
-        <TrackingLinkPerformanceCard conversions={linkConversions} offer={offer} />
+        <TrackingLinkPerformanceCard conversions={linkConversions} />
         <TrackingLinkAttributionCard
           trackingLink={trackingLink}
           offer={offer}
@@ -118,7 +116,6 @@ export default async function TrackingLinkDetailPage({ params }: PageProps) {
           offer={offer}
           campaign={campaign}
           advertiserName={advertiser.name}
-          status={headerStatus}
         />
       </AppSection>
       <AppSection className="mb-4">
@@ -126,7 +123,7 @@ export default async function TrackingLinkDetailPage({ params }: PageProps) {
       </AppSection>
       <AppSection className="pb-8">
         <div className="grid gap-4 xl:grid-cols-2">
-          <TrackingLinkPerformanceCard conversions={linkConversions} offer={offer} />
+          <TrackingLinkPerformanceCard conversions={linkConversions} />
           <TrackingLinkAttributionCard
             trackingLink={trackingLink}
             offer={offer}

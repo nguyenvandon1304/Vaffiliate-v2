@@ -1,9 +1,9 @@
 import Badge from "@/components/ui/Badge";
 import type {
   Campaign,
-  ConversionStatus,
   Offer,
   TrackingLink,
+  TrackingLinkStatus,
 } from "@/types/affiliate";
 
 type Props = {
@@ -11,24 +11,21 @@ type Props = {
   offer: Offer;
   campaign: Campaign;
   advertiserName: string;
-  status: ConversionStatus;
 };
 
-const statusLabels: Record<ConversionStatus, string> = {
-  pending: "Đang chờ duyệt",
-  approved: "Đã duyệt",
-  rejected: "Đã từ chối",
-  paid: "Đã thanh toán",
+const statusLabels: Record<TrackingLinkStatus, string> = {
+  active: "Đang hoạt động",
+  paused: "Tạm dừng",
+  disabled: "Đã vô hiệu hóa",
 };
 
 const statusVariant: Record<
-  ConversionStatus,
+  TrackingLinkStatus,
   "default" | "success" | "warning" | "neutral"
 > = {
-  pending: "warning",
-  approved: "success",
-  rejected: "neutral",
-  paid: "success",
+  active: "success",
+  paused: "warning",
+  disabled: "neutral",
 };
 
 export default function TrackingLinkHeader({
@@ -36,7 +33,6 @@ export default function TrackingLinkHeader({
   offer,
   campaign,
   advertiserName,
-  status,
 }: Props) {
   return (
     <div className="surface-card flex flex-col gap-4 bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-6 md:flex-row md:items-center md:justify-between">
@@ -50,9 +46,13 @@ export default function TrackingLinkHeader({
         <p className="mt-2 text-sm text-[color:var(--text-muted)]">
           Chiến dịch {campaign.name} · Tạo ngày {trackingLink.createdAt}
         </p>
-        <p className="mt-2 break-all text-xs text-[color:var(--text-muted)]">{trackingLink.url}</p>
+        <p className="mt-2 break-all text-xs text-[color:var(--text-muted)]">
+          {trackingLink.trackingUrl ?? trackingLink.url ?? "—"}
+        </p>
       </div>
-      <Badge variant={statusVariant[status]}>{statusLabels[status]}</Badge>
+      <Badge variant={statusVariant[trackingLink.status]}>
+        {statusLabels[trackingLink.status]}
+      </Badge>
     </div>
   );
 }

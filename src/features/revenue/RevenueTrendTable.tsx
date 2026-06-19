@@ -20,7 +20,7 @@ export default function RevenueTrendTable({ trend }: { trend: TrendRow[] }) {
               </span>
             </div>
             <div className="mt-3 flex items-center justify-between border-t border-[color:var(--line)] pt-3 text-sm">
-              <span className="font-medium text-[color:var(--text-muted)]">Doanh thu</span>
+              <span className="font-medium text-[color:var(--text-muted)]">GMV</span>
               <span className="font-semibold text-[color:var(--text)]">{row.revenue}</span>
             </div>
           </article>

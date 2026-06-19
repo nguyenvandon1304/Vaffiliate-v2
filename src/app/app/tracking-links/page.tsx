@@ -13,7 +13,20 @@ const supportedPlatforms: Partial<Record<PlatformLabel, SupportedPlatformLabel>>
   "TikTok Shop": "TikTok Shop",
 };
 
-export default async function TrackingLinksPage() {
+type SearchParams = Promise<{ platform?: string }>;
+
+export default async function TrackingLinksPage(props: { searchParams: SearchParams }) {
+  const { searchParams } = props;
+  const resolvedParams = await searchParams;
+  const rawPlatform = resolvedParams.platform;
+
+  const validPlatforms = ["shopee", "tiktok-shop"] as const;
+  type PlatformValue = (typeof validPlatforms)[number];
+  const activeFilter: PlatformValue | "all" =
+    rawPlatform && validPlatforms.includes(rawPlatform as PlatformValue)
+      ? (rawPlatform as PlatformValue)
+      : "all";
+
   const { advertisers, campaigns, offers, trackingLinks } = await loadAffiliateAsync();
 
   const activeCampaignIds = new Set<string>();
@@ -21,6 +34,7 @@ export default async function TrackingLinksPage() {
   const linkViews: TrackingLinkView[] = trackingLinks.flatMap((link) => {
     const offer = offers.find((item) => item.id === link.offerId);
     if (!offer) return [];
+    if (link.campaignId !== offer.campaignId) return [];
     const campaign = campaigns.find((item) => item.id === offer.campaignId);
     if (!campaign) return [];
     const advertiser = advertisers.find((item) => item.id === campaign.advertiserId);
@@ -28,11 +42,14 @@ export default async function TrackingLinksPage() {
     const platform = supportedPlatforms[advertiser.platform];
     if (!platform) return [];
     if (campaign.status === "active") activeCampaignIds.add(campaign.id);
+    const trackingUrl = link.trackingUrl ?? link.url;
+    if (!trackingUrl) return [];
     return [
       {
         id: link.id,
         shortCode: link.shortCode,
-        destinationUrl: link.url,
+        trackingUrl,
+        destinationUrl: link.destinationUrl,
         offerTitle: offer.title,
         campaignId: campaign.id,
         campaignName: campaign.name,
@@ -58,7 +75,21 @@ export default async function TrackingLinksPage() {
     (platform) => linkViews.some((link) => link.platform === platform)
   );
 
-  const filters = ["Tất cả", ...platformsInUse];
+  const filterOptions = [
+    { value: "all", label: "Tất cả" },
+    ...platformsInUse.map((p) => ({
+      value: p === "Shopee" ? "shopee" : "tiktok-shop",
+      label: p,
+    })),
+  ];
+
+  const visibleLinks =
+    activeFilter === "all"
+      ? linkViews
+      : linkViews.filter((link) => {
+          if (activeFilter === "shopee") return link.platform === "Shopee";
+          return link.platform === "TikTok Shop";
+        });
 
   const desktopContent = (
     <div className="space-y-6">
@@ -75,8 +106,8 @@ export default async function TrackingLinksPage() {
       </section>
 
       <TrackingLinkStats stats={stats} />
-      <TrackingLinkFilters filters={filters} />
-      <TrackingLinkTable links={linkViews} />
+      <TrackingLinkFilters filters={filterOptions} activeFilter={activeFilter} />
+      <TrackingLinkTable links={visibleLinks} />
     </div>
   );
 
@@ -97,9 +128,9 @@ export default async function TrackingLinksPage() {
         <TrackingLinkStats stats={stats} />
       </AppSection>
       <AppSection>
-        <TrackingLinkFilters filters={filters} />
+        <TrackingLinkFilters filters={filterOptions} activeFilter={activeFilter} />
       </AppSection>
-      <TrackingLinkTable links={linkViews} />
+      <TrackingLinkTable links={visibleLinks} />
     </AppShell>
   );
 }

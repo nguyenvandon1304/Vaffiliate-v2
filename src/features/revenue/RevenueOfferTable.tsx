@@ -1,3 +1,4 @@
+import { formatMoney } from "@/lib/analytics/format";
 import type { RevenueOffer } from "@/types/affiliate";
 
 export default function RevenueOfferTable({ offers }: { offers: RevenueOffer[] }) {
@@ -22,12 +23,12 @@ export default function RevenueOfferTable({ offers }: { offers: RevenueOffer[] }
             </div>
             <div className="mt-3 grid gap-2 border-t border-[color:var(--line)] pt-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-[color:var(--text-muted)]">Doanh thu</span>
-                <span className="font-medium text-[color:var(--text)]">{offer.revenue}</span>
+                <span className="font-medium text-[color:var(--text-muted)]">GMV</span>
+                <span className="font-medium text-[color:var(--text)]">{formatMoney(offer.gmv)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="font-medium text-[color:var(--text-muted)]">Hoa hồng</span>
-                <span className="font-semibold text-[color:var(--success)]">{offer.commission}</span>
+                <span className="font-medium text-[color:var(--text-muted)]">Cashback dự kiến</span>
+                <span className="font-semibold text-[color:var(--success)]">{formatMoney(offer.publisherCashback)}</span>
               </div>
             </div>
           </article>

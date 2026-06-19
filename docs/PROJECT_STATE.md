@@ -3,14 +3,16 @@
 ## Current Status
 
 Current Phase:
-17 Complete
+19.5 Complete
 
 Last Stable Tag:
-phase-16C-complete
+phase-17-complete
 
 Route Count:
-17 (16 ○ static + 1 ● SSG dynamic — /app/campaigns/[campaignId] pre-rendered
-for cmp-shopee-q2 and cmp-tiktok-launch)
+21 (17 ○ static + 4 ● SSG dynamic —
+  /app/campaigns/[campaignId] pre-rendered for cmp-shopee-q2 and cmp-tiktok-launch
+  /app/tracking-links/[trackingLinkId] pre-rendered for trk-001/002/003
+  /app/tracking-links/generator/[offerId] pre-rendered for off-shopee-fashion/beauty/home)
 
 Build Status:
 PASS
@@ -19,7 +21,7 @@ Lint Status:
 PASS (0 errors)
 
 Last Verified Commit:
-phase-16A-complete (16B changes uncommitted)
+phase-17-complete (19 + 19.5 changes uncommitted)
 
 ---
 
@@ -198,6 +200,12 @@ Done:
   of the Affiliate chain; no duplicate data path; multi-campaign resolution
   via /campaign/detail/:id and /campaign/statistics/:id; orphaned
   campaign-detail.ts mock deleted)
+
+### Tracking Links Generator
+
+* Phase 19 Tracking Links Generator Complete (workflow rename from /create to
+  /generator; renamed feature folder; renamed component TrackingLinkGeneratorNotFound;
+  fixture AOV reset to 0; AOV removed from AttributionCard UI; build passes)
 
 ---
 
@@ -490,7 +498,13 @@ Page (/app/campaigns/[campaignId])
 * /app/finance
 * /app/more
 * /app/offers
+* /app/offers/[offerId] (SSG ● — pre-rendered for off-shopee-fashion,
+  off-shopee-beauty, off-tiktok-home)
 * /app/tracking-links
+* /app/tracking-links/[trackingLinkId] (SSG ● — pre-rendered for trk-001,
+  trk-002, trk-003)
+* /app/tracking-links/generator/[offerId] (SSG ● — pre-rendered for
+  off-shopee-fashion, off-shopee-beauty, off-tiktok-home)
 * /app/conversions
 * /app/commission
 * /app/revenue
@@ -502,7 +516,7 @@ Page (/app/campaigns/[campaignId])
   and cmp-tiktok-launch)
 
 Total:
-17 routes (16 ○ static + 1 ● SSG dynamic)
+21 routes (17 ○ static + 4 ● SSG dynamic)
 
 ---
 
@@ -579,9 +593,9 @@ layer) on an unknown id.
 
 ## Next Planned Phase
 
-Phase 18 (TBD — not started. Do not begin without approval.)
+Phase 20 (TBD — not started. Do not begin without approval.)
 
-17 Campaign Detail is complete:
+Phase 17 Campaign Detail is complete:
 
 * Route /app/campaigns/[campaignId] (SSG ● via generateStaticParams)
 * Page composes loadCampaignDetailAsync — no new data path
@@ -595,6 +609,17 @@ Phase 18 (TBD — not started. Do not begin without approval.)
   routing); cmp-shopee-q2 and cmp-tiktok-launch fixtures present
 * Orphaned src/lib/mock/campaign-detail.ts deleted; canonical fixture is the
   campaignDetails map in src/lib/mock/affiliate.ts
+
+Phase 19 + 19.5 Tracking Links Generator is complete:
+
+* Route /app/tracking-links/generator/[offerId] (SSG ● via generateStaticParams;
+  pre-rendered for off-shopee-fashion, off-shopee-beauty, off-tiktok-home)
+* Workflow rename from /create to /generator throughout
+* TrackingLinkGeneratorNotFound (was TrackingLinkCreateNotFound)
+* TrackingLinkMetrics.aov fixture reset to 0 across all trackingLinkStats
+  (trk-001, trk-002, trk-003) — no real aggregate available yet
+* AOV removed from TrackingLinkAttributionCard UI (kept in type for Phase 20)
+* Build: PASS. Lint: PASS. SSG: PASS.
 
 ---
 

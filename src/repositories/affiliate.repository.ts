@@ -7,10 +7,10 @@ import type {
   Campaign,
   Conversion,
   Offer,
-  OfferId,
   TrackingLink,
   TrackingLinkStatsMap,
 } from "@/types/affiliate";
+import type { OfferId } from "@/types/ids";
 import type { PublisherProfile } from "@/types/publisher";
 
 export async function getAffiliateDataAsync(): Promise<ApiResponse<AffiliateData>> {

@@ -6,13 +6,13 @@ Project: Vaffiliate
 
 Architecture Version: V2 Async Architecture
 
-Current Phase: 17 Complete
+Current Phase: 19.5 Complete
 
 Current Stable Tag:
-phase-16C-complete
+phase-17-complete
 
 Latest Verified Commit:
-phase-16C-complete (17 changes uncommitted)
+phase-17-complete (19 + 19.5 changes uncommitted)
 
 Build Status:
 PASS
@@ -24,7 +24,7 @@ Lint:
 PASS (0 errors)
 
 Route Status:
-All routes static (○) / SSG (●)
+All routes static (○) / SSG (●) — 21 routes total
 
 ---
 
@@ -85,7 +85,13 @@ App Routes
 /app/finance
 /app/more
 /app/offers
+/app/offers/[offerId] (SSG ● — pre-rendered for off-shopee-fashion,
+  off-shopee-beauty, off-tiktok-home)
 /app/tracking-links
+/app/tracking-links/[trackingLinkId] (SSG ● — pre-rendered for trk-001,
+  trk-002, trk-003)
+/app/tracking-links/generator/[offerId] (SSG ● — pre-rendered for
+  off-shopee-fashion, off-shopee-beauty, off-tiktok-home)
 /app/conversions
 /app/commission
 /app/revenue
@@ -96,8 +102,7 @@ App Routes
 /app/campaigns/[campaignId]
 
 Total:
-17 routes (1 dynamic, pre-rendered via generateStaticParams
-for cmp-shopee-q2 and cmp-tiktok-launch)
+21 routes (17 ○ static + 4 ● SSG dynamic)
 
 ---
 
@@ -673,7 +678,7 @@ phase-17-complete
 
 ## Next Planned Phase
 
-Phase 18 (TBD — not started. Do not begin without approval.)
+Phase 20 (TBD — not started. Do not begin without approval.)
 
 ---
 
@@ -770,6 +775,41 @@ Not built (deferred to a future phase if needed):
 
 ---
 
+### Phase 19 + 19.5 — Tracking Links Generator
+
+Status:
+Complete (workflow rename only; no new data layer)
+
+Scope:
+
+* Workflow rename: /app/tracking-links/create/[offerId] → /app/tracking-links/generator/[offerId]
+* Feature folder rename: tracking-links/create → tracking-links/generator
+* Component rename: TrackingLinkCreateNotFound → TrackingLinkGeneratorNotFound
+* Fixture correction: trackingLinkStats AOV reset to 0 (trk-001, trk-002, trk-003)
+* UI cleanup: AOV removed from TrackingLinkAttributionCard (type preserved for Phase 20)
+
+Architecture:
+No new data path. Reuses loadAffiliateAsync. No new repository/service/hook.
+No change to TrackingLinkStats shape, TrackingLinkMetrics shape, or route structure.
+
+Modified Files:
+src/features/tracking-links/generator/TrackingLinkGeneratorNotFound.tsx (was TrackingLinkCreateNotFound)
+src/app/app/tracking-links/generator/[offerId]/page.tsx
+src/lib/mock/affiliate.ts (3 AOV values → 0)
+src/features/tracking-links/detail/TrackingLinkAttributionCard.tsx (AOV removed from render)
+
+Deleted Files:
+src/features/tracking-links/generator/TrackingLinkCreateNotFound.tsx
+
+Build: PASS
+Lint: PASS (0 errors; 0 warnings)
+SSG: PASS — /app/tracking-links/generator/[offerId] pre-rendered for 3 offer IDs
+
+Not built (deferred):
+AOV aggregate calculation (Phase 20).
+
+---
+
 ## Mandatory Workflow Before Any New Phase
 
 1. Read PROJECT_STATE.md
@@ -798,27 +838,26 @@ TypeScript:
 PASS
 
 Lint:
-PASS (0 errors; 4 pre-existing unused-var warnings unrelated to 15E/17)
+PASS (0 errors)
 
 Static Routes:
-PASS — 16 ○ static + 1 ● SSG dynamic. The dynamic /app/campaigns/[campaignId]
-is pre-rendered for cmp-shopee-q2 and cmp-tiktok-launch.
+PASS — 17 ○ static + 4 ● SSG dynamic:
+  /app/campaigns/[campaignId] pre-rendered for cmp-shopee-q2 and cmp-tiktok-launch
+  /app/offers/[offerId] pre-rendered for off-shopee-fashion/beauty/home
+  /app/tracking-links/[trackingLinkId] pre-rendered for trk-001/002/003
+  /app/tracking-links/generator/[offerId] pre-rendered for off-shopee-fashion/beauty/home
 
 Architecture:
-PASS at file level — single async data flow only. Phase 17 reuses the same
-chain; no React Query/SWR/Redux/Zustand/Context/direct-mock-imports were
-introduced. Campaign Detail is composed on top of the Affiliate chain
-(no duplicate data path). Mock backend was refactored from a flat map to
-exact-match + prefix-match routing while keeping every existing endpoint
-behavior identical.
+PASS at file level — single async data flow only. Phase 19 + 19.5 reuses the
+same chain; no React Query/SWR/Redux/Zustand/Context/direct-mock-imports were
+introduced. Tracking Links Generator is a workflow rename only; no new data path.
+TrackingLinkMetrics.aov field preserved in type definition (Phase 20).
 
 Known remaining debt:
-None from the sync architecture — fully removed. Only 4 cosmetic unused-var
-lint warnings remain (revenue page totalCommission/totalConversions,
-CashbackForm upcomingPlatforms, CommissionCampaignTable Badge import).
+None from the sync architecture — fully removed.
 
 Last Reconciled State:
 
-phase-16C-complete (committed 90c29c9)
+phase-17-complete (committed)
 
-working tree ahead — Phase 17 changes uncommitted
+working tree ahead — Phase 19 + 19.5 changes uncommitted

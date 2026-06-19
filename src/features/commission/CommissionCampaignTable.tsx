@@ -1,5 +1,5 @@
-import Badge from "@/components/ui/Badge";
 import type { CampaignCommission } from "@/types/affiliate";
+import { formatMoney } from "@/lib/analytics/format";
 
 export default function CommissionCampaignTable({
   campaigns,
@@ -26,9 +26,9 @@ export default function CommissionCampaignTable({
               </span>
             </div>
             <div className="mt-3 flex items-center justify-between border-t border-[color:var(--line)] pt-3 text-sm">
-              <span className="font-medium text-[color:var(--text-muted)]">Tổng hoa hồng</span>
+              <span className="font-medium text-[color:var(--text-muted)]">Tổng cashback dự kiến</span>
               <span className="font-semibold text-[color:var(--success)]">
-                {campaign.totalCommission}
+                {formatMoney(campaign.totalCommission)}
               </span>
             </div>
           </article>

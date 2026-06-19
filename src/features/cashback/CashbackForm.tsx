@@ -3,8 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import EmptyState from "@/components/ui/EmptyState";
 
-const upcomingPlatforms = ["Shopee Food", "Lazada", "Tiki", "Sendo"];
-
 type PlatformName = "Shopee" | "TikTok Shop";
 type FlowStep = "idle" | "result" | "modal";
 

@@ -1,18 +1,15 @@
 import Badge from "@/components/ui/Badge";
-import type { SupportedPlatformLabel } from "@/types/affiliate";
+import { formatMoney } from "@/lib/analytics/format";
+import type { RevenuePlatform } from "@/types/affiliate";
 
-type PlatformBreakdown = {
-  platform: SupportedPlatformLabel;
-  revenue: string;
-  commission: string;
-  conversions: number;
+type RevenuePlatformAnalytics = RevenuePlatform & {
   share: number;
 };
 
 export default function RevenuePlatformBreakdown({
   platforms,
 }: {
-  platforms: PlatformBreakdown[];
+  platforms: RevenuePlatformAnalytics[];
 }) {
   return (
     <section className="mb-4 grid gap-3 sm:grid-cols-2">
@@ -30,23 +27,23 @@ export default function RevenuePlatformBreakdown({
           <div className="mt-4 grid gap-3">
             <div>
               <p className="text-xs font-medium text-[color:var(--text-muted)]">
-                Doanh thu đơn hàng
+                GMV
               </p>
               <p className="mt-1 text-2xl font-semibold tracking-tight text-[color:var(--text)]">
-                {item.revenue}
+                {formatMoney(item.gmv)}
               </p>
             </div>
             <div>
               <p className="text-xs font-medium text-[color:var(--text-muted)]">
-                Hoa hồng dự kiến
+                Cashback dự kiến
               </p>
               <p className="mt-1 text-xl font-semibold tracking-tight text-[color:var(--success)]">
-                {item.commission}
+                {formatMoney(item.publisherCashback)}
               </p>
             </div>
             <div className="border-t border-[color:var(--line)] pt-3">
               <p className="text-xs font-medium text-[color:var(--text-muted)]">
-                Tỷ trọng doanh thu
+                Tỷ trọng GMV
               </p>
               <p className="mt-1 text-base font-semibold text-[color:var(--text)]">
                 {item.share.toFixed(1)}%

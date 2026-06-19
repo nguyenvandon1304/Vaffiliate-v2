@@ -5,7 +5,7 @@ type TopLinkRow = {
   trackingCode: string;
   platform: SupportedPlatformLabel;
   revenue: string;
-  commission: string;
+  cashback: string;
   conversionCount: number;
 };
 
@@ -31,12 +31,12 @@ export default function RevenueTopLinksTable({ links }: { links: TopLinkRow[] })
             </div>
             <div className="mt-3 grid gap-2 border-t border-[color:var(--line)] pt-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-[color:var(--text-muted)]">Doanh thu</span>
+                <span className="font-medium text-[color:var(--text-muted)]">GMV</span>
                 <span className="font-medium text-[color:var(--text)]">{link.revenue}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="font-medium text-[color:var(--text-muted)]">Hoa hồng</span>
-                <span className="font-semibold text-[color:var(--success)]">{link.commission}</span>
+                <span className="font-medium text-[color:var(--text-muted)]">Cashback dự kiến</span>
+                <span className="font-semibold text-[color:var(--success)]">{link.cashback}</span>
               </div>
             </div>
           </article>

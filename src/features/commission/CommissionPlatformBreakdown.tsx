@@ -2,10 +2,9 @@ import type { SupportedPlatformLabel } from "@/types/affiliate";
 
 type CommissionPlatformAnalytics = {
   platform: SupportedPlatformLabel;
-  totalCommission: string;
-  approvedCommission: string;
-  pendingCommission: string;
-  rejectedCommission: string;
+  totalCashback: string;
+  approvedCashback: string;
+  pendingCashback: string;
   share: number;
 };
 
@@ -31,29 +30,23 @@ export default function CommissionPlatformBreakdown({
           </div>
           <div className="mt-4">
             <p className="text-xs font-medium text-[color:var(--text-muted)]">
-              Tổng hoa hồng
+              Tổng cashback dự kiến
             </p>
             <p className="mt-1 text-2xl font-semibold tracking-tight text-[color:var(--success)]">
-              {item.totalCommission}
+              {item.totalCashback}
             </p>
           </div>
-          <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[color:var(--line)] pt-3 text-sm">
+          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[color:var(--line)] pt-3 text-sm">
             <div>
               <p className="text-xs font-medium text-[color:var(--text-muted)]">Đã duyệt</p>
               <p className="mt-1 font-semibold text-[color:var(--text)]">
-                {item.approvedCommission}
+                {item.approvedCashback}
               </p>
             </div>
             <div>
               <p className="text-xs font-medium text-[color:var(--text-muted)]">Chờ duyệt</p>
               <p className="mt-1 font-semibold text-[color:var(--text)]">
-                {item.pendingCommission}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs font-medium text-[color:var(--text-muted)]">Từ chối</p>
-              <p className="mt-1 font-semibold text-[color:var(--text)]">
-                {item.rejectedCommission}
+                {item.pendingCashback}
               </p>
             </div>
           </div>

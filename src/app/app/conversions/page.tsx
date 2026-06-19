@@ -11,20 +11,10 @@ import { loadAffiliateAsync } from "@/hooks/loadAffiliateAsync";
 import { loadClickAsync } from "@/hooks/loadClickAsync";
 import {
   formatDate,
-  formatVnd,
   isApprovedStatus,
-  parseOrderValue,
-  parseRate,
   supportedPlatforms,
 } from "@/lib/analytics/format";
 import type { ConversionStat, ConversionView, SupportedPlatformLabel } from "@/types/affiliate";
-
-function computeCommission(orderValue: string, commissionRate: string): string {
-  const order = parseOrderValue(orderValue);
-  const rate = parseRate(commissionRate);
-  if (!Number.isFinite(order) || !Number.isFinite(rate)) return "—";
-  return formatVnd((order * rate) / 100);
-}
 
 export default async function ConversionsPage() {
   const { advertisers, campaigns, offers, trackingLinks, conversions } = await loadAffiliateAsync();
@@ -50,10 +40,11 @@ export default async function ConversionsPage() {
         offerTitle: offer.title,
         trackingCode: link.shortCode,
         commissionRate: offer.commissionRate,
-        orderValue: conversion.orderValue,
-        commissionValue: computeCommission(conversion.orderValue, offer.commissionRate),
+        orderAmount: conversion.orderAmount,
+        networkCommission: conversion.networkCommission,
+        userCashback: conversion.userCashback,
         status: conversion.status,
-        createdAt: conversion.occurredAt,
+        occurredAt: conversion.occurredAt,
       },
     ];
   });
@@ -106,7 +97,7 @@ export default async function ConversionsPage() {
 
   const trendMap = new Map<string, { shopee: number; tiktok: number }>();
   for (const item of conversionViews) {
-    const dateKey = item.createdAt.split("T")[0];
+    const dateKey = item.occurredAt.split("T")[0];
     const entry = trendMap.get(dateKey) ?? { shopee: 0, tiktok: 0 };
     if (item.platform === "Shopee") entry.shopee += 1;
     else entry.tiktok += 1;

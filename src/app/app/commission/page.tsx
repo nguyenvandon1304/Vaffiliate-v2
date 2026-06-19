@@ -11,8 +11,6 @@ import {
   formatDate,
   formatVnd,
   isApprovedStatus,
-  parseOrderValue,
-  parseRate,
   supportedPlatforms,
 } from "@/lib/analytics/format";
 import type {
@@ -29,22 +27,25 @@ type CommissionRow = {
   trackingCode: string;
   date: string;
   status: ConversionStatus;
-  commission: number;
+  cashback: number;
 };
 
 type CommissionPlatformAnalytics = {
   platform: SupportedPlatformLabel;
-  totalCommission: string;
-  approvedCommission: string;
-  pendingCommission: string;
-  rejectedCommission: string;
+  totalCashback: string;
+  approvedCashback: string;
+  pendingCashback: string;
   share: number;
 };
 
+// "Rejected" is excluded from all cashback aggregations.
+// "Pending" is included only in estimated metrics (label says "dự kiến").
 export default async function CommissionPage() {
   const { advertisers, campaigns, offers, trackingLinks, conversions } = await loadAffiliateAsync();
 
-  const rows: CommissionRow[] = conversions.flatMap((conversion) => {
+  const estimatedConversions = conversions.filter((c) => c.status !== "rejected");
+
+  const rows: CommissionRow[] = estimatedConversions.flatMap((conversion) => {
     const link = trackingLinks.find((item) => item.id === conversion.trackingLinkId);
     if (!link) return [];
     const offer = offers.find((item) => item.id === link.offerId);
@@ -56,9 +57,6 @@ export default async function CommissionPage() {
     if (!advertiser) return [];
     const platform = supportedPlatforms[advertiser.platform];
     if (!platform) return [];
-    const order = parseOrderValue(conversion.orderValue);
-    const rate = parseRate(offer.commissionRate);
-    if (!Number.isFinite(order) || !Number.isFinite(rate)) return [];
     return [
       {
         platform,
@@ -67,43 +65,39 @@ export default async function CommissionPage() {
         trackingCode: link.shortCode,
         date: conversion.occurredAt,
         status: conversion.status,
-        commission: (order * rate) / 100,
+        cashback: conversion.userCashback.amount,
       },
     ];
   });
 
-  const totalCommission = rows.reduce((sum, row) => sum + row.commission, 0);
+  const totalCashback = rows.reduce((sum, row) => sum + row.cashback, 0);
   const approvedTotal = rows
     .filter((row) => isApprovedStatus(row.status))
-    .reduce((sum, row) => sum + row.commission, 0);
+    .reduce((sum, row) => sum + row.cashback, 0);
   const pendingTotal = rows
     .filter((row) => row.status === "pending")
-    .reduce((sum, row) => sum + row.commission, 0);
-  const rejectedTotal = rows
-    .filter((row) => row.status === "rejected")
-    .reduce((sum, row) => sum + row.commission, 0);
+    .reduce((sum, row) => sum + row.cashback, 0);
 
   const platformTotals = new Map<
     SupportedPlatformLabel,
-    { total: number; approved: number; pending: number; rejected: number }
+    { total: number; approved: number; pending: number }
   >();
   const campaignTotals = new Map<
     string,
-    { campaignName: string; platform: SupportedPlatformLabel; conversions: number; commission: number }
+    { campaignName: string; platform: SupportedPlatformLabel; conversions: number; cashback: number }
   >();
   const trackingTotals = new Map<
     string,
-    { trackingCode: string; platform: SupportedPlatformLabel; conversions: number; commission: number }
+    { trackingCode: string; platform: SupportedPlatformLabel; conversions: number; cashback: number }
   >();
   const dateTotals = new Map<string, { shopee: number; tiktok: number }>();
 
   for (const row of rows) {
     const p =
-      platformTotals.get(row.platform) ?? { total: 0, approved: 0, pending: 0, rejected: 0 };
-    p.total += row.commission;
-    if (isApprovedStatus(row.status)) p.approved += row.commission;
-    else if (row.status === "pending") p.pending += row.commission;
-    else if (row.status === "rejected") p.rejected += row.commission;
+      platformTotals.get(row.platform) ?? { total: 0, approved: 0, pending: 0 };
+    p.total += row.cashback;
+    if (isApprovedStatus(row.status)) p.approved += row.cashback;
+    else if (row.status === "pending") p.pending += row.cashback;
     platformTotals.set(row.platform, p);
 
     const campaignKey = `${row.campaignName}__${row.platform}`;
@@ -112,10 +106,10 @@ export default async function CommissionPage() {
         campaignName: row.campaignName,
         platform: row.platform,
         conversions: 0,
-        commission: 0,
+        cashback: 0,
       };
     c.conversions += 1;
-    c.commission += row.commission;
+    c.cashback += row.cashback;
     campaignTotals.set(campaignKey, c);
 
     const t =
@@ -123,46 +117,45 @@ export default async function CommissionPage() {
         trackingCode: row.trackingCode,
         platform: row.platform,
         conversions: 0,
-        commission: 0,
+        cashback: 0,
       };
     t.conversions += 1;
-    t.commission += row.commission;
+    t.cashback += row.cashback;
     trackingTotals.set(row.trackingCode, t);
 
     const dateKey = row.date.split("T")[0];
     const d = dateTotals.get(dateKey) ?? { shopee: 0, tiktok: 0 };
-    if (row.platform === "Shopee") d.shopee += row.commission;
-    else d.tiktok += row.commission;
+    if (row.platform === "Shopee") d.shopee += row.cashback;
+    else d.tiktok += row.cashback;
     dateTotals.set(dateKey, d);
   }
 
   const shopeeTotal = platformTotals.get("Shopee")?.total ?? 0;
   const tiktokTotal = platformTotals.get("TikTok Shop")?.total ?? 0;
-  const avgCommissionPerConversion = rows.length === 0 ? 0 : totalCommission / rows.length;
+  const avgCashbackPerConversion = rows.length === 0 ? 0 : totalCashback / rows.length;
 
   const campaignCommissions: CampaignCommission[] = Array.from(campaignTotals.values())
     .sort(
-      (a, b) => b.commission - a.commission || a.campaignName.localeCompare(b.campaignName)
+      (a, b) => b.cashback - a.cashback || a.campaignName.localeCompare(b.campaignName)
     )
     .map((item) => ({
       campaignName: item.campaignName,
       platform: item.platform,
       conversions: item.conversions,
-      totalCommission: formatVnd(item.commission),
+      totalCommission: { amount: item.cashback, currency: "VND" },
     }));
 
   const topCampaign = campaignCommissions.length > 0 ? campaignCommissions[0] : null;
 
   const stats: CommissionStat[] = [
-    { label: "Tổng hoa hồng", value: formatVnd(totalCommission) },
-    { label: "Hoa hồng Shopee", value: formatVnd(shopeeTotal) },
-    { label: "Hoa hồng TikTok", value: formatVnd(tiktokTotal) },
-    { label: "Hoa hồng đã duyệt", value: formatVnd(approvedTotal) },
-    { label: "Hoa hồng chờ duyệt", value: formatVnd(pendingTotal) },
-    { label: "Hoa hồng từ chối", value: formatVnd(rejectedTotal) },
-    { label: "Hoa hồng TB / chuyển đổi", value: formatVnd(avgCommissionPerConversion) },
+    { label: "Tổng cashback dự kiến", value: formatVnd(totalCashback) },
+    { label: "Cashback Shopee", value: formatVnd(shopeeTotal) },
+    { label: "Cashback TikTok", value: formatVnd(tiktokTotal) },
+    { label: "Cashback đã duyệt", value: formatVnd(approvedTotal) },
+    { label: "Cashback chờ duyệt", value: formatVnd(pendingTotal) },
+    { label: "Cashback TB / chuyển đổi", value: formatVnd(avgCashbackPerConversion) },
     {
-      label: "Chiến dịch hoa hồng cao nhất",
+      label: "Chiến dịch cashback cao nhất",
       value: topCampaign ? topCampaign.campaignName : "—",
     },
   ];
@@ -171,13 +164,12 @@ export default async function CommissionPage() {
     .filter((platform) => platformTotals.has(platform))
     .map((platform) => {
       const totals = platformTotals.get(platform)!;
-      const share = totalCommission === 0 ? 0 : (totals.total / totalCommission) * 100;
+      const share = totalCashback === 0 ? 0 : (totals.total / totalCashback) * 100;
       return {
         platform,
-        totalCommission: formatVnd(totals.total),
-        approvedCommission: formatVnd(totals.approved),
-        pendingCommission: formatVnd(totals.pending),
-        rejectedCommission: formatVnd(totals.rejected),
+        totalCashback: formatVnd(totals.total),
+        approvedCashback: formatVnd(totals.approved),
+        pendingCashback: formatVnd(totals.pending),
         share,
       };
     });
@@ -193,12 +185,12 @@ export default async function CommissionPage() {
 
   const commissionTopLinks = Array.from(trackingTotals.values())
     .sort(
-      (a, b) => b.commission - a.commission || a.trackingCode.localeCompare(b.trackingCode)
+      (a, b) => b.cashback - a.cashback || a.trackingCode.localeCompare(b.trackingCode)
     )
     .map((item) => ({
       trackingCode: item.trackingCode,
       platform: item.platform,
-      commission: formatVnd(item.commission),
+      cashback: formatVnd(item.cashback),
       conversions: item.conversions,
     }));
 
@@ -206,13 +198,13 @@ export default async function CommissionPage() {
     <div className="space-y-6">
       <section className="surface-card overflow-hidden bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-6">
         <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
-          Phân tích hoa hồng từ Shopee và TikTok Shop
+          Cashback dự kiến từ Shopee và TikTok Shop
         </p>
         <h1 className="text-[2rem] font-semibold tracking-[-0.04em] text-[color:var(--text)]">
-          Commission Dashboard
+          Cashback Dashboard
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-[color:var(--text-muted)]">
-          Tổng hợp hoa hồng dự kiến từ các chuyển đổi CPS của offer Shopee và TikTok Shop.
+          Tổng hợp cashback dự kiến cho publisher từ các chuyển đổi CPS (đã loại trừ rejected).
         </p>
       </section>
 
@@ -230,11 +222,11 @@ export default async function CommissionPage() {
         <PageHeader
           eyebrow={
             <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
-              Phân tích hoa hồng từ Shopee và TikTok Shop
+              Cashback dự kiến từ Shopee và TikTok Shop
             </p>
           }
-          title="Commission Dashboard"
-          description="Tổng hợp hoa hồng dự kiến từ các chuyển đổi CPS của offer Shopee và TikTok Shop."
+          title="Cashback Dashboard"
+          description="Tổng hợp cashback dự kiến cho publisher từ các chuyển đổi CPS (đã loại trừ rejected)."
         />
       </AppSection>
       <AppSection>

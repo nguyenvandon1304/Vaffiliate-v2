@@ -4,7 +4,7 @@ import type { SupportedPlatformLabel } from "@/types/affiliate";
 type TopLinkRow = {
   trackingCode: string;
   platform: SupportedPlatformLabel;
-  commission: string;
+  cashback: string;
   conversions: number;
 };
 
@@ -29,8 +29,8 @@ export default function CommissionTopLinksTable({ links }: { links: TopLinkRow[]
               </span>
             </div>
             <div className="mt-3 flex items-center justify-between border-t border-[color:var(--line)] pt-3 text-sm">
-              <span className="font-medium text-[color:var(--text-muted)]">Hoa hồng</span>
-              <span className="font-semibold text-[color:var(--success)]">{link.commission}</span>
+              <span className="font-medium text-[color:var(--text-muted)]">Cashback dự kiến</span>
+              <span className="font-semibold text-[color:var(--success)]">{link.cashback}</span>
             </div>
           </article>
         ))}

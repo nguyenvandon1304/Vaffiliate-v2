@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Badge from "@/components/ui/Badge";
-import type { OfferDetail, OfferId } from "@/types/affiliate";
+import type { OfferDetail } from "@/types/affiliate";
+import type { OfferId } from "@/types/ids";
 
 type Props = {
   joinStatus: OfferDetail["joinStatus"];

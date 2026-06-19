@@ -1,15 +1,39 @@
 import type { PlatformLabel } from "./common";
+import type {
+  AdvertiserId,
+  CampaignId,
+  ConversionId,
+  OfferId,
+  OrderId,
+  PublisherId,
+  TrackingLinkId,
+  WalletTransactionId,
+  WithdrawRequestId,
+} from "./ids";
 import type { PublisherProfile } from "./publisher";
-
-export type AdvertiserId = string;
-export type CampaignId = string;
-export type OfferId = string;
-export type TrackingLinkId = string;
-export type ConversionId = string;
 
 export type CommissionModel = "CPS" | "CPA" | "CPC" | "CPL";
 export type CampaignStatus = "draft" | "active" | "paused" | "ended";
-export type ConversionStatus = "pending" | "approved" | "rejected" | "paid";
+export type ConversionStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "payable"
+  | "paid";
+// TODO(domain): split conversion validation status
+// from cashback/commission settlement status
+// when backend settlement flow is implemented.
+
+// Money model — canonical representation for all monetary values
+export type CurrencyCode = "VND";
+
+export interface Money {
+  amount: number;
+  currency: CurrencyCode;
+}
+
+// Tracking link lifecycle
+export type TrackingLinkStatus = "active" | "paused" | "disabled";
 
 export interface Advertiser {
   id: AdvertiserId;
@@ -38,18 +62,40 @@ export interface Offer {
 
 export interface TrackingLink {
   id: TrackingLinkId;
+  publisherId: PublisherId;
+  campaignId: CampaignId;
   offerId: OfferId;
-  url: string;
+  destinationUrl: string;
+  trackingUrl: string;
   shortCode: string;
+  status: TrackingLinkStatus;
   createdAt: string;
+  // TODO(migration): All consumers should migrate to trackingUrl.
+  // legacy field — mirrors trackingUrl for backward compat.
+  url?: string;
 }
 
 export interface Conversion {
   id: ConversionId;
+  orderId: OrderId;
+  advertiserId: AdvertiserId;
+  campaignId: CampaignId;
+  offerId: OfferId;
+  publisherId: PublisherId;
   trackingLinkId: TrackingLinkId;
   status: ConversionStatus;
-  orderValue: string;
+  orderAmount: Money;
+  networkCommission: Money;
+  userCashback: Money;
+  platformProfit: Money;
   occurredAt: string;
+  approvedAt?: string;
+  payableAt?: string;
+  paidAt?: string;
+  rejectedAt?: string;
+  rejectedReason?: string;
+  // TODO: migrate UI to orderAmount — legacy field kept for backward compat
+  orderValue?: string;
 }
 
 export interface AffiliateData {
@@ -75,7 +121,7 @@ export interface TrackingLinkStats {
   clicks: number;
   uniqueClicks: number;
   conversionCount: number;
-  commission: string;
+  commission: Money;
   metrics: TrackingLinkMetrics;
 }
 
@@ -145,7 +191,10 @@ export type SupportedPlatformLabel = "Shopee" | "TikTok Shop";
 export interface TrackingLinkView {
   id: TrackingLinkId;
   shortCode: string;
+
+  trackingUrl: string;
   destinationUrl: string;
+
   offerTitle: string;
   campaignId: CampaignId;
   campaignName: string;
@@ -167,10 +216,14 @@ export interface ConversionView {
   offerTitle: string;
   trackingCode: string;
   commissionRate: string;
-  orderValue: string;
-  commissionValue: string;
+  orderAmount: Money;
+  networkCommission: Money;
+  userCashback: Money;
   status: ConversionStatus;
-  createdAt: string;
+  occurredAt: string;
+  // TODO: migrate UI to Money fields — legacy fields kept for backward compat
+  orderValue?: string;
+  commissionValue?: string;
 }
 
 export interface ConversionStat {
@@ -183,9 +236,13 @@ export interface CommissionView {
   platform: SupportedPlatformLabel;
   campaignName: string;
   offerTitle: string;
-  orderValue: string;
-  commissionValue: string;
+  orderAmount: Money;
+  networkCommission: Money;
+  userCashback: Money;
   status: ConversionStatus;
+  // TODO: migrate UI to Money fields — legacy fields kept for backward compat
+  orderValue?: string;
+  commissionValue?: string;
 }
 
 export interface CommissionStat {
@@ -196,14 +253,14 @@ export interface CommissionStat {
 export interface PlatformCommission {
   platform: SupportedPlatformLabel;
   conversions: number;
-  totalCommission: string;
+  totalCommission: Money;
 }
 
 export interface CampaignCommission {
   campaignName: string;
   platform: SupportedPlatformLabel;
   conversions: number;
-  totalCommission: string;
+  totalCommission: Money;
 }
 
 export interface RevenueStat {
@@ -213,23 +270,64 @@ export interface RevenueStat {
 
 export interface RevenuePlatform {
   platform: SupportedPlatformLabel;
-  revenue: string;
-  commission: string;
+  gmv: Money;
+  publisherCashback: Money;
   conversions: number;
 }
 
 export interface RevenueCampaign {
   campaignName: string;
   platform: SupportedPlatformLabel;
-  revenue: string;
-  commission: string;
+  gmv: Money;
+  publisherCashback: Money;
   conversionCount: number;
 }
 
 export interface RevenueOffer {
   offerTitle: string;
   platform: SupportedPlatformLabel;
-  revenue: string;
-  commission: string;
+  gmv: Money;
+  publisherCashback: Money;
   conversionCount: number;
+}
+
+// ─── Wallet Domain ───────────────────────────────────────────────────────────
+
+export type WalletTransactionType =
+  | "cashback_pending"
+  | "cashback_available"
+  | "withdraw_requested"
+  | "withdraw_paid"
+  | "adjustment";
+
+export interface WalletTransaction {
+  id: WalletTransactionId;
+  publisherId: PublisherId;
+  conversionId?: ConversionId;
+  withdrawRequestId?: WithdrawRequestId;
+  type: WalletTransactionType;
+  amount: Money;
+  balanceAfter: Money;
+  note?: string;
+  createdAt: string;
+}
+
+export type WithdrawStatus =
+  | "requested"
+  | "approved"
+  | "rejected"
+  | "paid"
+  | "cancelled";
+
+export interface WithdrawRequest {
+  id: WithdrawRequestId;
+  publisherId: PublisherId;
+  amount: Money;
+  status: WithdrawStatus;
+  requestedAt: string;
+  approvedAt?: string;
+  paidAt?: string;
+  rejectedAt?: string;
+  cancelledAt?: string;
+  rejectedReason?: string;
 }

@@ -1,3 +1,4 @@
+import { formatMoney } from "@/lib/analytics/format";
 import type { RevenueCampaign } from "@/types/affiliate";
 
 export default function RevenueCampaignTable({
@@ -26,13 +27,13 @@ export default function RevenueCampaignTable({
             </div>
             <div className="mt-3 grid gap-2 border-t border-[color:var(--line)] pt-3 text-sm">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-[color:var(--text-muted)]">Doanh thu</span>
-                <span className="font-medium text-[color:var(--text)]">{campaign.revenue}</span>
+                <span className="font-medium text-[color:var(--text-muted)]">GMV</span>
+                <span className="font-medium text-[color:var(--text)]">{formatMoney(campaign.gmv)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="font-medium text-[color:var(--text-muted)]">Hoa hồng</span>
+                <span className="font-medium text-[color:var(--text-muted)]">Cashback dự kiến</span>
                 <span className="font-semibold text-[color:var(--success)]">
-                  {campaign.commission}
+                  {formatMoney(campaign.publisherCashback)}
                 </span>
               </div>
             </div>
