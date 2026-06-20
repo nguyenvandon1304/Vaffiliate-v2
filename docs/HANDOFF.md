@@ -829,7 +829,11 @@ Delivered:
 * Synchronous repository methods removed
 * Orphaned repository mock imports removed
 
-The `loadXAsync` functions are server-side async loaders, not React hooks.
+**Commission buckets:**
+
+- `approved`
+- `pending`
+- `rejected`
 
 At the time of Phase 15E, all then-existing routes used the async path.
 
