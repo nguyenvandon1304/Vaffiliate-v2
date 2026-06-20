@@ -38,10 +38,12 @@ has been completed.
 **Stable Tag Commit:** `0afeb8b` —
 `phase19.5: tracking link generator cleanup and metrics foundation`
 
-**Last Verified Code Commit:** `30f50df` —
+**Last Verified Implementation Commit:** `30f50df` —
 `feat(phase-18): orders filter auto-scroll and updated docs`
 
-**Current Working Branch:** `feat/phase-18-consumer-ux`
+**Integration Branch:** `main`
+
+**Post-Merge Baseline Commit:** `cf8e411`
 
 **Next Planned Phase:** Phase 20 — TBD, not started. Do not begin without
 explicit approval.
@@ -900,7 +902,9 @@ tag.
 
 **Status:** Complete
 
-**Branch:** `feat/phase-18-consumer-ux`
+**Implementation Branch (historical):** `feat/phase-18-consumer-ux`
+
+**Merge Result:** Merged into main through Pull Request #1 at `cf8e411`.
 
 Delivered:
 
@@ -994,11 +998,7 @@ created and explicitly approved.
 
 ## 10. Repository Health
 
-Verified on branch:
-
-```text
-feat/phase-18-consumer-ux
-```
+Verified after merge on `main` at `cf8e411`.
 
 ### Verified Commands
 
@@ -1031,29 +1031,7 @@ feat/phase-18-consumer-ux
 * Server-first route composition: PASS
 * Page-layer joins and aggregations: PASS
 
-### Branch Relationship
-
-The feature branch was verified to contain the fetched `origin/main` history:
-
-```text
-git merge-base --is-ancestor origin/main HEAD
-Exit code: 0
-```
-
-The branch was pushed successfully to:
-
-```text
-origin/feat/phase-18-consumer-ux
-```
-
-A pushed branch is not the same as a merged branch.
-
-The Pull Request must still be reviewed and merged on GitHub.
-
-### Known Architecture Debt
-
-No remaining debt from the deleted synchronous architecture has been
-identified.
+No remaining debt from the deleted synchronous architecture has been identified.
 
 ---
 
@@ -1116,7 +1094,7 @@ fully understood.
 
 ## 13. Merge Readiness Checklist
 
-Before merging the current branch:
+Before merging any feature branch:
 
 * [ ] `docs/PROJECT_STATE.md` and `docs/HANDOFF.md` agree
 * [ ] Current roadmap phase is documented as Phase 19.5 Complete
@@ -1172,9 +1150,14 @@ git diff -- docs/HANDOFF.md
 
 **Stable Tag Commit:** `0afeb8b`
 
-**Last Verified Code Commit:** `30f50df`
+**Last Verified Implementation Commit:** `30f50df`
 
-**Current Working Branch:** `feat/phase-18-consumer-ux`
+**Integration Branch:** `main`
+
+**Post-Merge Baseline Commit:** `cf8e411`
+
+**Merge State:** Phase 18 Consumer UX Remediation has been merged into `main`
+through Pull Request #1.
 
 ### Production Verification
 
@@ -1192,15 +1175,6 @@ git diff -- docs/HANDOFF.md
 * Orders filtered empty state: PASS
 * Orders global empty state: PASS
 * Orders active-filter auto-scroll: PASS
-
-### Current Merge State
-
-The feature branch has been pushed to GitHub.
-
-The Pull Request has been created.
-
-The Pull Request is not considered merged until GitHub shows the final
-`Merged` state.
 
 ### Next Planned Phase
 
