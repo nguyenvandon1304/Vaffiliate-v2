@@ -6,13 +6,13 @@ Project: Vaffiliate
 
 Architecture Version: V2 Async Architecture
 
-Current Phase: 19.5 Complete
+Current Phase: Phase 18 Remediation Complete
 
 Current Stable Tag:
-phase-17-complete
+phase-18-remediation
 
 Latest Verified Commit:
-phase-17-complete (19 + 19.5 changes uncommitted)
+phase-17-complete (Phase 18 + Remediation changes uncommitted)
 
 Build Status:
 PASS
@@ -24,7 +24,7 @@ Lint:
 PASS (0 errors)
 
 Route Status:
-All routes static (○) / SSG (●) — 21 routes total
+All routes static (○) / SSG (●) / Dynamic (ƒ) — 30 routes total
 
 ---
 
@@ -678,7 +678,52 @@ phase-17-complete
 
 ## Next Planned Phase
 
-Phase 20 (TBD — not started. Do not begin without approval.)
+Phase 19 (TBD — not started. Do not begin without approval.)
+
+---
+
+### Phase 18 Remediation — Consumer UX Foundation Fix
+
+Status: COMPLETE — remediation corrections applied on top of Phase 18
+
+Scope:
+
+- **Orders URL-driven filter**: Filter state lives in `?status=` query parameter. `OrdersFilters` is a client component reading from `useSearchParams` and updating via `useRouter`. The loader receives `OrderStatusFilter` and filters server-side. Invalid values fall back to `"all"`.
+- **Orders loading/error boundaries**: `src/app/app/orders/loading.tsx` renders `OrdersLoadingState`. `src/app/app/orders/error.tsx` renders consumer-friendly error with retry via `reset()`.
+- **Type safety**: Page uses `await loadOrdersAsync(statusFilter)` with proper return type. No `let data;` or `any`.
+- **AffiliateData god payload removed**: `defaultDestinationUrls`, `offerRequirements`, `offerTrackingRules` removed from `AffiliateData`. `getAffiliateDataAsync()` no longer fetches them. Use-case-specific loaders created:
+  - `loadTrackingLinkGeneratorContextAsync(offerId)` → `TrackingLinkGeneratorContext`
+  - `loadOfferDetailContextAsync(offerId)` → `OfferDetailContext`
+- **PopularOffers semantics**: `PopularOffer.commissionRate` renamed to `PopularOffer.rewardLabel`. Value is a user-facing presentation string (e.g., "8% hoàn tiền"), not the internal `networkCommission`.
+- **No direct mock imports**: `git grep "@/lib/mock" -- src/app src/features` returns 0 matches.
+
+Quality Gates:
+- TypeScript: PASS (0 errors)
+- ESLint: PASS (0 warnings)
+- Build: PASS (30/30 routes)
+- Diff check: PASS (0)
+
+New files:
+- `src/lib/filterUtils.ts`
+- `src/app/app/orders/loading.tsx`
+- `src/app/app/orders/error.tsx`
+- `src/repositories/affiliate.repository.ts` (extended with use-case loaders)
+- `src/services/affiliate.service.ts` (extended with use-case service functions)
+- `src/hooks/loadAffiliateAsync.ts` (extended with use-case loaders)
+- `src/types/affiliate.ts` (added `TrackingLinkGeneratorData`, `OfferDetailData`)
+- `src/types/orders.ts` (added `OrderStatusFilter`, `OrderDisplayStatus`)
+
+Modified files:
+- `src/features/orders/OrdersFilters.tsx`
+- `src/app/app/orders/page.tsx`
+- `src/repositories/orders.repository.ts`
+- `src/services/orders.service.ts`
+- `src/hooks/loadOrdersAsync.ts`
+- `src/app/app/tracking-links/generator/[offerId]/page.tsx`
+- `src/app/app/offers/[offerId]/page.tsx`
+- `src/lib/mock/dashboard.ts`
+- `src/types/dashboard.ts`
+- `src/features/dashboard/PopularOffers.tsx`
 
 ---
 
@@ -841,11 +886,13 @@ Lint:
 PASS (0 errors)
 
 Static Routes:
-PASS — 17 ○ static + 4 ● SSG dynamic:
+PASS — 28 ○ static + 2 ● SSG dynamic + 2 ƒ Dynamic:
   /app/campaigns/[campaignId] pre-rendered for cmp-shopee-q2 and cmp-tiktok-launch
   /app/offers/[offerId] pre-rendered for off-shopee-fashion/beauty/home
   /app/tracking-links/[trackingLinkId] pre-rendered for trk-001/002/003
   /app/tracking-links/generator/[offerId] pre-rendered for off-shopee-fashion/beauty/home
+  /app/orders dynamic (ƒ) — URL searchParams
+  /app/tracking-links dynamic (ƒ)
 
 Architecture:
 PASS at file level — single async data flow only. Phase 19 + 19.5 reuses the
@@ -858,6 +905,4 @@ None from the sync architecture — fully removed.
 
 Last Reconciled State:
 
-phase-17-complete (committed)
-
-working tree ahead — Phase 19 + 19.5 changes uncommitted
+phase-17-complete (Phase 18 + Remediation changes uncommitted)
