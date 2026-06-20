@@ -11,7 +11,7 @@ function OfferCard({ offer }: { offer: PopularOffer }) {
   return (
     <Link
       href={`/app/cashback?offer=${offer.offerId}`}
-      className="block rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.86)] p-4 shadow-[var(--shadow-sm)] transition-colors hover:border-[color:var(--brand)] hover:bg-[rgba(255,250,246,0.96)]"
+      className="block min-w-0 w-full rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.86)] p-4 shadow-[var(--shadow-sm)] transition-colors hover:border-[color:var(--brand)] hover:bg-[rgba(255,250,246,0.96)]"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -38,12 +38,12 @@ function OfferCard({ offer }: { offer: PopularOffer }) {
 
 export default function PopularOffers({ offers }: PopularOffersProps) {
   return (
-    <Card className="p-5">
+    <Card className="min-w-0 p-5">
       <SectionHeader
         title="Chương trình phổ biến"
         description="Các chương trình đang hoạt động."
       />
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-4 grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {offers.map((offer) => (
           <OfferCard key={offer.offerId} offer={offer} />
         ))}
