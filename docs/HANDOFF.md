@@ -31,32 +31,32 @@ has been completed.
 
 **Current Roadmap Phase:** Phase 19.5 Complete
 
-**Latest Remediation:** Phase 18 Consumer UX Remediation Complete
+**Latest Remediation:** Consumer Responsive UX Remediation Complete
 
 **Current Stable Tag:** `phase-19.5-complete`
 
 **Stable Tag Commit:** `0afeb8b` —
 `phase19.5: tracking link generator cleanup and metrics foundation`
 
-**Last Verified Implementation Commit:** `30f50df` —
-`feat(phase-18): orders filter auto-scroll and updated docs`
+**Last Verified Implementation Commit:** `94cd971` —
+`fix: remediate consumer responsive UX`
 
 **Integration Branch:** `main`
 
-**Post-Merge Baseline Commit:** `cf8e411`
+**Post-Merge Baseline Commit:** `16cdc9e`
 
 **Next Planned Phase:** Phase 20 — TBD, not started. Do not begin without
 explicit approval.
 
 ### Quality Gates
 
-* TypeScript: PASS — 0 errors
-* ESLint: PASS — 0 errors, 0 warnings
-* Diff check: PASS
-* Production build: PASS
+* TypeScript: PASS — `npx tsc --noEmit` — exit 0
+* ESLint: PASS — `npm run lint` — 0 errors, 0 warnings
+* Diff check: PASS — `git diff --check` — exit 0
+* Production build: PASS — `npm run build` — Next.js 16.2.9, Turbopack
 * Generated page instances: PASS — 30/30
-* Manual responsive verification: PASS at 360, 390, 430, 768, and desktop
-  widths
+* Route patterns: PASS — 21 patterns (15 static, 4 parameterized SSG, 2 dynamic)
+* Manual responsive verification: PASS — `/app` and `/app/orders` at 390 × 844; desktop-shell breakpoint at 768 × 844; wide desktop at 1280 × 844
 
 ### Route Summary
 
@@ -966,6 +966,44 @@ Deferred to Phase 20:
 
 * real tracking-link AOV aggregate calculation.
 
+### Post-Phase 19.5 — Consumer Responsive UX Remediation
+
+**Status:** Complete
+
+**Implementation Branch (historical):** `fix/consumer-responsive-ux-remediation`
+
+**Implementation Commit:** `94cd971` — `fix: remediate consumer responsive UX`
+
+**Merge Result:** Merged into `main` through Pull Request #3 at `16cdc9e`.
+
+**No separate stable tag.** This remediation did not receive its own stable tag.
+
+Delivered:
+
+* Shared navigation identities and inline SVG icons
+* Canonical navigation active-state handling
+* Sticky mobile header
+* Removal of horizontal-overflow-causing negative margin
+* Fixed bottom-navigation safe clearance
+* Responsive `SectionHeader`
+* Centralized canonical order-status presentation
+* Rejected-order amount presentation (muted, no `+` prefix)
+
+Runtime / visual verification (390 × 844, 768 × 844, 1280 × 844):
+
+* No document-level horizontal overflow at 390px
+* Mobile header sticky
+* Bottom-navigation touch targets minimum 44 × 44px
+* Last content not obscured by fixed bottom navigation
+* Orders filter chips scroll horizontally with intent
+* Canonical order-status badge presentation correct
+* Rejected-order amount muted without `+` prefix
+
+No changes to repository, service, loader, API, mock backend, or business-rule
+files.
+
+No Phase 20 or AOV implementation.
+
 ---
 
 ## 9. Current Stable Tags
@@ -998,15 +1036,15 @@ created and explicitly approved.
 
 ## 10. Repository Health
 
-Verified after merge on `main` at `cf8e411`.
+Verified after merge on `main` at `16cdc9e`.
 
 ### Verified Commands
 
 | Check            | Command                            | Result        |
 | ---------------- | ---------------------------------- | ------------- |
 | TypeScript       | `npx tsc --noEmit`                 | PASS — exit 0 |
-| ESLint           | `npx eslint src --max-warnings=0`  | PASS — exit 0 |
-| Diff check       | `git --no-pager diff --check HEAD` | PASS — exit 0 |
+| ESLint           | `npm run lint`                     | PASS — exit 0 |
+| Diff check       | `git diff --check`                 | PASS — exit 0 |
 | Production build | `npm run build`                    | PASS — exit 0 |
 
 ### Build Details
@@ -1017,6 +1055,25 @@ Verified after merge on `main` at `cf8e411`.
 * Page-data collection: PASS
 * Static generation: PASS — 30/30 generated page instances
 * Route classification: 15 static, 4 parameterized SSG, 2 dynamic
+
+### Manual Responsive Verification
+
+Consumer Responsive UX Remediation verified at `16cdc9e`:
+
+| Viewport       | Resolution      | Check                                           |
+| -------------- | --------------- | ----------------------------------------------- |
+| Mobile         | 390 × 844       | `/app`, `/app/orders`; no horizontal overflow  |
+| Desktop shell  | 768 × 844       | breakpoint transition correct                   |
+| Wide desktop  | 1280 × 844      | layout correct                                  |
+
+Assertions:
+
+* Mobile header sticky
+* Bottom-navigation touch targets minimum 44 × 44px
+* Last content not obscured by fixed bottom navigation
+* Orders filter chips scroll horizontally with intent
+* Canonical order-status badge presentation correct
+* Rejected-order amount muted, no `+` prefix
 
 ### Architecture Health
 
@@ -1144,37 +1201,34 @@ git diff -- docs/HANDOFF.md
 
 **Roadmap Phase:** Phase 19.5 Complete
 
-**Latest Remediation:** Phase 18 Consumer UX Remediation Complete
+**Latest Remediation:** Consumer Responsive UX Remediation Complete
 
 **Latest Stable Tag:** `phase-19.5-complete`
 
 **Stable Tag Commit:** `0afeb8b`
 
-**Last Verified Implementation Commit:** `30f50df`
+**Last Verified Implementation Commit:** `94cd971`
 
 **Integration Branch:** `main`
 
-**Post-Merge Baseline Commit:** `cf8e411`
+**Post-Merge Baseline Commit:** `16cdc9e`
 
-**Merge State:** Phase 18 Consumer UX Remediation has been merged into `main`
-through Pull Request #1.
+**Merge State:** Consumer Responsive UX Remediation merged into `main`
+through Pull Request #3.
 
 ### Production Verification
 
-* TypeScript: PASS — 0 errors
-* ESLint: PASS — 0 errors, 0 warnings
-* Diff check: PASS
-* Production build: PASS
+* TypeScript: PASS — `npx tsc --noEmit` — 0 errors
+* ESLint: PASS — `npm run lint` — 0 errors, 0 warnings
+* Diff check: PASS — `git diff --check` — exit 0
+* Production build: PASS — `npm run build` — Next.js 16.2.9, Turbopack — exit 0
 * Generated page instances: 30/30
 * Route patterns: 21
 
   * 15 static
   * 4 parameterized SSG
   * 2 dynamic
-* Orders responsive verification: PASS
-* Orders filtered empty state: PASS
-* Orders global empty state: PASS
-* Orders active-filter auto-scroll: PASS
+* Manual responsive verification: PASS — `/app` and `/app/orders` at 390 × 844; desktop-shell breakpoint at 768 × 844; wide desktop at 1280 × 844; no document-level horizontal overflow at 390px; mobile header sticky; bottom-navigation touch targets minimum 44 × 44px; last content not obscured by fixed bottom navigation; Orders filter chips scroll horizontally with intent; canonical order-status badge presentation correct; rejected-order amount muted without `+` prefix
 
 ### Next Planned Phase
 
