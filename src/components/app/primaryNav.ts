@@ -1,23 +1,53 @@
-export type NavItem = {
-  label: string;
-  href: string;
-};
+export type PrimaryNavId =
+  | "home"
+  | "generator"
+  | "orders"
+  | "wallet"
+  | "profile";
 
-export const primaryNavItems: NavItem[] = [
-  { label: "Trang chu", href: "/app" },
-  { label: "Tao link", href: "/app/cashback" },
-  { label: "Don hang", href: "/app/orders" },
-  { label: "Vi tien", href: "/app/finance" },
-  { label: "Tai khoan", href: "/app/profile" },
+export interface PrimaryNavItem {
+  id: PrimaryNavId;
+  href: string;
+  label: string;
+}
+
+export function isPrimaryNavItemActive(
+  item: PrimaryNavItem,
+  pathname: string,
+): boolean {
+  if (item.id === "home") {
+    return pathname === "/app";
+  }
+
+  if (item.id === "generator") {
+    return (
+      pathname === "/app/offers" ||
+      pathname.startsWith("/app/offers/") ||
+      pathname.startsWith("/app/tracking-links/generator/")
+    );
+  }
+
+  return (
+    pathname === item.href ||
+    pathname.startsWith(`${item.href}/`)
+  );
+}
+
+export const primaryNavItems: PrimaryNavItem[] = [
+  { id: "home", href: "/app", label: "Trang chủ" },
+  { id: "generator", href: "/app/offers", label: "Tạo link" },
+  { id: "orders", href: "/app/orders", label: "Đơn hàng" },
+  { id: "wallet", href: "/app/finance", label: "Ví tiền" },
+  { id: "profile", href: "/app/profile", label: "Tài khoản" },
 ];
 
-export const advancedNavItems: NavItem[] = [
-  { label: "Chien dich", href: "/app/campaigns" },
-  { label: "Uu dai", href: "/app/offers" },
-  { label: "Link theo doi", href: "/app/tracking-links" },
-  { label: "Nhap chuot", href: "/app/clicks" },
-  { label: "Chuyen doi", href: "/app/conversions" },
-  { label: "Thu nhap", href: "/app/commission" },
-  { label: "Doanh thu", href: "/app/revenue" },
-  { label: "Thong bao", href: "/app/notifications" },
+export const advancedNavItems = [
+  { id: "campaigns", href: "/app/campaigns", label: "Chiến dịch" },
+  { id: "offers", href: "/app/offers", label: "Ưu đãi" },
+  { id: "tracking-links", href: "/app/tracking-links", label: "Link theo dõi" },
+  { id: "clicks", href: "/app/clicks", label: "Nhấp chuột" },
+  { id: "conversions", href: "/app/conversions", label: "Chuyển đổi" },
+  { id: "commission", href: "/app/commission", label: "Thu nhập" },
+  { id: "revenue", href: "/app/revenue", label: "Doanh thu" },
+  { id: "notifications", href: "/app/notifications", label: "Thông báo" },
 ];

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { primaryNavItems } from "./primaryNav";
+import { isPrimaryNavItemActive, primaryNavItems } from "./primaryNav";
+import { navIconById } from "./NavIcons";
 
 export default function DesktopAppNav() {
   const pathname = usePathname();
@@ -21,11 +22,11 @@ export default function DesktopAppNav() {
 
         <nav className="mt-4 grid gap-2" aria-label="Menu chính">
           {primaryNavItems.map((item) => {
-            const isActive = pathname === item.href;
+            const isActive = isPrimaryNavItemActive(item, pathname);
 
             return (
               <Link
-                key={item.href}
+                key={item.id}
                 href={item.href}
                 className={`flex items-center gap-3 rounded-[var(--radius-lg)] px-4 py-3 text-sm font-semibold transition-all ${
                   isActive
@@ -34,17 +35,14 @@ export default function DesktopAppNav() {
                 }`}
                 aria-current={isActive ? "page" : undefined}
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/70 text-base text-inherit">
-                  {item.label === "Trang chủ"
-                    ? "⌂"
-                    : item.label === "Tạo link"
-                      ? "↗"
-                      : item.label === "Đơn hàng"
-                        ? "◫"
-                        : item.label === "Ví tiền"
-                          ? "◔"
-                          : "⋯"}
-                </span>
+                {(() => {
+                  const Icon = navIconById[item.id];
+                  return (
+                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/70 text-base text-inherit" aria-hidden="true">
+                      <Icon />
+                    </span>
+                  );
+                })()}
                 <span>{item.label}</span>
               </Link>
             );
