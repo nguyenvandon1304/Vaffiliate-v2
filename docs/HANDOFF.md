@@ -12,7 +12,7 @@ Current Stable Tag:
 phase-18-remediation
 
 Latest Verified Commit:
-phase-17-complete (Phase 18 + Remediation changes uncommitted)
+30f50df feat(phase-18): orders filter auto-scroll and updated docs
 
 Build Status:
 PASS
@@ -905,4 +905,4 @@ None from the sync architecture — fully removed.
 
 Last Reconciled State:
 
-phase-17-complete (Phase 18 + Remediation changes uncommitted)
+phase-18-remediation at 30f50df (working tree clean)
