@@ -3,21 +3,36 @@ import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
 import SectionHeader from "@/components/ui/SectionHeader";
 import type { RecentOrder } from "@/types/orders";
+import { getOrderStatusPresentation } from "@/lib/statusPresentation";
 
 type ConsumerRecentOrdersProps = {
   orders: RecentOrder[];
 };
 
-function OrderStatusBadge({ status }: { status: string }) {
-  const variant =
-    status === "Có thể rút" || status === "Đã duyệt hoa hồng"
-      ? "success"
-      : status === "Từ chối"
-        ? "danger"
-        : status === "Chờ đối soát"
-          ? "warning"
-          : "default";
-  return <Badge variant={variant}>{status}</Badge>;
+function OrderStatusBadge({ status }: { status: RecentOrder["status"] }) {
+  const presentation = getOrderStatusPresentation(status);
+  return <Badge variant={presentation.variant}>{presentation.label}</Badge>;
+}
+
+function getAmountClassName(status: RecentOrder["status"]): string {
+  switch (status) {
+    case "approved":
+    case "payable":
+    case "paid":
+      return "shrink-0 text-sm font-semibold text-[color:var(--success)]";
+    case "rejected":
+      return "shrink-0 text-sm font-semibold text-[color:var(--text-muted)]";
+    case "recorded":
+    case "reconciling":
+      return "shrink-0 text-sm font-semibold text-[color:var(--text)]";
+  }
+}
+
+function formatAmountForDisplay(amount: string, status: RecentOrder["status"]): string {
+  if (status === "rejected") {
+    return amount.replace(/^\+/, "");
+  }
+  return amount;
 }
 
 function OrderCard({ order }: { order: RecentOrder }) {
@@ -32,8 +47,8 @@ function OrderCard({ order }: { order: RecentOrder }) {
             {order.item}
           </p>
         </div>
-        <p className="shrink-0 text-sm font-semibold text-[color:var(--success)]">
-          {order.amount}
+        <p className={getAmountClassName(order.status)}>
+          {formatAmountForDisplay(order.amount, order.status)}
         </p>
       </div>
       <div className="mt-3 flex items-center justify-between">

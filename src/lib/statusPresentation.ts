@@ -1,4 +1,5 @@
 ﻿import type { ConversionStatus } from "@/types/affiliate";
+import type { OrderStatus } from "@/types/orders";
 
 export type ConsumerOrderStatus = ConversionStatus;
 
@@ -54,4 +55,42 @@ export function getStatusVariant(
   status: ConsumerOrderStatus,
 ): StatusPresentation["variant"] {
   return statusMap[status].variant;
+}
+
+// ─── Order Status Presentation ─────────────────────────────────────────────────
+
+export interface OrderStatusPresentation {
+  label: string;
+  variant: "default" | "success" | "warning" | "neutral" | "danger";
+}
+
+export const orderStatusPresentation: Record<OrderStatus, OrderStatusPresentation> = {
+  recorded: {
+    label: "Đã ghi nhận",
+    variant: "neutral",
+  },
+  reconciling: {
+    label: "Đang đối soát",
+    variant: "warning",
+  },
+  approved: {
+    label: "Đã duyệt",
+    variant: "success",
+  },
+  rejected: {
+    label: "Không hợp lệ",
+    variant: "danger",
+  },
+  payable: {
+    label: "Có thể rút",
+    variant: "success",
+  },
+  paid: {
+    label: "Đã thanh toán",
+    variant: "success",
+  },
+};
+
+export function getOrderStatusPresentation(status: OrderStatus): OrderStatusPresentation {
+  return orderStatusPresentation[status];
 }
