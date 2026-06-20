@@ -18,12 +18,14 @@ import {
   notifications,
   offers,
   orderFilters,
+  popularOffers,
   publisherProfile,
   quickActions,
   recentOrders,
   trackingLinkStats,
   trackingLinks,
 } from "@/lib/mock";
+import { offerDestinationUrls, offerRequirements, offerTrackingRules } from "@/lib/mock/affiliate";
 import { getMockProfile, updateMockPayoutAccount, updateMockProfile } from "@/lib/mock/profile-store";
 import type { CampaignDetail } from "@/types/affiliate";
 
@@ -35,6 +37,7 @@ const exactHandlers: Record<string, MockHandler> = {
   [API_ENDPOINTS.DASHBOARD.FEATURES]: () => homeFeatures,
   [API_ENDPOINTS.DASHBOARD.HERO]: () => heroPreview,
   [API_ENDPOINTS.DASHBOARD.QUICK_ACTIONS]: () => quickActions,
+  [API_ENDPOINTS.DASHBOARD.POPULAR_OFFERS]: () => popularOffers,
   [API_ENDPOINTS.CASHBACK.PLATFORMS]: () => cashbackPlatforms,
   [API_ENDPOINTS.CASHBACK.HISTORY]: () => cashbackHistory,
   [API_ENDPOINTS.ORDERS.LIST]: () => recentOrders,
@@ -50,6 +53,9 @@ const exactHandlers: Record<string, MockHandler> = {
   [API_ENDPOINTS.AFFILIATE.JOINED_OFFERS]: () => joinedOfferIds,
   [API_ENDPOINTS.AFFILIATE.PUBLISHER_PROFILE]: () => publisherProfile,
   [API_ENDPOINTS.AFFILIATE.TRACKING_LINK_STATS]: () => trackingLinkStats,
+  [API_ENDPOINTS.AFFILIATE.OFFER_DESTINATION_URLS]: () => offerDestinationUrls,
+  [API_ENDPOINTS.AFFILIATE.OFFER_REQUIREMENTS]: () => offerRequirements,
+  [API_ENDPOINTS.AFFILIATE.OFFER_TRACKING_RULES]: () => offerTrackingRules,
   [API_ENDPOINTS.NOTIFICATION.LIST]: () => notifications,
   [API_ENDPOINTS.CLICK.LIST]: () => clicks,
   [API_ENDPOINTS.PROFILE.DETAIL]: () => getMockProfile(),

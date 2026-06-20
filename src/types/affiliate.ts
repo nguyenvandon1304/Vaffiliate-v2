@@ -13,18 +13,19 @@ import type {
 import type { PublisherProfile } from "./publisher";
 
 export type CommissionModel = "CPS" | "CPA" | "CPC" | "CPL";
+
 export type CampaignStatus = "draft" | "active" | "paused" | "ended";
+
 export type ConversionStatus =
   | "pending"
   | "approved"
   | "rejected"
   | "payable"
   | "paid";
-// TODO(domain): split conversion validation status
-// from cashback/commission settlement status
-// when backend settlement flow is implemented.
 
-// Money model — canonical representation for all monetary values
+// TODO(domain): Split conversion validation status from cashback/commission
+// settlement status when the backend settlement flow is implemented.
+
 export type CurrencyCode = "VND";
 
 export interface Money {
@@ -32,7 +33,6 @@ export interface Money {
   currency: CurrencyCode;
 }
 
-// Tracking link lifecycle
 export type TrackingLinkStatus = "active" | "paused" | "disabled";
 
 export interface Advertiser {
@@ -70,8 +70,9 @@ export interface TrackingLink {
   shortCode: string;
   status: TrackingLinkStatus;
   createdAt: string;
+
   // TODO(migration): All consumers should migrate to trackingUrl.
-  // legacy field — mirrors trackingUrl for backward compat.
+  // Legacy field — mirrors trackingUrl for backward compatibility.
   url?: string;
 }
 
@@ -94,19 +95,10 @@ export interface Conversion {
   paidAt?: string;
   rejectedAt?: string;
   rejectedReason?: string;
-  // TODO: migrate UI to orderAmount — legacy field kept for backward compat
-  orderValue?: string;
-}
 
-export interface AffiliateData {
-  advertisers: Advertiser[];
-  campaigns: Campaign[];
-  offers: Offer[];
-  trackingLinks: TrackingLink[];
-  conversions: Conversion[];
-  joinedOfferIds: OfferId[];
-  publisherProfile: PublisherProfile;
-  trackingLinkStats: TrackingLinkStatsMap;
+  // TODO(migration): Migrate UI to orderAmount.
+  // Legacy field kept for backward compatibility.
+  orderValue?: string;
 }
 
 export type OfferJoinStatus = "not_joined" | "joined" | "paused";
@@ -125,7 +117,10 @@ export interface TrackingLinkStats {
   metrics: TrackingLinkMetrics;
 }
 
-export type TrackingLinkStatsMap = Record<TrackingLinkId, TrackingLinkStats>;
+export type TrackingLinkStatsMap = Record<
+  TrackingLinkId,
+  TrackingLinkStats
+>;
 
 export interface OfferRequirement {
   label: string;
@@ -191,10 +186,8 @@ export type SupportedPlatformLabel = "Shopee" | "TikTok Shop";
 export interface TrackingLinkView {
   id: TrackingLinkId;
   shortCode: string;
-
   trackingUrl: string;
   destinationUrl: string;
-
   offerTitle: string;
   campaignId: CampaignId;
   campaignName: string;
@@ -221,7 +214,9 @@ export interface ConversionView {
   userCashback: Money;
   status: ConversionStatus;
   occurredAt: string;
-  // TODO: migrate UI to Money fields — legacy fields kept for backward compat
+
+  // TODO(migration): Migrate UI to Money fields.
+  // Legacy fields kept for backward compatibility.
   orderValue?: string;
   commissionValue?: string;
 }
@@ -229,6 +224,37 @@ export interface ConversionView {
 export interface ConversionStat {
   label: string;
   value: string;
+}
+
+// ─── Use-case DTOs ────────────────────────────────────────────────────────────
+
+export interface AffiliateData {
+  advertisers: Advertiser[];
+  campaigns: Campaign[];
+  offers: Offer[];
+  trackingLinks: TrackingLink[];
+  conversions: Conversion[];
+  joinedOfferIds: OfferId[];
+  publisherProfile: PublisherProfile;
+  trackingLinkStats: TrackingLinkStatsMap;
+}
+
+export interface TrackingLinkGeneratorData {
+  offer: Offer;
+  campaign: Campaign;
+  advertiser: Advertiser;
+  existingLink: TrackingLink | null;
+  defaultDestinationUrl: string;
+}
+
+export interface OfferDetailData {
+  offer: Offer;
+  campaign: Campaign;
+  advertiser: Advertiser;
+  joinStatus: OfferJoinStatus;
+  requirements: OfferRequirement[];
+  trackingRules: OfferTrackingRules;
+  defaultDestinationUrl: string;
 }
 
 export interface CommissionView {
@@ -240,7 +266,9 @@ export interface CommissionView {
   networkCommission: Money;
   userCashback: Money;
   status: ConversionStatus;
-  // TODO: migrate UI to Money fields — legacy fields kept for backward compat
+
+  // TODO(migration): Migrate UI to Money fields.
+  // Legacy fields kept for backward compatibility.
   orderValue?: string;
   commissionValue?: string;
 }
@@ -291,7 +319,7 @@ export interface RevenueOffer {
   conversionCount: number;
 }
 
-// ─── Wallet Domain ───────────────────────────────────────────────────────────
+// ─── Wallet Domain ────────────────────────────────────────────────────────────
 
 export type WalletTransactionType =
   | "cashback_pending"

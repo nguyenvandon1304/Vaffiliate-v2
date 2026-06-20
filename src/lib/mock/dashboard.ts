@@ -1,4 +1,5 @@
-﻿import type { HeroPreview, HomeFeature, HomeMetric, DashboardSummary, QuickAction } from "@/types/dashboard";
+﻿import type { PopularOffer } from "@/types/dashboard";
+import type { HeroPreview, HomeFeature, HomeMetric, DashboardSummary, QuickAction } from "@/types/dashboard";
 
 export const homeMetrics: HomeMetric[] = [
   { label: "Hoàn tiền tháng này", value: "12,4 triệuđ" },
@@ -37,4 +38,31 @@ export const quickActions: QuickAction[] = [
   { title: "Lấy link", subtitle: "Lấy link hoàn tiền", icon: "↗" },
   { title: "Rút tiền", subtitle: "Về tài khoản", icon: "₫" },
   { title: "Đơn hàng", subtitle: "Xem chi tiết", icon: "◫" },
+];
+
+export const popularOffers: PopularOffer[] = [
+  {
+    offerId: "off-shopee-fashion",
+    platform: "Shopee",
+    title: "Thời trang Shopee",
+    rewardLabel: "8% hoàn tiền",
+    category: "Thời trang",
+    description: "Áp dụng cho ngành thời trang nam và nữ.",
+  },
+  {
+    offerId: "off-shopee-beauty",
+    platform: "Shopee",
+    title: "Làm đẹp Shopee",
+    rewardLabel: "10% hoàn tiền",
+    category: "Làm đẹp",
+    description: "Mỹ phẩm, chăm sóc da và sức khỏe.",
+  },
+  {
+    offerId: "off-tiktok-home",
+    platform: "TikTok Shop",
+    title: "Đồ gia dụng TikTok",
+    rewardLabel: "6% hoàn tiền",
+    category: "Gia dụng",
+    description: "Đồ gia dụng, nhà bếp và nội thất.",
+  },
 ];

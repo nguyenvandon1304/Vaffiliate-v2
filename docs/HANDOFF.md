@@ -1,863 +1,1209 @@
 # Vaffiliate Handoff
 
-## Project Overview
+## 1. Document Purpose
 
-Project: Vaffiliate
+This document is the operational handoff for the Vaffiliate repository.
 
-Architecture Version: V2 Async Architecture
+Before starting any work, read:
 
-Current Phase: 19.5 Complete
+1. `docs/PROJECT_STATE.md`
+2. `docs/HANDOFF.md`
 
-Current Stable Tag:
-phase-17-complete
+If these documents conflict:
 
-Latest Verified Commit:
-phase-17-complete (19 + 19.5 changes uncommitted)
+* `docs/PROJECT_STATE.md` is authoritative for roadmap and phase status.
+* `docs/HANDOFF.md` is authoritative for operational context, architecture
+  constraints, implementation decisions, verification history, and handoff
+  instructions.
+* Git history, existing tags, source code, and verified build output take
+  precedence over stale documentation when factual discrepancies are found.
 
-Build Status:
-PASS
-
-TypeScript:
-PASS
-
-Lint:
-PASS (0 errors)
-
-Route Status:
-All routes static (○) / SSG (●) — 21 routes total
+Do not begin a new phase until the mandatory pre-phase workflow in section 12
+has been completed.
 
 ---
 
-## Source Of Truth
+## 2. Current Status
 
-Before starting any work, always read:
+**Project:** Vaffiliate
 
-1. PROJECT_STATE.md
-2. HANDOFF.md
+**Architecture Version:** V2 Async Architecture
 
-If HANDOFF.md conflicts with PROJECT_STATE.md:
+**Current Roadmap Phase:** Phase 19.5 Complete
 
-PROJECT_STATE.md is the authoritative source.
+**Latest Remediation:** Phase 18 Consumer UX Remediation Complete
+
+**Current Stable Tag:** `phase-19.5-complete`
+
+**Stable Tag Commit:** `0afeb8b` —
+`phase19.5: tracking link generator cleanup and metrics foundation`
+
+**Last Verified Code Commit:** `30f50df` —
+`feat(phase-18): orders filter auto-scroll and updated docs`
+
+**Current Working Branch:** `feat/phase-18-consumer-ux`
+
+**Next Planned Phase:** Phase 20 — TBD, not started. Do not begin without
+explicit approval.
+
+### Quality Gates
+
+* TypeScript: PASS — 0 errors
+* ESLint: PASS — 0 errors, 0 warnings
+* Diff check: PASS
+* Production build: PASS
+* Generated page instances: PASS — 30/30
+* Manual responsive verification: PASS at 360, 390, 430, 768, and desktop
+  widths
+
+### Route Summary
+
+* 21 route patterns total
+* 15 static route patterns (`○`)
+* 4 parameterized SSG route patterns (`●`)
+* 2 dynamic route patterns (`ƒ`)
+
+> **Important:** `30/30` is the number of generated page instances produced by
+> the Next.js production build. It is not the number of route patterns.
 
 ---
 
-## Current Architecture
+## 3. Source of Truth
 
-Mandatory flow:
+`docs/PROJECT_STATE.md` is authoritative for:
 
+* roadmap status;
+* current and completed phases;
+* latest stable tag;
+* route inventory;
+* planned future work.
+
+`docs/HANDOFF.md` is authoritative for:
+
+* operational context;
+* architecture constraints;
+* implementation decisions;
+* verification history;
+* repository handoff instructions.
+
+When reconciling documentation, verify facts against:
+
+```text
+git branch --show-current
+git log --oneline --decorate
+git tag --list
+git merge-base --is-ancestor <tag-or-branch> HEAD
+```
+
+Build and route facts must be taken from a verified production build rather
+than inferred from the source tree.
+
+---
+
+## 4. Current Architecture
+
+### Mandatory Data Flow
+
+```text
 Page
 → Async Loader
 → Service
 → Repository
 → apiClient
 → mock-backend
+→ mock domain slice
+```
 
-Rules:
+### Global Rules
 
 * Async-first architecture
 * Server Component first
-* No client fetching
+* No client-side data fetching for domain data
 * No React Query
+* No SWR
 * No Redux
 * No Zustand
 * No Context-based data loading
 * No direct repository access from pages
-* No direct mock imports in pages/components
-* Presentational components receive data via props
-* Joins and aggregations live in page layer
-* Shopee and TikTok only
-* No affiliate-network abstraction layer
+* No direct mock imports in pages or presentational components
+* Presentational components receive data through props
+* Joins and aggregations remain in the page layer
+* Pure, stateless parsing and formatting helpers may live in shared utilities
+* Shopee and TikTok Shop only
+* No generic affiliate-network abstraction layer
+* Do not create duplicate data paths for read-only compositions
+
+The legacy synchronous architecture has been removed.
+
+Do not reintroduce:
+
+* synchronous data hooks;
+* synchronous service wrappers;
+* synchronous repository methods;
+* page-level mock imports;
+* component-level domain data loading;
+* parallel data paths for the same domain payload.
+
+### Loader Naming
+
+Functions named `loadXAsync` are server-side async loaders.
+
+They are not React hooks, even when historical project organization places
+their files under `src/hooks`.
+
+A loader must not be described as a React hook unless it actually uses React
+hook semantics and follows the `useX` convention.
 
 ---
 
-## Current Route Inventory
+## 5. Current Route Inventory
 
-Public Routes
+### Static Routes (`○`) — 15
 
-/
-/login
-/register
+* `/`
+* `/_not-found`
+* `/app`
+* `/app/cashback`
+* `/app/clicks`
+* `/app/commission`
+* `/app/conversions`
+* `/app/finance`
+* `/app/more`
+* `/app/notifications`
+* `/app/offers`
+* `/app/profile`
+* `/app/revenue`
+* `/login`
+* `/register`
 
-App Routes
+### Parameterized SSG Routes (`●`) — 4
 
-/app
-/app/orders
-/app/finance
-/app/more
-/app/offers
-/app/offers/[offerId] (SSG ● — pre-rendered for off-shopee-fashion,
-  off-shopee-beauty, off-tiktok-home)
-/app/tracking-links
-/app/tracking-links/[trackingLinkId] (SSG ● — pre-rendered for trk-001,
-  trk-002, trk-003)
-/app/tracking-links/generator/[offerId] (SSG ● — pre-rendered for
-  off-shopee-fashion, off-shopee-beauty, off-tiktok-home)
-/app/conversions
-/app/commission
-/app/revenue
-/app/cashback
-/app/notifications
-/app/clicks
-/app/profile
-/app/campaigns/[campaignId]
+#### `/app/campaigns/[campaignId]`
 
-Total:
-21 routes (17 ○ static + 4 ● SSG dynamic)
+Pre-rendered parameters:
+
+* `cmp-shopee-q2`
+* `cmp-tiktok-launch`
+
+#### `/app/offers/[offerId]`
+
+Pre-rendered parameters:
+
+* `off-shopee-fashion`
+* `off-shopee-beauty`
+* `off-tiktok-home`
+
+#### `/app/tracking-links/[trackingLinkId]`
+
+Pre-rendered parameters:
+
+* `trk-001`
+* `trk-002`
+* `trk-003`
+
+#### `/app/tracking-links/generator/[offerId]`
+
+Pre-rendered parameters:
+
+* `off-shopee-fashion`
+* `off-shopee-beauty`
+* `off-tiktok-home`
+
+### Dynamic Routes (`ƒ`) — 2
+
+#### `/app/orders`
+
+Dynamic because filter state is read from URL `searchParams`.
+
+#### `/app/tracking-links`
+
+Dynamic server-rendered route.
+
+### Route Totals
+
+```text
+15 static route patterns
+4 parameterized SSG route patterns
+2 dynamic route patterns
+21 route patterns total
+```
+
+Latest verified production build:
+
+```text
+30/30 generated page instances
+```
 
 ---
 
-## Current Domains
+## 6. Current Domains
 
 ### Dashboard
 
-Status: Complete
+**Status:** Complete
 
-Chain:
+**Data chain:**
 
+```text
 Page
 → loadDashboardAsync
 → dashboardService
 → dashboardRepository
 → apiClient
 → mock-backend
+```
+
+Current consumer home includes:
+
+* consumer-focused hero;
+* recent orders;
+* popular offers;
+* trust notice;
+* shared primary navigation for desktop and mobile.
+
+`PopularOffer.rewardLabel` is a presentation label such as `8% hoàn tiền`.
+
+It must not be interpreted as internal `networkCommission` data.
 
 ---
 
 ### Orders
 
-Status: Complete
+**Status:** Complete, including Phase 18 Consumer UX Remediation
 
-Chain:
+**Data chain:**
 
+```text
 Page
 → loadOrdersAsync
 → ordersService
 → ordersRepository
 → apiClient
 → mock-backend
+```
+
+#### Canonical Order Statuses
+
+* `recorded`
+* `reconciling`
+* `approved`
+* `rejected`
+* `payable`
+* `paid`
+
+#### URL Filter Values
+
+* `all`
+* `pending`
+* `approved`
+* `rejected`
+* `payable`
+* `paid`
+
+#### Filter Mapping
+
+* `pending` matches `recorded` and `reconciling`
+* Invalid URL values fall back to `all`
+* Status parsing and matching live in `src/lib/filterUtils.ts`
+
+#### Route Behavior
+
+* Filter state is URL-driven through `?status=`
+* The page resolves a validated `OrderStatusFilter`
+* The page passes the validated filter to `loadOrdersAsync`
+* Filtering follows the loader, service, and repository path
+* No client-side fetch is introduced
+* Existing query parameters are preserved when filters change
+* `router.push(..., { scroll: false })` preserves page scroll position
+
+#### Route Boundaries
+
+* `loading.tsx` renders `OrdersLoadingState`
+* `error.tsx` renders a consumer-friendly retry state
+* The error boundary uses `reset()` for retry behavior
+
+#### Empty States
+
+Filtered empty state:
+
+* explains the selected filter;
+* keeps the filter controls visible;
+* provides a route back to all orders.
+
+Global empty state:
+
+* explains that no orders exist;
+* keeps the filter controls visible;
+* does not show a redundant reset action.
+
+#### Active Filter Chip Behavior
+
+* Active chip DOM nodes are tracked with refs
+* The active chip is centered inside the horizontal filter container
+* Centering uses a double `requestAnimationFrame`
+* `ResizeObserver` re-centers the chip after layout changes
+* The implementation avoids page-level horizontal overflow
+
+#### Manual Verification
+
+* 360 px: PASS
+* 390 px: PASS
+* 430 px: PASS
+* 768 px: PASS
+* Desktop: PASS
+* Filtered empty state: PASS
+* Global empty state: PASS
+* Active-filter auto-scroll: PASS
+* Page-level horizontal overflow: not observed
 
 ---
 
 ### Finance
 
-Status: Complete
+**Status:** Complete
 
-Chain:
+**Data chain:**
 
+```text
 Page
 → loadFinanceAsync
 → financeService
 → financeRepository
 → apiClient
 → mock-backend
+```
+
+Finance remains a standalone domain for summary and transaction history.
 
 ---
 
 ### User
 
-Status: Complete
+**Status:** Complete
 
-Purpose:
+**Purpose:**
 
-More menu only.
+* More-menu navigation items
+* Shared user-facing navigation data
 
-Important:
+User is not the identity or profile domain.
 
-User is NOT an identity/profile domain.
+**Data chain:**
 
-Chain:
-
+```text
 Page
 → loadUserAsync
 → userService
 → userRepository
 → apiClient
 → mock-backend
+```
 
 ---
 
 ### Affiliate
 
-Status: Complete
+**Status:** Complete
 
-Chain:
+**Primary data chain:**
 
+```text
 Page
 → loadAffiliateAsync
 → affiliateService
 → affiliateRepository
 → apiClient
 → mock-backend
+```
 
-Features powered by Affiliate:
+Affiliate is the single source of truth for:
 
-* Offers
-* Tracking Links
-* Conversions
-* Commission
-* Revenue
+* advertisers;
+* campaigns;
+* offers;
+* tracking links;
+* conversions;
+* revenue compositions;
+* commission compositions.
 
-Important:
+Do not create standalone domains or duplicate data loaders for:
 
-Affiliate remains the single source of truth for:
+* conversion analytics;
+* revenue analytics;
+* commission analytics.
 
-* Offers
-* Tracking Links
-* Conversions
-* Revenue
-* Commission
+Do not create:
 
-Do NOT create:
+* `loadConversionAsync`
+* `loadRevenueAsync`
+* `loadCommissionAsync`
 
-* loadConversionAsync
-* loadRevenueAsync
-* loadCommissionAsync
+Conversions, Revenue, and Commission remain page-level compositions over
+Affiliate data.
 
-Analytics must remain page-level compositions.
+#### Affiliate Shared Payload
+
+`AffiliateData` contains the shared list payload:
+
+* advertisers;
+* campaigns;
+* offers;
+* tracking links;
+* conversions;
+* joined offer IDs;
+* publisher profile;
+* tracking-link statistics.
+
+#### Affiliate Use-Case DTOs
+
+Tracking-link generator data is loaded through:
+
+```text
+loadTrackingLinkGeneratorContextAsync(offerId)
+→ TrackingLinkGeneratorData
+```
+
+Offer-detail data is loaded through:
+
+```text
+loadOfferDetailContextAsync(offerId)
+→ OfferDetailData
+```
+
+The loader, service, and repository function names may retain the `Context`
+suffix.
+
+The return DTOs are owned by `src/types/affiliate.ts` and use the `Data`
+suffix.
+
+Correct DTO names:
+
+* `AffiliateData`
+* `TrackingLinkGeneratorData`
+* `OfferDetailData`
+
+Do not reintroduce context-shaped DTO aliases. Return DTOs must remain owned by
+`src/types/affiliate.ts` and retain the `Data` suffix.
+
+#### API Results
+
+Fallible repository and service operations use the discriminated
+`ApiResult<T>` contract from `src/types/api.ts`.
+
+Unsafe placeholder casts such as:
+
+```text
+null as unknown as ...
+```
+
+have been removed and must not be reintroduced.
+
+#### Tracking-Link Destination URLs
+
+Existing tracking links preserve their persisted `destinationUrl`.
+
+Preview and new-link workflows may use the offer default destination URL.
+
+The default destination URL must not silently overwrite a persisted URL on an
+existing tracking link.
 
 ---
 
 ### Cashback
 
-Status: Complete
+**Status:** Complete
 
-Chain:
+**Data chain:**
 
+```text
 Page
 → loadCashbackAsync
 → cashbackService
 → cashbackRepository
 → apiClient
 → mock-backend
+```
+
+Cashback includes:
+
+* history;
+* statistics;
+* platform filters;
+* cashback presentation behavior.
 
 ---
 
 ### Notification
 
-Status: Complete
+**Status:** Complete
 
-Chain:
+**Data chain:**
 
+```text
 Page
 → loadNotificationAsync
 → notificationService
 → notificationRepository
 → apiClient
 → mock-backend
+```
+
+Notification includes:
+
+* notification center UI;
+* statistics;
+* filtering;
+* notification list behavior.
 
 ---
 
 ### Click
 
-Status: Complete
+**Status:** Complete
 
-Standalone domain.
+Click is a standalone domain.
 
-Chain:
+**Data chain:**
 
+```text
 Page
 → loadClickAsync
 → clickService
 → clickRepository
 → apiClient
 → mock-backend
+```
 
-Files:
-
-src/types/click.ts
-
-src/lib/mock/click.ts
-
-src/repositories/click.repository.ts
-
-src/services/click.service.ts
-
-src/hooks/loadClickAsync.ts
-
-Route:
-
-/app/clicks
+**Primary route:** `/app/clicks`
 
 ---
 
 ### Profile
 
-Status: Complete (data layer + UI)
+**Status:** Complete through Phase 16C — foundation, UI, management, and
+navigation
 
-Standalone domain. NOT part of User.
+Profile is a standalone domain.
 
-User owns: More menu + navigation items.
-Profile owns: identity, avatar, email, phone, member tier, preferred
-platforms, and payout account.
+Profile is not part of User.
 
-Chain:
+#### Ownership
 
+User owns:
+
+* More-menu navigation items;
+* navigation data.
+
+Profile owns:
+
+* identity;
+* avatar URL rendering;
+* contact information;
+* member tier;
+* preferred platforms;
+* payout account.
+
+#### Data Chain
+
+```text
 Page (/app/profile)
 → loadProfileAsync
 → getProfileDataServiceAsync
-→ profileRepository (getProfileDataAsync)
+→ profileRepository.getProfileDataAsync
 → apiClient
 → mock-backend
+```
 
-Data layer files (16A — reused, unchanged):
+`loadProfileAsync` is a server-side async loader.
 
-src/types/profile.ts
+It currently lives under `src/hooks` because of historical project
+organization, but it is not a React hook.
 
-src/lib/mock/profile.ts
+The page calls the loader and does not access the repository directly.
 
-src/repositories/profile.repository.ts
+#### Current UI Components
 
-src/services/profile.service.ts
+* `ProfileHeader`
+* `ProfileInfoCard`
+* `PayoutAccountCard`
+* `ProfileStatsCard`
+* `ProfileManagementPanel`
 
-src/hooks/loadProfileAsync.ts
+#### Current Behavior
 
-UI files (16B):
+* `avatarUrl` is rendered when present
+* Initials are used as a fallback
+* Personal information can be edited in the mock workflow
+* Payout-account information can be edited in the mock workflow
+* `/app/more` includes a link to `/app/profile`
+* Mock persistence is held in `src/lib/mock/profile-store.ts`
 
-src/app/app/profile/page.tsx (async Server Component, static ○)
+#### Edit Chain
 
-src/features/profile/ProfileHeader.tsx
+```text
+ProfileManagementPanel
+→ profile edit service
+→ profile edit repository
+→ apiClient
+→ mock-backend
+→ mutable mock profile store
+```
 
-src/features/profile/ProfileInfoCard.tsx
+#### Deferred
 
-src/features/profile/PayoutAccountCard.tsx
+* Real backend persistence
+* Avatar upload
+* Withdrawal workflow
+* Membership management
+* Referral system
+* Settings center
 
-src/features/profile/ProfileStatsCard.tsx
-
-Endpoints:
-
-/profile/detail
-/profile/payout-account
-
-Route:
-
-/app/profile (static ○)
-
-Notes:
-
-* profile.service.ts follows the 15E-cleaned convention: it exports only the
-  standalone getProfileDataServiceAsync(), no service object.
-* 16B added UI only. No new loader/service/repository/mock; the page reuses
-  loadProfileAsync(). Single data path preserved.
-* Components are presentational and props-driven (no data loading, no
-  "use client"). ProfileStatsCard values are derived in the page layer.
-* ProfileHeader renders an initials avatar from fullName; profile.avatarUrl is
-  kept in the data model but not rendered yet (no public asset added in 16B).
-* Profile is reachable by URL only — no navigation entry was added (out of
-  16B scope).
-* Not built (deferred): edit form, avatar upload, payout editing, withdrawal,
-  membership, referral, settings.
+Completed Profile behavior must not be documented as deferred.
 
 ---
 
 ### Campaign Detail
 
-Status:
-Complete (data layer + UI + drill-down)
+**Status:** Complete
 
-Part of Affiliate domain. NOT a separate domain.
-Affiliate remains the single source of truth for offers, tracking links,
-conversions, revenue, commission. Campaign Detail is a read-only drill-down
-composed on top of the Affiliate chain.
+Campaign Detail belongs to Affiliate.
 
-Chain:
+It is not a standalone domain.
 
+#### Data Chain
+
+```text
 Page (/app/campaigns/[campaignId])
 → loadCampaignDetailAsync
-→ campaignDetailService (getCampaignDetailServiceAsync, getCampaignStatisticsServiceAsync)
-→ campaignDetailRepository (getCampaignDetailAsync, getCampaignStatisticsAsync)
+→ campaignDetailService
+→ campaignDetailRepository
 → apiClient
 → mock-backend
-→ campaignDetails map (keyed by campaignId)
+→ campaignDetails[campaignId]
+```
 
-Data layer files:
+#### Endpoints
 
-src/types/affiliate.ts (CampaignDetail, CampaignStatistic)
+* `/campaign/detail/:campaignId`
+* `/campaign/statistics/:campaignId`
 
-src/lib/mock/affiliate.ts (campaignDetails map; second fixture added for
-cmp-tiktok-launch so multi-campaign resolution is exercised)
+#### Route
 
-src/repositories/campaign-detail.repository.ts
+```text
+/app/campaigns/[campaignId]
+```
 
-src/services/campaign-detail.service.ts
+The route is parameterized SSG through `generateStaticParams`.
 
-src/hooks/loadCampaignDetailAsync.ts
+Pre-rendered campaign IDs:
 
-Endpoints:
+* `cmp-shopee-q2`
+* `cmp-tiktok-launch`
 
-/campaign/detail/:campaignId
-/campaign/statistics/:campaignId
+#### UI Components
 
-Routes:
+* `CampaignHeader`
+* `CampaignCommissionCard`
+* `CampaignTrackingCard`
+* `CampaignStatsGrid`
+* `CampaignNotFound`
 
-/app/campaigns/[campaignId] (SSG via generateStaticParams; uses
-loadAffiliateAsync().campaigns to enumerate ids; pre-rendered for
-cmp-shopee-q2 and cmp-tiktok-launch)
+#### Drill-Down
 
-UI files (Phase 17):
+* Offer-table campaign names link to Campaign Detail
+* Tracking-link-table campaign names link to Campaign Detail
+* No top-level navigation entry is added
 
-src/features/campaigns/CampaignHeader.tsx
+#### Mock Backend Routing
 
-src/features/campaigns/CampaignCommissionCard.tsx
+The mock backend supports:
 
-src/features/campaigns/CampaignTrackingCard.tsx
+* exact-match handlers;
+* parameterized prefix handlers.
 
-src/features/campaigns/CampaignStatsGrid.tsx
+Existing exact endpoints retain their behavior.
 
-src/features/campaigns/CampaignNotFound.tsx
+Unknown campaign IDs resolve through the not-found presentation flow.
 
-Notes:
+#### Deferred
 
-* Mock backend refactored from a flat endpoint map to exact-match + prefix-
-  match routing. Exact handlers stay as `(endpoint) => data`. Parameterized
-  routes match `${prefix}/${value}` and pass the value into a builder. This
-  keeps the simple endpoints untouched while letting /campaign/detail/:id and
-  /campaign/statistics/:id resolve by campaignId. Unknown ids throw and the
-  page renders CampaignNotFound.
-* Components are presentational and props-driven (no data loading, no
-  "use client"). Joins and aggregations live in the page layer (e.g.
-  generateStaticParams composes loadAffiliateAsync().campaigns).
-* No top-level menu entry. Drill-down comes from Offers and Tracking Links
-  tables via the campaign name link (offerView.campaignId /
-  trackingLinkView.campaignId added to the view models).
-* Orphaned src/lib/mock/campaign-detail.ts (created during initial data-layer
-  scaffolding, never imported) was deleted. Canonical fixture is the
-  campaignDetails map inside src/lib/mock/affiliate.ts.
-* The 16C post endpoints (PROFILE.UPDATE / PROFILE.PAYOUT_UPDATE) still
-  return mutated mock state via the same exact handler; body arguments
-  continue to be ignored (same behavior as before the refactor — the body was
-  never actually plumbed through resolveMockEndpoint in the prior client.ts).
+* Campaign CRUD
+* Campaign-level analytics filters
+* Per-campaign offer, tracking-link, and conversion lists
+* Campaign write actions
 
 ---
 
-## Analytics Centers
+## 7. Analytics Architecture and Business Rules
 
-### Phase 15A — Click Analytics Center
-
-Status:
-Complete
-
-Route:
-
-/app/clicks
-
-Components:
-
-* ClickStats
-* ClickFilters
-* ClickTable
-
-Standalone domain.
-
----
-
-### Phase 15B — Conversion Analytics Center
-
-Status:
-Complete
-
-Uses:
-
-loadAffiliateAsync
-
-Additional data:
-
-loadClickAsync
-
-Components:
-
-* ConversionStats
-* ConversionPlatformBreakdown
-* ConversionTrendTable
-* ConversionTopLinksTable
-* ConversionTable
-* ConversionFilters
-
-Architecture:
-
-Page-level aggregation only.
-
-No dedicated repository/service/hook.
-
----
-
-### Phase 15C — Revenue Analytics Center
-
-Status:
-Complete
-
-Uses:
-
-loadAffiliateAsync
-
-Components:
-
-* RevenueStats
-* RevenuePlatformBreakdown
-* RevenueTrendTable
-* RevenueTopLinksTable
-* RevenueCampaignTable
-* RevenueOfferTable
-
-Architecture:
-
-Page-level aggregation only.
-
-No dedicated repository/service/hook.
-
-Important:
-
-RevenuePlatformBreakdown includes:
-
-* Revenue
-* Commission
-* Share %
-
----
-
-### Phase 15D — Commission Analytics Center
-
-Status:
-Complete
-
-Uses:
-
-loadAffiliateAsync
-
-Components:
-
-* CommissionStats
-* CommissionPlatformBreakdown
-* CommissionTrendTable
-* CommissionTopLinksTable
-* CommissionCampaignTable
-
-Business Rules:
-
-paid status is treated as approved
-
-Commission buckets:
-
-approved
-pending
-rejected
-
-Rule:
-
-approved + pending + rejected = total
-
-Highest Commission Offer:
-
-Removed
-
-Reason:
-
-No drill-down destination exists.
-
-Highest Commission Campaign:
-
-Retained
-
-Backed by:
-
-CommissionCampaignTable
-
-CommissionTopLinksTable:
-
-Shows:
-
-* trackingCode
-* platform
-* commission
-* conversions
-
-Does NOT show:
-
-avgCommission
-
-Reason:
-
-No valid click denominator exists.
-
----
-
-## Known Architecture Decisions
+### Domain Ownership
 
 Click is a standalone domain.
 
-Conversion is NOT a standalone domain.
+The following analytics features are not standalone domains:
 
-Revenue is NOT a standalone domain.
+* Conversion analytics
+* Revenue analytics
+* Commission analytics
 
-Commission is NOT a standalone domain.
+Conversions, Revenue, and Commission remain page-level Affiliate
+compositions.
 
-All three are Affiliate feature compositions.
+Do not split them into separate repositories, services, or loaders.
 
-Do not split them into separate repositories/services/hooks.
+### Aggregation Location
 
-Keep aggregations inside page.tsx.
+Keep joins, maps, and domain aggregations inside the relevant `page.tsx`
+files.
 
-### Phase 15E Stabilization Decisions
+Only pure, stateless parsing and formatting helpers belong in shared utility
+modules.
 
-Single async data flow (route level):
+### Shared Analytics Helpers
 
-No route uses the legacy sync hook path. The landing route / was migrated
-to loadDashboardAsync. All 15 routes now flow through Page → Async Loader →
-Service → Repository → apiClient → mock-backend.
+The following helpers live in `src/lib/analytics/format.ts`:
 
-paid is treated as approved:
+* `formatVnd`
+* `formatDate`
+* `parseRate`
+* `parseOrderValue`
+* `supportedPlatforms`
+* `isApprovedStatus`
 
-The canonical predicate isApprovedStatus(status) in src/lib/analytics/format.ts
-is the single source for approved-bucket logic. Used by conversions, commission,
-and cashback. approved + pending + rejected = total now holds on every analytics
-page (previously the conversions page excluded paid).
+### Approved-Bucket Rule
 
-Shared analytics helpers:
+`paid` is treated as approved for analytics reconciliation.
 
-formatVnd, formatDate, parseRate, parseOrderValue, supportedPlatforms, and
-isApprovedStatus live in src/lib/analytics/format.ts. The commission, revenue,
-and conversions pages import them instead of redefining local copies.
+The canonical predicate is:
 
-Joins and Map aggregations remain inline in each page.tsx (page-layer rule
-unchanged). Only the pure stateless helpers were extracted.
+```text
+isApprovedStatus(status)
+```
 
-Async loaders renamed:
+Commission reconciliation must satisfy:
 
-The 8 useXAsync loaders were renamed to loadXAsync (files included). They are
-server-side async data loaders, not React hooks, so the use* prefix was wrong
-and triggered react-hooks/rules-of-hooks lint errors. Renaming fixed all 14
-errors; lint now passes with 0 errors.
+```text
+approved + pending + rejected = total
+```
 
-Legacy sync architecture DELETED (Step 2, completed):
+This rule applies consistently across:
 
-The entire legacy sync data path is gone. Removed:
+* conversions;
+* commission;
+* cashback.
 
-* 5 sync hook files: useDashboard, useFinance, useOrders, useCashback, useUser
-* 5 *Service objects: dashboardService, financeService, ordersService,
-  cashbackService, userService (consumed only by the deleted sync hooks)
-* 5 get*DataService() sync wrappers in the service files
-* 5 sync get*Data() repository methods
-* sync helper getters: getDashboardSummary, getHomeMetrics, getHomeFeatures,
-  getHeroPreview, getQuickActions, getFinanceSummary, getFinanceTransactions,
-  getOrders, getOrderFilters, getCashbackPlatforms, getCashbackHistory,
-  getMoreMenuItems
-* the now-orphaned @/lib/mock imports in the dashboard/finance/orders/
-  cashback/user repositories
+### Commission Presentation Decisions
 
-Each service now exports only get*DataServiceAsync(); each repository exports
-only get*DataAsync() backed by apiClient. The "no direct mock imports" rule
-now holds at the file level, not just the route level. git grep confirms zero
-matches for the deleted symbols outside historical docs.
+Highest Commission Offer was removed because no valid drill-down destination
+exists.
 
----
+Highest Commission Campaign remains because it is backed by the campaign
+table and Campaign Detail route.
 
-## Current Stable Tags
+Commission top-link presentation includes:
 
-architecture-v2-stable
+* tracking code;
+* platform;
+* commission;
+* conversions.
 
-phase-11-stable
-
-phase-14A-stable
-
-phase-14B-foundation-stable
-
-phase-14B-ui-stable
-
-phase-14B-complete
-
-phase-15D-complete
-
-phase-16A-complete
-
-phase-16B-complete
-
-phase-16C-complete
-
-phase-17-complete
+It does not display `avgCommission` because no valid click denominator exists.
 
 ---
 
-## Next Planned Phase
+## 8. Phase History and Important Decisions
 
-Phase 20 (TBD — not started. Do not begin without approval.)
+### Phase 15E — Architecture Stabilization
+
+**Status:** Complete
+
+Delivered:
+
+* Landing route migrated to `loadDashboardAsync`
+* Legacy synchronous route path removed
+* Async loaders renamed from `useXAsync` to `loadXAsync`
+* Shared analytics helpers extracted
+* `paid` normalized into approved analytics buckets
+* Synchronous hooks removed
+* Synchronous service wrappers removed
+* Synchronous repository methods removed
+* Orphaned repository mock imports removed
+
+**Commission buckets:**
+
+- `approved`
+- `pending`
+- `rejected`
+
+At the time of Phase 15E, all then-existing routes used the async path.
+
+The current repository has 21 route patterns and continues to use the same
+architecture.
+
+---
+
+### Phase 16A, 16B, and 16C — Profile
+
+**Status:** Complete
+
+Delivered:
+
+* Standalone Profile data domain
+* Profile route and presentational UI
+* Avatar URL rendering with initials fallback
+* Personal-information mock editing
+* Payout-account mock editing
+* Profile navigation from `/app/more`
+* Mutable mock persistence for Profile management flows
+
+Deferred items remain documented in the Profile domain section.
 
 ---
 
 ### Phase 17 — Campaign Detail
 
-Status:
-Complete
+**Status:** Complete
 
-Architecture Decision:
+**Stable Tag:** `phase-17-complete`
 
-Campaign Detail is NOT a separate domain. It belongs to Affiliate.
+Delivered:
 
-Reason:
+* Campaign-detail loader, service, and repository chain
+* Parameterized campaign endpoints
+* Two SSG campaign fixtures
+* Presentational Campaign Detail UI
+* Drill-down from Offers and Tracking Links
+* Orphaned duplicate campaign-detail mock removed
 
-Affiliate is already the single source of truth for offers, tracking links,
-conversions, revenue, and commission. Campaign Detail is a read-only
-composition on top of the Affiliate chain (campaign → commission + tracking
-settings + statistics). Creating a separate Campaign domain would have
-duplicated data paths.
-
-Created Files:
-
-src/repositories/campaign-detail.repository.ts
-
-src/services/campaign-detail.service.ts
-
-src/hooks/loadCampaignDetailAsync.ts
-
-src/features/campaigns/CampaignHeader.tsx
-
-src/features/campaigns/CampaignCommissionCard.tsx
-
-src/features/campaigns/CampaignTrackingCard.tsx
-
-src/features/campaigns/CampaignStatsGrid.tsx
-
-src/features/campaigns/CampaignNotFound.tsx
-
-src/app/app/campaigns/[campaignId]/page.tsx
-
-Modified Files:
-
-src/types/affiliate.ts (CampaignDetail, CampaignStatistic added; OfferView
-and TrackingLinkView gained campaignId + campaignName for drill-down)
-
-src/lib/mock/affiliate.ts (campaignDetails map keyed by id; cmp-shopee-q2
-plus new cmp-tiktok-launch fixture; satisfies Record<string, CampaignDetail>)
-
-src/lib/constants/api.ts (CAMPAIGN_DETAIL, CAMPAIGN_STATISTICS endpoints)
-
-src/lib/api/mock-backend.ts (refactored from flat endpoint map to
-exact-match + prefix-match routing so /campaign/detail/:id and
-/campaign/statistics/:id can resolve by id; existing endpoints unchanged)
-
-src/repositories/campaign-detail.repository.ts (uri-encoded ids)
-
-src/app/app/offers/page.tsx (offerViews now include campaignId, campaignName)
-
-src/features/offers/OfferTable.tsx (campaign name is now a link to
-/app/campaigns/[campaignId])
-
-src/app/app/tracking-links/page.tsx (linkViews now include campaignId,
-campaignName)
-
-src/features/tracking-links/TrackingLinkTable.tsx (campaign name is now a
-link to /app/campaigns/[campaignId])
-
-Deleted Files:
-
-src/lib/mock/campaign-detail.ts (orphaned duplicate of cmp-shopee-q2 fixture;
-canonical data lives in the campaignDetails map in src/lib/mock/affiliate.ts)
-
-Phase Scope (delivered):
-
-* Full data layer through Async Loader (page → loader → service → repository
-  → apiClient → mock-backend → campaignDetails[id]).
-* Dynamic route /app/campaigns/[campaignId], pre-rendered via
-  generateStaticParams using loadAffiliateAsync().campaigns as the source.
-* Five presentational, props-driven components (no client fetching).
-* Drill-down from Offers and Tracking Links tables via the campaign name
-  link. View models extended to carry the campaign id.
-* Mock backend now supports parameterized endpoints (prefix match); all
-  previous endpoints preserved unchanged.
-* No top-level menu entry (per scope).
-* No avatar, edit, or write capability for campaign detail (read-only).
-
-Not built (deferred to a future phase if needed):
-
-* Campaign CRUD (admin).
-* Campaign-level filters / aggregations on analytics pages (campaignId is
-  present on views; filtering is page-layer work for later).
-* Per-campaign offer/tracking-link/conversion lists (drill-down is to the
-  campaign detail page; offer/listing pages already exist).
+Campaign Detail remains part of Affiliate and must not become a duplicate
+standalone data domain.
 
 ---
 
-### Phase 19 + 19.5 — Tracking Links Generator
+### Phase 18 — Offer Detail Delivery
 
-Status:
-Complete (workflow rename only; no new data layer)
+**Status:** Complete
 
-Scope:
+**Stable Tag:** `phase-18-complete`
 
-* Workflow rename: /app/tracking-links/create/[offerId] → /app/tracking-links/generator/[offerId]
-* Feature folder rename: tracking-links/create → tracking-links/generator
-* Component rename: TrackingLinkCreateNotFound → TrackingLinkGeneratorNotFound
-* Fixture correction: trackingLinkStats AOV reset to 0 (trk-001, trk-002, trk-003)
-* UI cleanup: AOV removed from TrackingLinkAttributionCard (type preserved for Phase 20)
+**Tag Commit:** `021ce4e` — `phase18: offer detail drill-down`
 
-Architecture:
-No new data path. Reuses loadAffiliateAsync. No new repository/service/hook.
-No change to TrackingLinkStats shape, TrackingLinkMetrics shape, or route structure.
+This product-delivery phase is separate from the later Phase 18 Consumer UX
+Remediation work.
 
-Modified Files:
-src/features/tracking-links/generator/TrackingLinkGeneratorNotFound.tsx (was TrackingLinkCreateNotFound)
-src/app/app/tracking-links/generator/[offerId]/page.tsx
-src/lib/mock/affiliate.ts (3 AOV values → 0)
-src/features/tracking-links/detail/TrackingLinkAttributionCard.tsx (AOV removed from render)
-
-Deleted Files:
-src/features/tracking-links/generator/TrackingLinkCreateNotFound.tsx
-
-Build: PASS
-Lint: PASS (0 errors; 0 warnings)
-SSG: PASS — /app/tracking-links/generator/[offerId] pre-rendered for 3 offer IDs
-
-Not built (deferred):
-AOV aggregate calculation (Phase 20).
+The shared phase number does not imply that the remediation has its own stable
+tag.
 
 ---
 
-## Mandatory Workflow Before Any New Phase
+### Phase 18 Consumer UX Remediation
 
-1. Read PROJECT_STATE.md
-2. Read HANDOFF.md
-3. Verify git tag
-4. Verify latest commit
-5. Run npm run build
-6. Audit current architecture
-7. Produce analysis only
-8. Wait for approval
+**Status:** Complete
+
+**Branch:** `feat/phase-18-consumer-ux`
+
+Delivered:
+
+* Consumer-focused dashboard
+* Shared desktop and mobile primary navigation
+* URL-driven Orders filters
+* Canonical Orders status model
+* Invalid filter fallback
+* Orders loading boundary
+* Orders error boundary
+* Filtered empty state
+* Global empty state
+* Active-filter chip auto-scroll and centering
+* Responsive verification across mobile, tablet, and desktop widths
+* Affiliate use-case DTO ownership correction
+* Discriminated `ApiResult<T>` adoption for fallible operations
+* Unsafe placeholder result casts removed
+* `PopularOffer.rewardLabel` presentation semantics documented
+* No direct mock imports added to pages or features
+
+Key code commits:
+
+* `b360e07` —
+  `wip(phase-18): stabilize orders flow and type contracts`
+* `30f50df` —
+  `feat(phase-18): orders filter auto-scroll and updated docs`
+
+No remediation-specific stable tag exists.
+
+Do not invent or create any remediation-specific stable tag unless explicitly
+approved.
+
+---
+
+### Phase 19 and 19.5 — Tracking Links Generator
+
+**Status:** Complete
+
+**Stable Tag:** `phase-19.5-complete`
+
+**Tag Commit:** `0afeb8b` —
+`phase19.5: tracking link generator cleanup and metrics foundation`
+
+Delivered:
+
+* Workflow route renamed from `/create` to `/generator`
+* Feature folder renamed to `tracking-links/generator`
+* `TrackingLinkCreateNotFound` renamed to
+  `TrackingLinkGeneratorNotFound`
+* AOV fixtures reset to `0` where no real aggregate exists
+* AOV removed from `TrackingLinkAttributionCard` rendering
+* `TrackingLinkMetrics.aov` retained in the type for future aggregate work
+
+No new data path was introduced.
+
+The workflow reuses the Affiliate architecture.
+
+Deferred to Phase 20:
+
+* real tracking-link AOV aggregate calculation.
+
+---
+
+## 9. Current Stable Tags
+
+Relevant confirmed stable tags:
+
+* `architecture-v2-stable`
+* `phase-11-stable`
+* `phase-14A-stable`
+* `phase-14B-foundation-stable`
+* `phase-14B-ui-stable`
+* `phase-14B-complete`
+* `phase-15D-complete`
+* `phase-15E-complete`
+* `phase-16A-complete`
+* `phase-16B-complete`
+* `phase-16C-complete`
+* `phase-17-complete`
+* `phase-18-complete`
+* `phase-19.5-complete`
+
+**Latest stable tag:** `phase-19.5-complete`
+
+**Latest stable tag commit:** `0afeb8b`
+
+Do not document a remediation-specific stable tag unless it has actually been
+created and explicitly approved.
+
+---
+
+## 10. Repository Health
+
+Verified on branch:
+
+```text
+feat/phase-18-consumer-ux
+```
+
+### Verified Commands
+
+| Check            | Command                            | Result        |
+| ---------------- | ---------------------------------- | ------------- |
+| TypeScript       | `npx tsc --noEmit`                 | PASS — exit 0 |
+| ESLint           | `npx eslint src --max-warnings=0`  | PASS — exit 0 |
+| Diff check       | `git --no-pager diff --check HEAD` | PASS — exit 0 |
+| Production build | `npm run build`                    | PASS — exit 0 |
+
+### Build Details
+
+* Next.js 16.2.9 with Turbopack
+* Compilation: PASS
+* TypeScript build stage: PASS
+* Page-data collection: PASS
+* Static generation: PASS — 30/30 generated page instances
+* Route classification: 15 static, 4 parameterized SSG, 2 dynamic
+
+### Architecture Health
+
+* Single async data path: PASS
+* No legacy synchronous path: PASS
+* No React Query data layer: PASS
+* No SWR data layer: PASS
+* No Redux data layer: PASS
+* No Zustand data layer: PASS
+* No Context-based domain data loading: PASS
+* No direct page or component mock imports: PASS
+* Server-first route composition: PASS
+* Page-layer joins and aggregations: PASS
+
+### Branch Relationship
+
+The feature branch was verified to contain the fetched `origin/main` history:
+
+```text
+git merge-base --is-ancestor origin/main HEAD
+Exit code: 0
+```
+
+The branch was pushed successfully to:
+
+```text
+origin/feat/phase-18-consumer-ux
+```
+
+A pushed branch is not the same as a merged branch.
+
+The Pull Request must still be reviewed and merged on GitHub.
+
+### Known Architecture Debt
+
+No remaining debt from the deleted synchronous architecture has been
+identified.
+
+---
+
+## 11. Known Deferred Work
+
+### Phase 20 Candidate Work
+
+* Real tracking-link AOV aggregate calculation
+
+### Other Deferred Work
+
+* Real backend persistence
+* Authentication hardening
+* Profile avatar upload
+* Withdrawal workflow
+* Membership management
+* Referral system
+* Settings center
+* Campaign CRUD
+* Campaign write actions
+* Campaign-level analytics filters
+* Per-campaign entity lists
+
+Do not implement deferred work without phase approval.
+
+Do not mark Phase 20 as started until implementation has been explicitly
+approved.
+
+---
+
+## 12. Mandatory Workflow Before Any New Phase
+
+1. Read `docs/PROJECT_STATE.md`
+2. Read `docs/HANDOFF.md`
+3. Verify the current branch
+4. Verify the latest commit
+5. Verify existing stable tags
+6. Verify stable-tag ancestry
+7. Run TypeScript with zero errors
+8. Run ESLint with zero warnings
+9. Run diff check
+10. Run the production build
+11. Audit the affected domain architecture
+12. Confirm the mandatory data chain remains intact
+13. Produce analysis before implementation
+14. Wait for explicit approval before modifying implementation files
 
 Never start coding immediately.
 
-Never skip architecture analysis.
+Never create implementation files before approval.
 
-Never create files before approval.
+Never bypass architecture analysis.
+
+Never invent a phase-completion tag.
+
+Never use destructive Git recovery commands unless explicitly approved and
+fully understood.
 
 ---
 
-## Repository Health
+## 13. Merge Readiness Checklist
 
-Build:
-PASS
+Before merging the current branch:
 
-TypeScript:
-PASS
+* [ ] `docs/PROJECT_STATE.md` and `docs/HANDOFF.md` agree
+* [ ] Current roadmap phase is documented as Phase 19.5 Complete
+* [ ] Phase 18 Consumer UX Remediation is documented as remediation
+* [ ] Remediation is not documented as the current roadmap phase
+* [ ] Latest stable tag is `phase-19.5-complete`
+* [ ] Stable tag commit is `0afeb8b`
+* [ ] No nonexistent or unapproved stable tag is documented
+* [ ] Route count is documented as 21 route patterns
+* [ ] Route split is documented as 15 static, 4 SSG, and 2 dynamic
+* [ ] Build count is documented as 30/30 generated page instances
+* [ ] `30/30` is not described as the route count
+* [ ] TypeScript passes
+* [ ] ESLint passes with zero warnings
+* [ ] Diff check passes
+* [ ] Production build passes
+* [ ] Manual Orders responsive checks remain valid
+* [ ] Orders filtered empty state remains valid
+* [ ] Orders global empty state remains valid
+* [ ] Orders active-filter auto-scroll remains valid
+* [ ] Working tree contains only intentional changes
+* [ ] Branch diff against `origin/main` is reviewed
+* [ ] Pull Request file list is reviewed
+* [ ] Pull Request checks, when configured, pass
+* [ ] Pull Request is merged before the branch is deleted
 
-Lint:
-PASS (0 errors)
+Recommended branch-diff checks:
 
-Static Routes:
-PASS — 17 ○ static + 4 ● SSG dynamic:
-  /app/campaigns/[campaignId] pre-rendered for cmp-shopee-q2 and cmp-tiktok-launch
-  /app/offers/[offerId] pre-rendered for off-shopee-fashion/beauty/home
-  /app/tracking-links/[trackingLinkId] pre-rendered for trk-001/002/003
-  /app/tracking-links/generator/[offerId] pre-rendered for off-shopee-fashion/beauty/home
+```text
+git merge-base --is-ancestor origin/main HEAD
+git log --oneline origin/main..HEAD
+git diff --name-status origin/main..HEAD
+git diff --stat origin/main..HEAD
+```
 
-Architecture:
-PASS at file level — single async data flow only. Phase 19 + 19.5 reuses the
-same chain; no React Query/SWR/Redux/Zustand/Context/direct-mock-imports were
-introduced. Tracking Links Generator is a workflow rename only; no new data path.
-TrackingLinkMetrics.aov field preserved in type definition (Phase 20).
+Recommended documentation checks:
 
-Known remaining debt:
-None from the sync architecture — fully removed.
+```text
+git diff --check
+git status --short
+git diff -- docs/HANDOFF.md
+```
 
-Last Reconciled State:
+---
 
-phase-17-complete (committed)
+## 14. Last Reconciled State
 
-working tree ahead — Phase 19 + 19.5 changes uncommitted
+**Roadmap Phase:** Phase 19.5 Complete
+
+**Latest Remediation:** Phase 18 Consumer UX Remediation Complete
+
+**Latest Stable Tag:** `phase-19.5-complete`
+
+**Stable Tag Commit:** `0afeb8b`
+
+**Last Verified Code Commit:** `30f50df`
+
+**Current Working Branch:** `feat/phase-18-consumer-ux`
+
+### Production Verification
+
+* TypeScript: PASS — 0 errors
+* ESLint: PASS — 0 errors, 0 warnings
+* Diff check: PASS
+* Production build: PASS
+* Generated page instances: 30/30
+* Route patterns: 21
+
+  * 15 static
+  * 4 parameterized SSG
+  * 2 dynamic
+* Orders responsive verification: PASS
+* Orders filtered empty state: PASS
+* Orders global empty state: PASS
+* Orders active-filter auto-scroll: PASS
+
+### Current Merge State
+
+The feature branch has been pushed to GitHub.
+
+The Pull Request has been created.
+
+The Pull Request is not considered merged until GitHub shows the final
+`Merged` state.
+
+### Next Planned Phase
+
+Phase 20 is not started.
+
+Explicit approval is required before implementation begins.
