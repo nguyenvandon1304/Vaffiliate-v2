@@ -20,11 +20,17 @@ Last Stable Tag:
 Stable Tag Commit:
 `0afeb8b` — `phase19.5: tracking link generator cleanup and metrics foundation`
 
-Last Verified Code Commit:
+Last Verified Implementation Commit:
 `30f50df` — `feat(phase-18): orders filter auto-scroll and updated docs`
 
-Current Working Branch:
-`feat/phase-18-consumer-ux`
+Integration Branch:
+`main`
+
+Post-Merge Baseline Commit:
+`cf8e411`
+
+Merge State:
+Phase 18 Consumer UX Remediation merged into `main` through Pull Request #1.
 
 Next Planned Phase:
 Phase 20 — TBD, not started. Do not begin without approval.
