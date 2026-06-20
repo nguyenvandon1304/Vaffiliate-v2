@@ -12,7 +12,7 @@ Current Phase:
 Phase 19.5 Complete
 
 Latest Remediation:
-Phase 18 Consumer UX Remediation Complete
+Consumer Responsive UX Remediation Complete
 
 Last Stable Tag:
 `phase-19.5-complete`
@@ -21,28 +21,29 @@ Stable Tag Commit:
 `0afeb8b` — `phase19.5: tracking link generator cleanup and metrics foundation`
 
 Last Verified Implementation Commit:
-`30f50df` — `feat(phase-18): orders filter auto-scroll and updated docs`
+`94cd971` — `fix: remediate consumer responsive UX`
 
 Integration Branch:
 `main`
 
 Post-Merge Baseline Commit:
-`cf8e411`
+`16cdc9e`
 
 Merge State:
-Phase 18 Consumer UX Remediation merged into `main` through Pull Request #1.
+Consumer Responsive UX Remediation merged into `main` through Pull Request #3.
 
 Next Planned Phase:
 Phase 20 — TBD, not started. Do not begin without approval.
 
 Quality Gates:
 
-- TypeScript: PASS — 0 errors
-- ESLint: PASS — 0 errors, 0 warnings
-- Diff check: PASS
-- Production build: PASS
-- Next.js generated pages: PASS — 30/30
-- Manual responsive verification: PASS at 360, 390, 430, 768, and desktop widths
+- TypeScript: PASS — `npx tsc --noEmit` — exit 0
+- ESLint: PASS — `npm run lint` — 0 errors, 0 warnings
+- Diff check: PASS — `git diff --check` — exit 0
+- Production build: PASS — `npm run build` — Next.js 16.2.9, Turbopack
+- Generated pages: PASS — 30/30 page instances
+- Route patterns: PASS — 21 patterns (15 static, 4 parameterized SSG, 2 dynamic)
+- Manual responsive verification: PASS — `/app` and `/app/orders` at 390 × 844; desktop-shell breakpoint at 768 × 844; wide desktop at 1280 × 844
 
 Route Summary:
 
@@ -284,6 +285,37 @@ Delivered:
 - AOV fixture values reset to `0`
 - AOV removed from `TrackingLinkAttributionCard` UI
 - Existing Affiliate data path reused; no new domain or duplicate chain
+
+### Post-Phase 19.5 — Consumer Responsive UX Remediation
+
+Complete.
+
+Implementation Branch (historical): `fix/consumer-responsive-ux-remediation`
+
+Implementation Commit: `94cd971` — `fix: remediate consumer responsive UX`
+
+Merge Result: Merged into `main` through Pull Request #3 at `16cdc9e`.
+
+No separate stable tag was created for this remediation.
+
+Delivered:
+
+- Shared navigation identities and inline SVG icons
+- Canonical navigation active-state handling
+- Sticky mobile header
+- Removal of horizontal-overflow-causing negative margin
+- Fixed bottom-navigation safe clearance
+- Responsive `SectionHeader`
+- Centralized canonical order-status presentation
+- Rejected-order amount presentation (muted, no `+` prefix)
+- Runtime responsive verification at 390 × 844, 768 × 844, and 1280 × 844
+
+No changes to:
+
+- Repository, service, or loader files
+- API routes or mock backend
+- Business-rule or domain-layer logic
+- Phase 20 or AOV implementation
 
 ---
 
@@ -542,29 +574,31 @@ Latest stable tag:
 
 ## Current Repository State
 
+Baseline commit: `16cdc9e`
+
 Architecture:
 PASS — one async data path only.
 
 Build:
-PASS.
+PASS — `npm run build` — Next.js 16.2.9, Turbopack.
 
 TypeScript:
-PASS — 0 errors.
+PASS — `npx tsc --noEmit` — 0 errors.
 
 ESLint:
-PASS — 0 errors, 0 warnings.
+PASS — `npm run lint` — 0 errors, 0 warnings.
 
 Diff check:
-PASS.
+PASS — `git diff --check` — exit 0.
 
 Generated pages:
-PASS — 30/30.
+PASS — 30/30 page instances.
 
 Routes:
 PASS — 15 static, 4 parameterized SSG, 2 dynamic.
 
-Manual Orders verification:
-PASS — desktop, 360, 390, 430, and 768 widths.
+Manual responsive verification (consumer responsive UX remediation at `16cdc9e`):
+PASS — `/app` and `/app/orders` at 390 × 844; desktop-shell breakpoint at 768 × 844; wide desktop at 1280 × 844; no document-level horizontal overflow at 390px; mobile header sticky; bottom-navigation touch targets minimum 44 × 44px; last content not obscured by fixed bottom navigation; Orders filter chips scroll horizontally with intent; canonical order-status badge presentation correct; rejected-order amount muted without `+` prefix.
 
 Known remaining architecture debt from the synchronous path:
 None. The legacy sync architecture was removed in Phase 15E.
