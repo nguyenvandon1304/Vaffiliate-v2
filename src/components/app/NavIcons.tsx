@@ -49,7 +49,7 @@ function UserIcon({ className }: { className?: string }) {
 
 export const navIconById: Record<PrimaryNavId, React.ComponentType<{ className?: string }>> = {
   home: HomeIcon,
-  generator: LinkIcon,
+  cashback: LinkIcon,
   orders: ReceiptIcon,
   wallet: WalletIcon,
   profile: UserIcon,

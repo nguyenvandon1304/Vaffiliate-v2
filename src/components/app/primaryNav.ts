@@ -1,6 +1,6 @@
 export type PrimaryNavId =
   | "home"
-  | "generator"
+  | "cashback"
   | "orders"
   | "wallet"
   | "profile";
@@ -19,8 +19,9 @@ export function isPrimaryNavItemActive(
     return pathname === "/app";
   }
 
-  if (item.id === "generator") {
+  if (item.id === "cashback") {
     return (
+      pathname === "/app/cashback" ||
       pathname === "/app/offers" ||
       pathname.startsWith("/app/offers/") ||
       pathname.startsWith("/app/tracking-links/generator/")
@@ -35,7 +36,7 @@ export function isPrimaryNavItemActive(
 
 export const primaryNavItems: PrimaryNavItem[] = [
   { id: "home", href: "/app", label: "Trang chủ" },
-  { id: "generator", href: "/app/offers", label: "Tạo link" },
+  { id: "cashback", href: "/app/cashback", label: "Mua & hoàn\u00A0tiền" },
   { id: "orders", href: "/app/orders", label: "Đơn hàng" },
   { id: "wallet", href: "/app/finance", label: "Ví tiền" },
   { id: "profile", href: "/app/profile", label: "Tài khoản" },
