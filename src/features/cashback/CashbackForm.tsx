@@ -185,7 +185,7 @@ export default function CashbackForm() {
             <div className="flex justify-between gap-3">
               <span className="text-[color:var(--text-muted)]">Hoàn tiền</span>
               <span className="font-semibold text-[color:var(--text)]">
-                Sau khi hoa hồng được sàn duyệt
+                Sau khi đơn được đối soát và sàn xác nhận
               </span>
             </div>
           </div>
@@ -245,7 +245,7 @@ export default function CashbackForm() {
                 onClick={copy}
                 className="rounded-[var(--radius-lg)] bg-[color:var(--brand)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow-sm)]"
               >
-                Copy link
+                Sao chép link
               </button>
               <button
                 type="button"
@@ -257,7 +257,7 @@ export default function CashbackForm() {
             </div>
             {copyOk ? (
               <p className="mt-3 text-sm font-medium text-[color:var(--brand-strong)]">
-                Đã copy link hoàn tiền
+                Đã sao chép link hoàn tiền
               </p>
             ) : null}
             <div className="mt-4 rounded-[var(--radius-xl)] border border-dashed border-[rgba(124,63,44,0.14)] bg-[rgba(255,250,246,0.86)] p-4">

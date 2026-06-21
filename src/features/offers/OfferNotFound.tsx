@@ -7,8 +7,8 @@ type Props = {
 export default function OfferNotFound({ offerId }: Props) {
   return (
     <EmptyState
-      title="Không tìm thấy offer"
-      description={`Không có dữ liệu cho offer "${offerId}". Vui lòng quay lại Offer Center để chọn offer khác.`}
+      title="Không tìm thấy chương trình hoàn tiền"
+      description={`Không có dữ liệu cho chương trình "${offerId}". Vui lòng quay lại danh sách chương trình hoàn tiền để chọn chương trình khác.`}
     />
   );
 }

@@ -27,10 +27,10 @@ const statusVariant: Record<
 export default function TrackingLinkPerformanceCard({ conversions }: Props) {
   return (
     <div className="rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.88)] p-5 shadow-[var(--shadow-sm)]">
-      <p className="text-sm font-medium text-[color:var(--text-muted)]">Conversion gần đây</p>
+      <p className="text-sm font-medium text-[color:var(--text-muted)]">Đơn hàng gần đây</p>
       {conversions.length === 0 ? (
         <p className="mt-3 text-sm leading-6 text-[color:var(--text-muted)]">
-          Chưa có chuyển đổi nào từ tracking link này.
+          Chưa có đơn hàng nào được ghi nhận từ link hoàn tiền này.
         </p>
       ) : (
         <ul className="mt-3 space-y-3 text-sm">

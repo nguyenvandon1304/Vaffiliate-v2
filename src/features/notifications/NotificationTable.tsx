@@ -3,10 +3,10 @@ import type { NotificationItem, NotificationType } from "@/types/notification";
 
 const typeLabels: Record<NotificationType, string> = {
   order_recorded: "Đơn hàng mới",
-  commission_approved: "Hoa hồng được duyệt",
-  commission_paid: "Hoa hồng đã thanh toán",
+  commission_approved: "Tiền hoàn được duyệt",
+  commission_paid: "Tiền hoàn đã thanh toán",
   campaign_new: "Chiến dịch mới",
-  offer_new: "Ưu đãi mới",
+  offer_new: "Chương trình mới",
 };
 
 function formatCreatedAt(value: string): string {

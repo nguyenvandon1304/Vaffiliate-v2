@@ -7,8 +7,8 @@ type Props = {
 export default function TrackingLinkNotFound({ trackingLinkId }: Props) {
   return (
     <EmptyState
-      title="Không tìm thấy tracking link"
-      description={`Không có dữ liệu cho tracking link "${trackingLinkId}". Vui lòng quay lại danh sách tracking link.`}
+      title="Không tìm thấy link hoàn tiền"
+      description={`Không có dữ liệu cho link hoàn tiền "${trackingLinkId}". Vui lòng quay lại danh sách link hoàn tiền.`}
     />
   );
 }

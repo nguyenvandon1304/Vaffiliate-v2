@@ -98,10 +98,10 @@ export default async function TrackingLinksPage(props: { searchParams: SearchPar
           Quản lý link hoàn tiền Shopee và TikTok Shop
         </p>
         <h1 className="text-[2rem] font-semibold tracking-[-0.04em] text-[color:var(--text)]">
-          Tracking Links
+          Link hoàn tiền đã tạo
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-[color:var(--text-muted)]">
-          Theo dõi các link hoàn tiền đã tạo từ offer Shopee và TikTok Shop, kèm thông tin chiến dịch và hoa hồng.
+          Theo dõi các link hoàn tiền đã tạo từ chương trình Shopee và TikTok Shop, kèm thông tin chiến dịch và mức hoàn dự kiến.
         </p>
       </section>
 
@@ -120,8 +120,8 @@ export default async function TrackingLinksPage(props: { searchParams: SearchPar
               Quản lý link hoàn tiền Shopee và TikTok Shop
             </p>
           }
-          title="Tracking Links"
-          description="Theo dõi các link hoàn tiền đã tạo từ offer Shopee và TikTok Shop, kèm thông tin chiến dịch và hoa hồng."
+          title="Link hoàn tiền đã tạo"
+          description="Theo dõi các link hoàn tiền đã tạo từ chương trình Shopee và TikTok Shop, kèm thông tin chiến dịch và mức hoàn dự kiến."
         />
       </AppSection>
       <AppSection>

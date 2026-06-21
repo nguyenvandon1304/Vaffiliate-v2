@@ -25,17 +25,17 @@ export default function TrackingLinkAttributionCard({
   const epcDisplay = epc > 0 ? Math.round(epc).toLocaleString("vi-VN") + "đ" : "—";
 
   const parameterRows: { label: string; value: string }[] = [
-    { label: "Offer", value: offer.title },
-    { label: "Category", value: offer.category ?? "—" },
-    { label: "Advertiser", value: advertiser.name },
-    { label: "Platform", value: advertiser.platform },
-    { label: "Campaign", value: campaign.name },
+    { label: "Chương trình", value: offer.title },
+    { label: "Danh mục", value: offer.category ?? "—" },
+    { label: "Đối tác", value: advertiser.name },
+    { label: "Nền tảng", value: advertiser.platform },
+    { label: "Chiến dịch", value: campaign.name },
     { label: "Thời gian", value: formatDateRange(campaign.startDate, campaign.endDate) },
   ];
 
   return (
     <div className="rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.88)] p-5 shadow-[var(--shadow-sm)]">
-      <p className="text-sm font-medium text-[color:var(--text-muted)]">Attribution</p>
+      <p className="text-sm font-medium text-[color:var(--text-muted)]">Thông tin ghi nhận</p>
       <dl className="mt-3 space-y-3 text-sm">
         {parameterRows.map((row) => (
           <div key={row.label} className="flex items-start justify-between gap-4">
@@ -44,15 +44,15 @@ export default function TrackingLinkAttributionCard({
           </div>
         ))}
         <div className="flex items-start justify-between gap-4 border-t border-[rgba(124,63,44,0.08)] pt-3">
-          <dt className="text-[color:var(--text-muted)]">Conversion rate</dt>
+          <dt className="text-[color:var(--text-muted)]">Tỷ lệ chuyển đổi</dt>
           <dd className="font-medium text-[color:var(--text)]">{cr}</dd>
         </div>
         <div className="flex items-start justify-between gap-4">
-          <dt className="text-[color:var(--text-muted)]">EPC (ước tính)</dt>
+          <dt className="text-[color:var(--text-muted)]">Giá trị mỗi lượt nhấp (ước tính)</dt>
           <dd className="font-medium text-[color:var(--text)]">{epcDisplay}</dd>
         </div>
         <div className="flex items-start justify-between gap-4">
-          <dt className="text-[color:var(--text-muted)]">Short code</dt>
+          <dt className="text-[color:var(--text-muted)]">Mã link</dt>
           <dd className="font-mono font-medium text-[color:var(--text)]">{trackingLink.shortCode}</dd>
         </div>
       </dl>

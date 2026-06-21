@@ -1,6 +1,5 @@
 import StatCard from "@/components/ui/StatCard";
 import type { TrackingLinkStats } from "@/types/affiliate";
-import { formatMoney } from "@/lib/analytics/format";
 
 type Props = {
   stats: TrackingLinkStats;
@@ -8,14 +7,19 @@ type Props = {
 
 export default function TrackingLinkStatsCard({ stats }: Props) {
   const items: { label: string; value: string }[] = [
-    { label: "Clicks", value: stats.clicks.toLocaleString("vi-VN") },
-    { label: "Unique clicks", value: stats.uniqueClicks.toLocaleString("vi-VN") },
-    { label: "Conversions", value: stats.conversionCount.toLocaleString("vi-VN") },
-    { label: "Commission", value: formatMoney(stats.commission) },
+    { label: "Lượt nhấp", value: stats.clicks.toLocaleString("vi-VN") },
+    {
+      label: "Lượt nhấp duy nhất",
+      value: stats.uniqueClicks.toLocaleString("vi-VN"),
+    },
+    {
+      label: "Đơn hàng được ghi nhận",
+      value: stats.conversionCount.toLocaleString("vi-VN"),
+    },
   ];
 
   return (
-    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {items.map((item) => (
         <StatCard key={item.label} label={item.label} value={item.value} />
       ))}

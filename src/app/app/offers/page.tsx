@@ -45,7 +45,7 @@ export default async function OffersPage() {
   const activeCount = offerViews.filter((offer) => offer.status === "active").length;
 
   const stats: OfferStat[] = [
-    { label: "Tổng offer", value: String(offerViews.length) },
+    { label: "Tổng chương trình", value: String(offerViews.length) },
     { label: "Đang chạy", value: String(activeCount) },
     {
       label: "Sàn hỗ trợ",
@@ -63,13 +63,13 @@ export default async function OffersPage() {
     <div className="space-y-6">
       <section className="surface-card overflow-hidden bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-6">
         <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
-          Khám phá offer affiliate từ Shopee và TikTok Shop
+          Khám phá chương trình hoàn tiền từ Shopee và TikTok Shop
         </p>
         <h1 className="text-[2rem] font-semibold tracking-[-0.04em] text-[color:var(--text)]">
-          Offer Center
+          Chương trình hoàn tiền
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-[color:var(--text-muted)]">
-          Vaffiliate hiện hỗ trợ hoàn tiền qua Shopee và TikTok Shop. Chọn offer phù hợp để tạo link hoàn tiền.
+          Vaffiliate hiện hỗ trợ hoàn tiền qua Shopee và TikTok Shop. Chọn chương trình phù hợp để tạo link hoàn tiền.
         </p>
       </section>
 
@@ -85,11 +85,11 @@ export default async function OffersPage() {
         <PageHeader
           eyebrow={
             <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
-              Khám phá offer affiliate từ Shopee và TikTok Shop
+              Khám phá chương trình hoàn tiền từ Shopee và TikTok Shop
             </p>
           }
-          title="Offer Center"
-          description="Vaffiliate hiện hỗ trợ hoàn tiền qua Shopee và TikTok Shop. Chọn offer phù hợp để tạo link hoàn tiền."
+          title="Chương trình hoàn tiền"
+          description="Vaffiliate hiện hỗ trợ hoàn tiền qua Shopee và TikTok Shop. Chọn chương trình phù hợp để tạo link hoàn tiền."
         />
       </AppSection>
       <AppSection>

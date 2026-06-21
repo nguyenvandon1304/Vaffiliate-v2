@@ -41,13 +41,13 @@ export default async function NotificationsPage() {
     <div className="space-y-6">
       <section className="surface-card overflow-hidden bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-6">
         <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
-          Cập nhật đơn hàng, hoa hồng và ưu đãi từ Shopee và TikTok Shop
+          Cập nhật đơn hàng, tiền hoàn và ưu đãi từ Shopee và TikTok Shop
         </p>
         <h1 className="text-[2rem] font-semibold tracking-[-0.04em] text-[color:var(--text)]">
           Trung tâm thông báo
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-[color:var(--text-muted)]">
-          Theo dõi các cập nhật mới nhất về đơn hàng được ghi nhận, hoa hồng được duyệt và thanh toán, cùng chiến dịch và ưu đãi Shopee, TikTok Shop.
+          Theo dõi các cập nhật mới nhất về đơn hàng được ghi nhận, tiền hoàn được duyệt và thanh toán, cùng chương trình và ưu đãi từ Shopee, TikTok Shop.
         </p>
       </section>
 
@@ -63,11 +63,11 @@ export default async function NotificationsPage() {
         <PageHeader
           eyebrow={
             <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
-              Cập nhật đơn hàng, hoa hồng và ưu đãi từ Shopee và TikTok Shop
+              Cập nhật đơn hàng, tiền hoàn và ưu đãi từ Shopee và TikTok Shop
             </p>
           }
           title="Trung tâm thông báo"
-          description="Theo dõi các cập nhật mới nhất về đơn hàng được ghi nhận, hoa hồng được duyệt và thanh toán, cùng chiến dịch và ưu đãi Shopee, TikTok Shop."
+          description="Theo dõi các cập nhật mới nhất về đơn hàng được ghi nhận, tiền hoàn được duyệt và thanh toán, cùng chương trình và ưu đãi từ Shopee, TikTok Shop."
         />
       </AppSection>
       <AppSection>

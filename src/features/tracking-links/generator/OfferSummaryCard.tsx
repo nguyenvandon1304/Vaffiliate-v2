@@ -8,7 +8,7 @@ type Props = {
 export default function OfferSummaryCard({ offer, categoryLabel }: Props) {
   return (
     <div className="rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.88)] p-5 shadow-[var(--shadow-sm)]">
-      <p className="text-sm font-medium text-[color:var(--text-muted)]">Offer</p>
+      <p className="text-sm font-medium text-[color:var(--text-muted)]">Chương trình hoàn tiền</p>
       <h2 className="mt-2 text-lg font-semibold tracking-tight text-[color:var(--text)]">
         {offer.title}
       </h2>
@@ -18,7 +18,7 @@ export default function OfferSummaryCard({ offer, categoryLabel }: Props) {
           <dd className="font-medium text-[color:var(--text)]">{categoryLabel ?? "—"}</dd>
         </div>
         <div className="flex items-center justify-between gap-4">
-          <dt className="text-[color:var(--text-muted)]">Hoa hồng</dt>
+          <dt className="text-[color:var(--text-muted)]">Mức hoàn dự kiến</dt>
           <dd className="font-medium text-[color:var(--text)]">
             {offer.commissionRate} · {offer.commissionModel}
           </dd>
