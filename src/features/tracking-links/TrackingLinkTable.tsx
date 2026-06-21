@@ -23,11 +23,11 @@ export default function TrackingLinkTable({ links }: Props) {
 
   return (
     <section className="pb-8">
-      <div className="grid gap-3">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
         {links.map((link) => (
           <article
             key={link.id}
-            className="rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.86)] p-4 shadow-[var(--shadow-sm)]"
+            className="min-w-0 rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.86)] p-4 shadow-[var(--shadow-sm)]"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -53,7 +53,7 @@ export default function TrackingLinkTable({ links }: Props) {
             {/* Tracking link row — copy button uses trackingUrl */}
             <div className="mt-3 flex items-center justify-between gap-3 border-t border-[color:var(--line)] pt-3">
               <div className="min-w-0 flex-1">
-                <p className="mb-1 text-xs font-medium text-[color:var(--text-muted)]">Tracking link</p>
+                <p className="mb-1 text-xs font-medium text-[color:var(--text-muted)]">Link hoàn tiền</p>
                 <p className="truncate font-mono text-xs text-[color:var(--text)]">{link.trackingUrl}</p>
               </div>
               <button
@@ -61,7 +61,7 @@ export default function TrackingLinkTable({ links }: Props) {
                 onClick={() => handleCopy(link.trackingUrl, link.id)}
                 className="shrink-0 rounded-full border border-[rgba(124,63,44,0.12)] px-3 py-1.5 text-xs font-semibold text-[color:var(--brand-strong)] transition-colors hover:border-[rgba(124,63,44,0.3)]"
               >
-                {copiedId === link.id ? "Đã copy!" : "Copy"}
+                {copiedId === link.id ? "Đã sao chép!" : "Sao chép"}
               </button>
             </div>
 
@@ -83,7 +83,7 @@ export default function TrackingLinkTable({ links }: Props) {
 
             {/* Short code row */}
             <div className="mt-3 flex items-center justify-between border-t border-[color:var(--line)] pt-3 text-sm">
-              <span className="font-medium text-[color:var(--text-muted)]">Mã tracking</span>
+              <span className="font-medium text-[color:var(--text-muted)]">Mã link</span>
               <Link
                 href={`/app/tracking-links/${link.id}`}
                 className="font-semibold text-[color:var(--brand)] underline-offset-4 hover:underline"

@@ -6,7 +6,6 @@ import DestinationUrlCard from "@/features/tracking-links/generator/DestinationU
 import GeneratedLinkPreviewCard from "@/features/tracking-links/generator/GeneratedLinkPreviewCard";
 import OfferSummaryCard from "@/features/tracking-links/generator/OfferSummaryCard";
 import TrackingLinkGeneratorNotFound from "@/features/tracking-links/generator/TrackingLinkGeneratorNotFound";
-import TrackingParametersCard from "@/features/tracking-links/generator/TrackingParametersCard";
 import { loadAffiliateAsync, loadTrackingLinkGeneratorContextAsync } from "@/hooks/loadAffiliateAsync";
 import type { OfferId } from "@/types/ids";
 
@@ -16,11 +15,6 @@ type RouteParams = {
 
 type PageProps = {
   params: Promise<RouteParams>;
-};
-
-type TrackingParameter = {
-  label: string;
-  value: string;
 };
 
 const categoryLabels: Record<string, string> = {
@@ -64,7 +58,6 @@ export default async function TrackingLinkGeneratorPage({
   let shortCode: string;
   let fullUrl: string;
   let isPreview: boolean;
-  let parameters: TrackingParameter[];
 
   if (existingLink) {
     const existingTrackingUrl =
@@ -76,16 +69,12 @@ export default async function TrackingLinkGeneratorPage({
     shortCode = existingLink.shortCode;
     fullUrl = existingTrackingUrl;
     isPreview = false;
-    parameters = [{ label: "short_code", value: existingLink.shortCode }];
   } else {
     const previewShortCode = buildSyntheticShortCode(offer.id);
     destinationUrl = defaultDestinationUrl;
     shortCode = previewShortCode;
     fullUrl = buildSyntheticTrackingUrl(previewShortCode);
     isPreview = true;
-    parameters = [
-      { label: "short_code", value: `${previewShortCode} (preview)` },
-    ];
   }
 
   const generatedLinkCard = (
@@ -113,18 +102,15 @@ export default async function TrackingLinkGeneratorPage({
     </div>
   );
 
-  const destinationAndParametersCards = (
-    <div className="grid gap-4 xl:grid-cols-2">
-      <DestinationUrlCard destinationUrl={destinationUrl} />
-      <TrackingParametersCard parameters={parameters} />
-    </div>
+  const destinationCard = (
+    <DestinationUrlCard destinationUrl={destinationUrl} />
   );
 
   const desktopContent = (
     <div className="space-y-6">
       {generatedLinkCard}
       {offerAndCampaignCards}
-      {destinationAndParametersCards}
+      {destinationCard}
     </div>
   );
 
@@ -137,11 +123,15 @@ export default async function TrackingLinkGeneratorPage({
               {advertiser.platform} · {campaign.name}
             </p>
           }
-          title="Tạo link hoàn tiền"
+          title={
+            isPreview
+              ? "Xem trước link hoàn tiền"
+              : "Link hoàn tiền của bạn"
+          }
           description={
             isPreview
               ? "Đây là bản xem trước. Link chưa được lưu và chưa thể sử dụng để ghi nhận giao dịch."
-              : "Link hoàn tiền này đã được tạo. Bạn có thể dùng link để mua hàng và ghi nhận cashback."
+              : "Link hoàn tiền đã sẵn sàng. Bạn có thể sao chép link để mua hàng và nhận tiền hoàn cho giao dịch hợp lệ."
           }
         />
       </AppSection>
@@ -155,7 +145,7 @@ export default async function TrackingLinkGeneratorPage({
       </AppSection>
 
       <AppSection className="pb-8">
-        {destinationAndParametersCards}
+        {destinationCard}
       </AppSection>
     </AppShell>
   );

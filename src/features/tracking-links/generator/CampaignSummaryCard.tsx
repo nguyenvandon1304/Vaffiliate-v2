@@ -26,7 +26,7 @@ export default function CampaignSummaryCard({ campaign, advertiserName }: Props)
       </h2>
       <dl className="mt-3 space-y-2 text-sm">
         <div className="flex items-center justify-between gap-4">
-          <dt className="text-[color:var(--text-muted)]">Advertiser</dt>
+          <dt className="text-[color:var(--text-muted)]">Đối tác</dt>
           <dd className="font-medium text-[color:var(--text)]">{advertiserName}</dd>
         </div>
         <div className="flex items-center justify-between gap-4">

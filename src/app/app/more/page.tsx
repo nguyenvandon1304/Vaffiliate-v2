@@ -18,7 +18,7 @@ export default async function MorePage() {
           Thêm
         </h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-[color:var(--text-muted)]">
-          Quản lý tài khoản, xem hướng dẫn và truy cập các công cụ theo dõi chuyên sâu.
+          Quản lý tài khoản, xem hướng dẫn và các tiện ích dành cho bạn.
         </p>
       </section>
 
@@ -39,7 +39,7 @@ export default async function MorePage() {
             </p>
           }
           title="Thêm"
-          description="Quản lý tài khoản, xem hướng dẫn và truy cập các công cụ theo dõi chuyên sâu."
+          description="Quản lý tài khoản, xem hướng dẫn và các tiện ích dành cho bạn."
         />
       </AppSection>
       <AppSection className="mb-4">

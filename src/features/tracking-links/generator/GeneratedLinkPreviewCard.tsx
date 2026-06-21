@@ -1,4 +1,5 @@
 import Badge from "@/components/ui/Badge";
+import CopyTrackingLinkButton from "@/features/tracking-links/generator/CopyTrackingLinkButton";
 
 type Props = {
   shortCode: string;
@@ -37,10 +38,15 @@ export default function GeneratedLinkPreviewCard({
       <p className="mt-4 break-all rounded-2xl border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.86)] px-3 py-2 text-sm font-mono font-medium text-[color:var(--text)]">
         {fullUrl}
       </p>
+      {!isPreview && (
+        <div className="mt-3 flex justify-end">
+          <CopyTrackingLinkButton url={fullUrl} />
+        </div>
+      )}
       <p className="mt-3 text-sm leading-6 text-[color:var(--text-muted)]">
         {isPreview
           ? "Đây là bản xem trước. Link chưa được lưu. Tính năng lưu link sẽ được hoàn thiện ở bước tiếp theo."
-          : "Dùng link này để mua hàng trên sàn. Giao dịch hợp lệ sẽ được ghi nhận và cộng cashback vào ví của bạn."}
+          : "Dùng link này để mua hàng trên sàn. Tiền hoàn của giao dịch hợp lệ sẽ được ghi nhận vào ví của bạn."}
       </p>
     </div>
   );

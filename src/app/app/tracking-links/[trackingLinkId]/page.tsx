@@ -82,6 +82,7 @@ export default async function TrackingLinkDetailPage({ params }: PageProps) {
         offer={offer}
         campaign={campaign}
         advertiserName={advertiser.name}
+        headingLevel="h1"
       />
       <TrackingLinkStatsCard stats={stats} />
       <div className="grid gap-4 xl:grid-cols-2">
@@ -106,8 +107,8 @@ export default async function TrackingLinkDetailPage({ params }: PageProps) {
               {advertiser.platform} · {offer.title}
             </p>
           }
-          title={trackingLink.shortCode}
-          description="Chi tiết tracking link, hiệu suất chuyển đổi và attribution cho offer."
+          title="Chi tiết link hoàn tiền"
+          description="Xem hiệu suất, đơn hàng được ghi nhận và thông tin của link hoàn tiền."
         />
       </AppSection>
       <AppSection className="mb-4">
@@ -116,6 +117,7 @@ export default async function TrackingLinkDetailPage({ params }: PageProps) {
           offer={offer}
           campaign={campaign}
           advertiserName={advertiser.name}
+          headingLevel="h2"
         />
       </AppSection>
       <AppSection className="mb-4">

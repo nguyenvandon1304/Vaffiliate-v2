@@ -2,11 +2,9 @@ import AppShell from "@/components/layout/AppShell";
 import AppSection from "@/components/layout/AppSection";
 import PageHeader from "@/components/layout/PageHeader";
 import OfferCommissionCard from "@/features/offers/OfferCommissionCard";
-import OfferHeader from "@/features/offers/OfferHeader";
+import OfferHeader, { type OfferHeaderData } from "@/features/offers/OfferHeader";
 import OfferJoinCampaignCard from "@/features/offers/OfferJoinCampaignCard";
 import OfferNotFound from "@/features/offers/OfferNotFound";
-import OfferRequirementCard from "@/features/offers/OfferRequirementCard";
-import OfferTrackingCard from "@/features/offers/OfferTrackingCard";
 import { loadAffiliateAsync, loadOfferDetailContextAsync } from "@/hooks/loadAffiliateAsync";
 import type { OfferJoinStatus } from "@/types/affiliate";
 
@@ -39,31 +37,25 @@ export default async function OfferDetailPage({ params }: PageProps) {
     );
   }
 
-  const { offer, campaign, advertiser, joinStatus, requirements, trackingRules } = ctx;
+  const { offer, campaign, advertiser, joinStatus } = ctx;
 
-  const offerDetail = {
+  const offerHeaderData = {
     offer,
     campaign,
     advertiser,
     joinStatus: joinStatus as OfferJoinStatus,
-    requirements,
-    trackingRules,
-  };
+  } satisfies OfferHeaderData;
 
   const desktopContent = (
     <div className="space-y-6">
-      <OfferHeader offerDetail={offerDetail} />
+      <OfferHeader offerDetail={offerHeaderData} headingLevel="h1" />
       <div className="grid gap-4 xl:grid-cols-2">
-        <OfferCommissionCard offer={offerDetail.offer} />
+        <OfferCommissionCard offer={offerHeaderData.offer} />
         <OfferJoinCampaignCard
-          joinStatus={offerDetail.joinStatus}
-          campaignName={offerDetail.campaign.name}
-          offerId={offerDetail.offer.id}
+          joinStatus={offerHeaderData.joinStatus}
+          campaignName={offerHeaderData.campaign.name}
+          offerId={offerHeaderData.offer.id}
         />
-      </div>
-      <div className="grid gap-4 xl:grid-cols-2">
-        <OfferTrackingCard trackingRules={offerDetail.trackingRules} />
-        <OfferRequirementCard requirements={offerDetail.requirements} />
       </div>
     </div>
   );
@@ -74,30 +66,24 @@ export default async function OfferDetailPage({ params }: PageProps) {
         <PageHeader
           eyebrow={
             <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
-              {advertiser.platform} · {offerDetail.campaign.name}
+              {advertiser.platform} · {offerHeaderData.campaign.name}
             </p>
           }
           title={offer.title}
-          description="Chi tiết chương trình, mức cashback, yêu cầu và cấu hình tracking."
+          description="Xem mức hoàn dự kiến, trạng thái chương trình và tạo link hoàn tiền để mua hàng."
         />
       </AppSection>
       <AppSection className="mb-4">
-        <OfferHeader offerDetail={offerDetail} />
-      </AppSection>
-      <AppSection className="mb-4">
-        <div className="grid gap-4 xl:grid-cols-2">
-          <OfferCommissionCard offer={offerDetail.offer} />
-          <OfferJoinCampaignCard
-            joinStatus={offerDetail.joinStatus}
-            campaignName={offerDetail.campaign.name}
-            offerId={offerDetail.offer.id}
-          />
-        </div>
+        <OfferHeader offerDetail={offerHeaderData} headingLevel="h2" />
       </AppSection>
       <AppSection className="pb-8">
         <div className="grid gap-4 xl:grid-cols-2">
-          <OfferTrackingCard trackingRules={offerDetail.trackingRules} />
-          <OfferRequirementCard requirements={offerDetail.requirements} />
+          <OfferCommissionCard offer={offerHeaderData.offer} />
+          <OfferJoinCampaignCard
+            joinStatus={offerHeaderData.joinStatus}
+            campaignName={offerHeaderData.campaign.name}
+            offerId={offerHeaderData.offer.id}
+          />
         </div>
       </AppSection>
     </AppShell>

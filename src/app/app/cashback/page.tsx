@@ -37,9 +37,9 @@ export default async function CashbackPage() {
     .reduce((sum, item) => sum + parseAmount(item.amount), 0);
 
   const stats: CashbackStat[] = [
-    { label: "Cashback khả dụng", value: formatVnd(available) },
-    { label: "Cashback Shopee", value: formatVnd(shopeeTotal) },
-    { label: "Cashback TikTok", value: formatVnd(tiktokTotal) },
+    { label: "Tiền hoàn khả dụng", value: formatVnd(available) },
+    { label: "Tiền hoàn Shopee", value: formatVnd(shopeeTotal) },
+    { label: "Tiền hoàn TikTok Shop", value: formatVnd(tiktokTotal) },
   ];
 
   const platformsInUse = supportedPlatforms.filter((platform) =>
@@ -52,13 +52,13 @@ export default async function CashbackPage() {
     <div className="space-y-6">
       <section className="surface-card overflow-hidden bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-6">
         <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
-          Nhận hoàn tiền từ hoa hồng đã được duyệt
+          Kiểm tra và tạo link hoàn tiền từ Shopee, TikTok Shop
         </p>
         <h1 className="text-[2rem] font-semibold tracking-[-0.04em] text-[color:var(--text)]">
-          Lấy link hoàn tiền
+          Dán link nhận hoàn tiền
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-[color:var(--text-muted)]">
-          Hoàn tiền chỉ khả dụng sau khi đơn được ghi nhận, đối soát và hoa hồng được sàn duyệt.
+          Tiền hoàn chỉ khả dụng sau khi đơn hàng được ghi nhận, đối soát và sàn xác nhận.
         </p>
       </section>
 
@@ -100,11 +100,11 @@ export default async function CashbackPage() {
         <PageHeader
           eyebrow={
             <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
-              Nhận hoàn tiền từ hoa hồng đã được duyệt
+              Kiểm tra và tạo link hoàn tiền từ Shopee, TikTok Shop
             </p>
           }
-          title="Lấy link hoàn tiền"
-          description="Hoàn tiền chỉ khả dụng sau khi đơn được ghi nhận, đối soát và hoa hồng được sàn duyệt."
+          title="Dán link nhận hoàn tiền"
+          description="Tiền hoàn chỉ khả dụng sau khi đơn hàng được ghi nhận, đối soát và sàn xác nhận."
         />
       </AppSection>
 

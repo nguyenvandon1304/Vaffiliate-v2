@@ -10,9 +10,9 @@ type Props = {
 };
 
 const statusLabels: Record<OfferDetail["joinStatus"], string> = {
-  not_joined: "Chưa tham gia",
-  joined: "Đã tham gia chiến dịch",
-  paused: "Chiến dịch đang tạm dừng",
+  not_joined: "Chưa khả dụng",
+  joined: "Đang khả dụng",
+  paused: "Đang tạm dừng",
 };
 
 const statusVariant: Record<
@@ -30,24 +30,24 @@ export default function OfferJoinCampaignCard({ joinStatus, campaignName, offerI
 
   return (
     <div className="rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-5 shadow-[var(--shadow-sm)]">
-      <p className="text-sm font-medium text-[color:var(--text-muted)]">Trạng thái tham gia</p>
+      <p className="text-sm font-medium text-[color:var(--text-muted)]">Trạng thái chương trình</p>
       <div className="mt-3 flex items-center justify-between gap-3">
         <span className="text-base font-semibold text-[color:var(--text)]">{campaignName}</span>
         <Badge variant={statusVariant[joinStatus]}>{statusLabels[joinStatus]}</Badge>
       </div>
       <p className="mt-3 text-sm leading-6 text-[color:var(--text-muted)]">
         {joinStatus === "joined"
-          ? "Bạn đang là publisher của chiến dịch này. Sẵn sàng tạo tracking link để bắt đầu chia sẻ."
+          ? "Chương trình đang khả dụng. Bạn có thể tạo link hoàn tiền để mua hàng và được ghi nhận đơn."
           : joinStatus === "paused"
-            ? "Chiến dịch hiện đang tạm dừng. Tính năng tạo tracking link sẽ mở lại khi advertiser kích hoạt."
-            : "Tính năng tham gia chiến dịch sẽ ra mắt ở phase tiếp theo."}
+            ? "Chương trình đang tạm dừng. Tính năng tạo link hoàn tiền sẽ mở lại khi sàn kích hoạt."
+            : "Chương trình chưa khả dụng cho tài khoản của bạn."}
       </p>
       {isJoined ? (
         <Link
           href={ctaHref}
           className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[color:var(--brand)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition hover:opacity-90"
         >
-          Generate Tracking Link
+          Tạo link hoàn tiền
           <span aria-hidden="true">→</span>
         </Link>
       ) : (
@@ -55,10 +55,10 @@ export default function OfferJoinCampaignCard({ joinStatus, campaignName, offerI
           type="button"
           disabled
           aria-disabled="true"
-          title="Tính năng sẽ ra mắt ở phase tiếp theo"
+          title="Tính năng chưa khả dụng"
           className="mt-4 inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-[rgba(124,63,44,0.12)] px-4 py-3 text-sm font-semibold text-[color:var(--text-muted)]"
         >
-          {joinStatus === "paused" ? "Tạm dừng" : "Tham gia chiến dịch"}
+          {joinStatus === "paused" ? "Tạm dừng" : "Chưa khả dụng"}
           <span aria-hidden="true">→</span>
         </button>
       )}
