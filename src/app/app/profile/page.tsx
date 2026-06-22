@@ -1,4 +1,6 @@
 import Link from "next/link";
+
+import { logout } from "@/app/auth/actions";
 import AppShell from "@/components/layout/AppShell";
 import AppSection from "@/components/layout/AppSection";
 import PageHeader from "@/components/layout/PageHeader";
@@ -8,6 +10,19 @@ import ProfileManagementPanel from "@/features/profile/ProfileManagementPanel";
 import PayoutAccountCard from "@/features/profile/PayoutAccountCard";
 import ProfileStatsCard from "@/features/profile/ProfileStatsCard";
 import { loadProfileAsync } from "@/hooks/loadProfileAsync";
+
+function LogoutForm() {
+  return (
+    <form action={logout}>
+      <button
+        type="submit"
+        className="w-full rounded-[var(--radius-lg)] bg-[color:var(--brand)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow-sm)]"
+      >
+        Đăng xuất
+      </button>
+    </form>
+  );
+}
 
 export default async function ProfilePage() {
   const { profile } = await loadProfileAsync();
@@ -28,6 +43,7 @@ export default async function ProfilePage() {
         memberTier={profile.memberTier}
         joinedYear={joinedYear}
       />
+      <LogoutForm />
     </div>
   );
 
@@ -64,12 +80,15 @@ export default async function ProfilePage() {
       <AppSection className="mb-4">
         <PayoutAccountCard payoutAccount={profile.payoutAccount} />
       </AppSection>
-      <AppSection className="pb-8">
+      <AppSection className="mb-4">
         <ProfileStatsCard
           preferredPlatformsCount={preferredPlatformsCount}
           memberTier={profile.memberTier}
           joinedYear={joinedYear}
         />
+      </AppSection>
+      <AppSection className="pb-8">
+        <LogoutForm />
       </AppSection>
     </AppShell>
   );
