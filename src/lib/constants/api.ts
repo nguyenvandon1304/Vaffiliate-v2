@@ -46,7 +46,6 @@ export const API_ENDPOINTS = {
   PROFILE: {
     DETAIL: "/profile/detail",
     PAYOUT_ACCOUNT: "/profile/payout-account",
-    UPDATE: "/profile/update",
     PAYOUT_UPDATE: "/profile/payout-update",
   },
 } as const;

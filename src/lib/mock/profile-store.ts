@@ -3,7 +3,6 @@ import type {
   PayoutAccount,
   PayoutAccountUpdateInput,
   Profile,
-  ProfileUpdateInput,
 } from "@/types/profile";
 
 let currentProfile: Profile = {
@@ -16,14 +15,6 @@ export function getMockProfile(): Profile {
     ...currentProfile,
     payoutAccount: { ...currentProfile.payoutAccount },
   };
-}
-
-export function updateMockProfile(input: ProfileUpdateInput): Profile {
-  currentProfile = {
-    ...currentProfile,
-    ...input,
-  };
-  return getMockProfile();
 }
 
 export function updateMockPayoutAccount(input: PayoutAccountUpdateInput): PayoutAccount {
