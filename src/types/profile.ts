@@ -26,12 +26,6 @@ export interface ProfileData {
   profile: Profile;
 }
 
-export interface ProfileUpdateInput {
-  fullName: string;
-  email: string;
-  phone: string;
-}
-
 export interface PayoutAccountUpdateInput {
   method: PayoutMethod;
   provider: string;
