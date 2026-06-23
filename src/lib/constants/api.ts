@@ -43,9 +43,4 @@ export const API_ENDPOINTS = {
   CLICK: {
     LIST: "/click/list",
   },
-  PROFILE: {
-    DETAIL: "/profile/detail",
-    PAYOUT_ACCOUNT: "/profile/payout-account",
-    PAYOUT_UPDATE: "/profile/payout-update",
-  },
 } as const;
