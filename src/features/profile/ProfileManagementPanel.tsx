@@ -1,25 +1,18 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 
-import { updateProfileAction } from "@/app/app/profile/actions";
+import {
+  updatePayoutAccountAction,
+  updateProfileAction,
+} from "@/app/app/profile/actions";
 import ActionButton from "@/components/ui/ActionButton";
-import { savePayoutAccountServiceAsync } from "@/services/profile-edit.service";
 import type { ClickPlatform } from "@/types/click";
-import type {
-  PayoutAccountUpdateInput,
-  PayoutMethod,
-  Profile,
-} from "@/types/profile";
+import type { Profile } from "@/types/profile";
 
 type Props = {
   profile: Profile;
 };
-
-const methodOptions: { value: PayoutMethod; label: string }[] = [
-  { value: "bank", label: "Ngân hàng" },
-  { value: "ewallet", label: "Ví điện tử" },
-];
 
 const platformOptions: {
   value: ClickPlatform;
@@ -30,6 +23,11 @@ const platformOptions: {
 ];
 
 const initialProfileActionState = {
+  success: false,
+  message: "",
+};
+
+const initialPayoutActionState = {
   success: false,
   message: "",
 };
@@ -46,22 +44,18 @@ export default function ProfileManagementPanel({
     initialProfileActionState,
   );
 
-  const [payoutForm, setPayoutForm] =
-    useState<PayoutAccountUpdateInput>({
-      method: profile.payoutAccount.method,
-      provider: profile.payoutAccount.provider,
-      accountName: profile.payoutAccount.accountName,
-      accountNumber: profile.payoutAccount.accountNumber,
-    });
+  const [
+    payoutState,
+    payoutAction,
+    isPayoutPending,
+  ] = useActionState(
+    updatePayoutAccountAction,
+    initialPayoutActionState,
+  );
 
-  const [payoutMessage, setPayoutMessage] = useState("");
-
-  async function onPayoutSave() {
-    await savePayoutAccountServiceAsync(payoutForm);
-    setPayoutMessage(
-      "Đã lưu tài khoản nhận tiền trong dữ liệu mô phỏng.",
-    );
-  }
+  const hasPayoutAccount = Boolean(
+    profile.payoutAccount.accountNumber,
+  );
 
   return (
     <div className="grid gap-4 xl:grid-cols-2">
@@ -185,90 +179,108 @@ export default function ProfileManagementPanel({
           Tài khoản nhận tiền
         </h2>
 
-        <div className="mt-4 grid gap-3">
-          <select
-            className="rounded-lg border p-3"
-            value={payoutForm.method}
-            onChange={(event) =>
-              setPayoutForm({
-                ...payoutForm,
-                method: event.target.value as PayoutMethod,
-              })
-            }
-          >
-            {methodOptions.map((option) => (
-              <option
-                key={option.value}
-                value={option.value}
-              >
-                {option.label}
-              </option>
-            ))}
-          </select>
-
+        <form
+          id="payout-account-edit"
+          action={payoutAction}
+          className="mt-4 grid gap-3"
+        >
           <input
-            className="rounded-lg border p-3"
-            value={payoutForm.provider}
-            onChange={(event) =>
-              setPayoutForm({
-                ...payoutForm,
-                provider: event.target.value,
-              })
-            }
+            type="hidden"
+            name="method"
+            value="bank"
           />
 
-          <input
-            className="rounded-lg border p-3"
-            value={payoutForm.accountNumber}
-            onChange={(event) =>
-              setPayoutForm({
-                ...payoutForm,
-                accountNumber: event.target.value,
-              })
-            }
-          />
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-[color:var(--text)]">
+              Phương thức
+            </span>
+            <input
+              value="Tài khoản ngân hàng"
+              readOnly
+              aria-readonly="true"
+              className="cursor-not-allowed rounded-lg border border-[color:var(--line)] bg-[rgba(0,0,0,0.04)] p-3 text-[color:var(--text-muted)]"
+            />
+          </label>
 
-          <input
-            className="rounded-lg border p-3"
-            value={payoutForm.accountName}
-            onChange={(event) =>
-              setPayoutForm({
-                ...payoutForm,
-                accountName: event.target.value,
-              })
-            }
-          />
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-[color:var(--text)]">
+              Ngân hàng
+            </span>
+            <input
+              name="provider"
+              defaultValue={profile.payoutAccount.provider}
+              required
+              maxLength={120}
+              autoComplete="organization"
+              className="rounded-lg border border-[color:var(--line)] bg-white p-3"
+            />
+          </label>
+
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-[color:var(--text)]">
+              Số tài khoản
+            </span>
+            <input
+              name="accountNumber"
+              defaultValue=""
+              required={!hasPayoutAccount}
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={50}
+              placeholder={
+                hasPayoutAccount
+                  ? `Đang dùng ${profile.payoutAccount.accountNumber}; để trống để giữ nguyên`
+                  : "Nhập số tài khoản"
+              }
+              className="rounded-lg border border-[color:var(--line)] bg-white p-3"
+            />
+            {hasPayoutAccount ? (
+              <span className="text-xs text-[color:var(--text-muted)]">
+                Số tài khoản hiện tại được che. Chỉ nhập số mới khi cần thay đổi.
+              </span>
+            ) : null}
+          </label>
+
+          <label className="grid gap-1 text-sm">
+            <span className="font-medium text-[color:var(--text)]">
+              Chủ tài khoản
+            </span>
+            <input
+              name="accountName"
+              defaultValue={profile.payoutAccount.accountName}
+              required
+              maxLength={120}
+              autoComplete="name"
+              className="rounded-lg border border-[color:var(--line)] bg-white p-3"
+            />
+          </label>
 
           <div className="flex gap-3">
             <ActionButton
-              type="button"
-              onClick={onPayoutSave}
+              type="submit"
+              disabled={isPayoutPending}
             >
-              Lưu
+              {isPayoutPending
+                ? "Đang lưu..."
+                : "Lưu tài khoản"}
             </ActionButton>
 
             <ActionButton
-              type="button"
+              type="reset"
               tone="secondary"
-              onClick={() =>
-                setPayoutForm({
-                  method: profile.payoutAccount.method,
-                  provider: profile.payoutAccount.provider,
-                  accountName:
-                    profile.payoutAccount.accountName,
-                  accountNumber:
-                    profile.payoutAccount.accountNumber,
-                })
-              }
+              disabled={isPayoutPending}
             >
               Hủy
             </ActionButton>
           </div>
 
-          <p className="text-sm text-[color:var(--text-muted)]">
-            {payoutMessage}
+          <p
+            aria-live="polite"
+            className="text-sm text-[color:var(--text-muted)]"
+          >
+            {payoutState.message}
           </p>
-        </div>
+        </form>
       </section>
     </div>
   );

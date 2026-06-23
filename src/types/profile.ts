@@ -1,13 +1,19 @@
 import type { ClickPlatform } from "@/types/click";
 
-export type PayoutMethod = "bank" | "ewallet";
+export type PayoutMethod = "bank";
+
+export type PayoutAccountStatus =
+  | "unverified"
+  | "verified"
+  | "rejected"
+  | "disabled";
 
 export interface PayoutAccount {
   method: PayoutMethod;
   provider: string;
   accountName: string;
   accountNumber: string;
-  isVerified: boolean;
+  status: PayoutAccountStatus;
 }
 
 export interface Profile {
@@ -24,11 +30,4 @@ export interface Profile {
 
 export interface ProfileData {
   profile: Profile;
-}
-
-export interface PayoutAccountUpdateInput {
-  method: PayoutMethod;
-  provider: string;
-  accountName: string;
-  accountNumber: string;
 }

@@ -22,6 +22,27 @@
       "when": 1782150061314,
       "tag": "0002_grant_profiles_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1782198441230,
+      "tag": "0003_create_payout_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1782198779525,
+      "tag": "0004_secure_payout_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782199602710,
+      "tag": "0005_reset_payout_status_on_change",
+      "breakpoints": true
     }
   ]
 }

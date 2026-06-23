@@ -26,10 +26,6 @@ import {
   trackingLinks,
 } from "@/lib/mock";
 import { offerDestinationUrls, offerRequirements, offerTrackingRules } from "@/lib/mock/affiliate";
-import {
-  getMockProfile,
-  updateMockPayoutAccount,
-} from "@/lib/mock/profile-store";
 import type { CampaignDetail } from "@/types/affiliate";
 
 type MockHandler = () => unknown;
@@ -61,9 +57,6 @@ const exactHandlers: Record<string, MockHandler> = {
   [API_ENDPOINTS.AFFILIATE.OFFER_TRACKING_RULES]: () => offerTrackingRules,
   [API_ENDPOINTS.NOTIFICATION.LIST]: () => notifications,
   [API_ENDPOINTS.CLICK.LIST]: () => clicks,
-  [API_ENDPOINTS.PROFILE.DETAIL]: () => getMockProfile(),
-  [API_ENDPOINTS.PROFILE.PAYOUT_ACCOUNT]: () => getMockProfile().payoutAccount,
-  [API_ENDPOINTS.PROFILE.PAYOUT_UPDATE]: () => updateMockPayoutAccount({} as never),
 };
 
 type RoutePattern = {
