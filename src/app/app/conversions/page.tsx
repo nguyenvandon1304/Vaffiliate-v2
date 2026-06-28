@@ -7,7 +7,7 @@ import ConversionStats from "@/features/conversions/ConversionStats";
 import ConversionTable from "@/features/conversions/ConversionTable";
 import ConversionTopLinksTable from "@/features/conversions/ConversionTopLinksTable";
 import ConversionTrendTable from "@/features/conversions/ConversionTrendTable";
-import { loadAffiliateAsync } from "@/hooks/loadAffiliateAsync";
+import { loadPublisherAffiliateAsync } from "@/hooks/loadPublisherAffiliateAsync";
 import { loadClickAsync } from "@/hooks/loadClickAsync";
 import {
   formatDate,
@@ -17,7 +17,7 @@ import {
 import type { ConversionStat, ConversionView, SupportedPlatformLabel } from "@/types/affiliate";
 
 export default async function ConversionsPage() {
-  const { advertisers, campaigns, offers, trackingLinks, conversions } = await loadAffiliateAsync();
+  const { advertisers, campaigns, offers, trackingLinks, conversions } = await loadPublisherAffiliateAsync();
   const { clicks } = await loadClickAsync();
 
   const conversionViews: ConversionView[] = conversions.flatMap((conversion) => {

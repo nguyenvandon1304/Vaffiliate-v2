@@ -6,7 +6,13 @@ import TrackingLinkHeader from "@/features/tracking-links/detail/TrackingLinkHea
 import TrackingLinkNotFound from "@/features/tracking-links/detail/TrackingLinkNotFound";
 import TrackingLinkPerformanceCard from "@/features/tracking-links/detail/TrackingLinkPerformanceCard";
 import TrackingLinkStatsCard from "@/features/tracking-links/detail/TrackingLinkStatsCard";
-import { loadAffiliateAsync } from "@/hooks/loadAffiliateAsync";
+import { loadPublisherAffiliateAsync } from "@/hooks/loadPublisherAffiliateAsync";
+import type {
+  Conversion,
+  TrackingLinkStats,
+} from "@/types/affiliate";
+
+export const dynamic = "force-dynamic";
 
 type RouteParams = {
   trackingLinkId: string;
@@ -16,64 +22,150 @@ type PageProps = {
   params: Promise<RouteParams>;
 };
 
-export async function generateStaticParams(): Promise<RouteParams[]> {
-  const { trackingLinks } = await loadAffiliateAsync();
-  return trackingLinks.map((link) => ({ trackingLinkId: link.id }));
+function buildPublisherTrackingLinkStats(
+  baseStats: TrackingLinkStats | undefined,
+  conversions: Conversion[],
+): TrackingLinkStats {
+  const clicks = baseStats?.clicks ?? 0;
+  const uniqueClicks = baseStats?.uniqueClicks ?? 0;
+
+  const validConversions = conversions.filter(
+    (conversion) => conversion.status !== "rejected",
+  );
+
+  const conversionCount = validConversions.length;
+
+  const cashbackAmount = validConversions.reduce(
+    (total, conversion) =>
+      total + conversion.userCashback.amount,
+    0,
+  );
+
+  const orderAmount = validConversions.reduce(
+    (total, conversion) =>
+      total + conversion.orderAmount.amount,
+    0,
+  );
+
+  return {
+    clicks,
+    uniqueClicks,
+    conversionCount,
+    commission: {
+      amount: cashbackAmount,
+      currency: "VND",
+    },
+    metrics: {
+      epc: clicks === 0 ? 0 : cashbackAmount / clicks,
+      aov:
+        conversionCount === 0
+          ? 0
+          : orderAmount / conversionCount,
+      conversionRate:
+        clicks === 0 ? 0 : conversionCount / clicks,
+    },
+  };
 }
 
-export default async function TrackingLinkDetailPage({ params }: PageProps) {
+export default async function TrackingLinkDetailPage({
+  params,
+}: PageProps) {
   const { trackingLinkId } = await params;
-  const { trackingLinks, offers, campaigns, advertisers, conversions, trackingLinkStats } =
-    await loadAffiliateAsync();
 
-  const trackingLink = trackingLinks.find((link) => link.id === trackingLinkId);
+  const {
+    trackingLinks,
+    offers,
+    campaigns,
+    advertisers,
+    conversions,
+    trackingLinkStats,
+  } = await loadPublisherAffiliateAsync();
+
+  const trackingLink = trackingLinks.find(
+    (link) => link.id === trackingLinkId,
+  );
+
   if (!trackingLink) {
     return (
-      <AppShell desktopContent={<TrackingLinkNotFound trackingLinkId={trackingLinkId} />}>
+      <AppShell
+        desktopContent={
+          <TrackingLinkNotFound
+            trackingLinkId={trackingLinkId}
+          />
+        }
+      >
         <AppSection className="pb-8">
-          <TrackingLinkNotFound trackingLinkId={trackingLinkId} />
+          <TrackingLinkNotFound
+            trackingLinkId={trackingLinkId}
+          />
         </AppSection>
       </AppShell>
     );
   }
 
-  const offer = offers.find((item) => item.id === trackingLink.offerId);
+  const offer = offers.find(
+    (item) => item.id === trackingLink.offerId,
+  );
+
   if (!offer) {
     return (
-      <AppShell desktopContent={<TrackingLinkNotFound trackingLinkId={trackingLinkId} />}>
+      <AppShell
+        desktopContent={
+          <TrackingLinkNotFound
+            trackingLinkId={trackingLinkId}
+          />
+        }
+      >
         <AppSection className="pb-8">
-          <TrackingLinkNotFound trackingLinkId={trackingLinkId} />
+          <TrackingLinkNotFound
+            trackingLinkId={trackingLinkId}
+          />
         </AppSection>
       </AppShell>
     );
   }
 
-  const campaign = campaigns.find((item) => item.id === offer.campaignId);
+  const campaign = campaigns.find(
+    (item) => item.id === offer.campaignId,
+  );
+
   const advertiser = campaign
-    ? advertisers.find((item) => item.id === campaign.advertiserId)
+    ? advertisers.find(
+        (item) => item.id === campaign.advertiserId,
+      )
     : undefined;
 
   if (!campaign || !advertiser) {
     return (
-      <AppShell desktopContent={<TrackingLinkNotFound trackingLinkId={trackingLinkId} />}>
+      <AppShell
+        desktopContent={
+          <TrackingLinkNotFound
+            trackingLinkId={trackingLinkId}
+          />
+        }
+      >
         <AppSection className="pb-8">
-          <TrackingLinkNotFound trackingLinkId={trackingLinkId} />
+          <TrackingLinkNotFound
+            trackingLinkId={trackingLinkId}
+          />
         </AppSection>
       </AppShell>
     );
   }
 
   const linkConversions = conversions
-    .filter((conv) => conv.trackingLinkId === trackingLinkId)
-    .sort((a, b) => (a.occurredAt < b.occurredAt ? 1 : -1));
+    .filter(
+      (conversion) =>
+        conversion.trackingLinkId === trackingLinkId,
+    )
+    .sort((a, b) =>
+      a.occurredAt < b.occurredAt ? 1 : -1,
+    );
 
-  const stats = trackingLinkStats[trackingLinkId] ?? {
-    clicks: 0,
-    uniqueClicks: 0,
-    conversionCount: 0,
-    commission: { amount: 0, currency: "VND" },
-    metrics: { epc: 0, aov: 0, conversionRate: 0 },
-  };
+  const stats = buildPublisherTrackingLinkStats(
+    trackingLinkStats[trackingLinkId],
+    linkConversions,
+  );
 
   const desktopContent = (
     <div className="space-y-6">
@@ -84,9 +176,14 @@ export default async function TrackingLinkDetailPage({ params }: PageProps) {
         advertiserName={advertiser.name}
         headingLevel="h1"
       />
+
       <TrackingLinkStatsCard stats={stats} />
+
       <div className="grid gap-4 xl:grid-cols-2">
-        <TrackingLinkPerformanceCard conversions={linkConversions} />
+        <TrackingLinkPerformanceCard
+          conversions={linkConversions}
+        />
+
         <TrackingLinkAttributionCard
           trackingLink={trackingLink}
           offer={offer}
@@ -111,6 +208,7 @@ export default async function TrackingLinkDetailPage({ params }: PageProps) {
           description="Xem hiệu suất, đơn hàng được ghi nhận và thông tin của link hoàn tiền."
         />
       </AppSection>
+
       <AppSection className="mb-4">
         <TrackingLinkHeader
           trackingLink={trackingLink}
@@ -120,12 +218,17 @@ export default async function TrackingLinkDetailPage({ params }: PageProps) {
           headingLevel="h2"
         />
       </AppSection>
+
       <AppSection className="mb-4">
         <TrackingLinkStatsCard stats={stats} />
       </AppSection>
+
       <AppSection className="pb-8">
         <div className="grid gap-4 xl:grid-cols-2">
-          <TrackingLinkPerformanceCard conversions={linkConversions} />
+          <TrackingLinkPerformanceCard
+            conversions={linkConversions}
+          />
+
           <TrackingLinkAttributionCard
             trackingLink={trackingLink}
             offer={offer}

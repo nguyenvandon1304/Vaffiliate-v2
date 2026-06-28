@@ -7,7 +7,7 @@ import RevenuePlatformBreakdown from "@/features/revenue/RevenuePlatformBreakdow
 import RevenueStats from "@/features/revenue/RevenueStats";
 import RevenueTopLinksTable from "@/features/revenue/RevenueTopLinksTable";
 import RevenueTrendTable from "@/features/revenue/RevenueTrendTable";
-import { loadAffiliateAsync } from "@/hooks/loadAffiliateAsync";
+import { loadPublisherAffiliateAsync } from "@/hooks/loadPublisherAffiliateAsync";
 import {
   formatDate,
   formatVnd,
@@ -38,7 +38,7 @@ type RevenuePlatformAnalytics = RevenuePlatform & {
 };
 
 export default async function RevenuePage() {
-  const { advertisers, campaigns, offers, trackingLinks, conversions } = await loadAffiliateAsync();
+  const { advertisers, campaigns, offers, trackingLinks, conversions } = await loadPublisherAffiliateAsync();
 
   const estimatedConversions = conversions.filter(
     (c) => c.status !== "rejected"

@@ -6,7 +6,7 @@ import CommissionPlatformBreakdown from "@/features/commission/CommissionPlatfor
 import CommissionStats from "@/features/commission/CommissionStats";
 import CommissionTopLinksTable from "@/features/commission/CommissionTopLinksTable";
 import CommissionTrendTable from "@/features/commission/CommissionTrendTable";
-import { loadAffiliateAsync } from "@/hooks/loadAffiliateAsync";
+import { loadPublisherAffiliateAsync } from "@/hooks/loadPublisherAffiliateAsync";
 import {
   formatDate,
   formatVnd,
@@ -41,7 +41,7 @@ type CommissionPlatformAnalytics = {
 // "Rejected" is excluded from all cashback aggregations.
 // "Pending" is included only in estimated metrics (label says "dự kiến").
 export default async function CommissionPage() {
-  const { advertisers, campaigns, offers, trackingLinks, conversions } = await loadAffiliateAsync();
+  const { advertisers, campaigns, offers, trackingLinks, conversions } = await loadPublisherAffiliateAsync();
 
   const estimatedConversions = conversions.filter((c) => c.status !== "rejected");
 

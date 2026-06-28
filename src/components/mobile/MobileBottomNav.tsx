@@ -2,8 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { isPrimaryNavItemActive, primaryNavItems } from "../app/primaryNav";
+
 import { navIconById } from "../app/NavIcons";
+import {
+  isMobileNavItemActive,
+  mobileNavItems,
+} from "../app/primaryNav";
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
@@ -15,8 +19,11 @@ export default function MobileBottomNav() {
     >
       <div className="mx-auto w-full max-w-[430px] px-4 pb-2 sm:px-3">
         <div className="flex items-center justify-around rounded-[calc(var(--radius-xl)+0.2rem)] border border-[color:var(--line)] bg-[rgba(255,250,246,0.94)] px-3 py-2.5 shadow-[var(--shadow-lg)] backdrop-blur">
-          {primaryNavItems.map((item) => {
-            const isActive = isPrimaryNavItemActive(item, pathname);
+          {mobileNavItems.map((item) => {
+            const isActive = isMobileNavItemActive(
+              item,
+              pathname,
+            );
             const Icon = navIconById[item.id];
 
             return (
@@ -30,7 +37,10 @@ export default function MobileBottomNav() {
                 }`}
                 aria-current={isActive ? "page" : undefined}
               >
-                <Icon className="text-base" aria-hidden="true" />
+                <Icon
+                  className="text-base"
+                  aria-hidden="true"
+                />
                 <span>{item.label}</span>
               </Link>
             );

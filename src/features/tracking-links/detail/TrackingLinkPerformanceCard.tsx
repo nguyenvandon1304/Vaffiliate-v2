@@ -24,10 +24,15 @@ const statusVariant: Record<
   paid: "default",
 };
 
-export default function TrackingLinkPerformanceCard({ conversions }: Props) {
+export default function TrackingLinkPerformanceCard({
+  conversions,
+}: Props) {
   return (
     <div className="rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.88)] p-5 shadow-[var(--shadow-sm)]">
-      <p className="text-sm font-medium text-[color:var(--text-muted)]">Đơn hàng gần đây</p>
+      <p className="text-sm font-medium text-[color:var(--text-muted)]">
+        Đơn hàng gần đây
+      </p>
+
       {conversions.length === 0 ? (
         <p className="mt-3 text-sm leading-6 text-[color:var(--text-muted)]">
           Chưa có đơn hàng nào được ghi nhận từ link hoàn tiền này.
@@ -40,15 +45,23 @@ export default function TrackingLinkPerformanceCard({ conversions }: Props) {
               className="flex items-center justify-between gap-3 border-b border-[rgba(124,63,44,0.08)] pb-2 last:border-b-0 last:pb-0"
             >
               <div className="min-w-0">
-                <p className="font-mono text-[color:var(--text-muted)]">{conv.id}</p>
-                <p className="text-xs text-[color:var(--text-muted)]">{conv.occurredAt}</p>
+                <p className="font-mono text-[color:var(--text-muted)]">
+                  {conv.orderId}
+                </p>
+                <p className="text-xs text-[color:var(--text-muted)]">
+                  {conv.occurredAt}
+                </p>
               </div>
+
               <div className="text-right">
-                <p className="font-medium text-[color:var(--text)]">{formatMoney(conv.orderAmount)}</p>
+                <p className="font-medium text-[color:var(--text)]">
+                  {formatMoney(conv.orderAmount)}
+                </p>
                 <p className="text-xs font-medium text-[color:var(--success)]">
                   ~{formatMoney(conv.userCashback)}
                 </p>
               </div>
+
               <span
                 className={`rounded-full px-3 py-1 text-xs font-semibold ${
                   statusVariant[conv.status] === "success"
