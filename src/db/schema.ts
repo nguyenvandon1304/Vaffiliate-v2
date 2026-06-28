@@ -1,7 +1,9 @@
 import { sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   check,
+  foreignKey,
   index,
   pgTable,
   text,
@@ -101,6 +103,204 @@ check(
   sql`${table.status} in ('unverified', 'verified', 'rejected', 'disabled')`,
 ),
 ],
+);
+// ─── Consumer cashback tracking links ───────────────────────────────────────
+
+export const trackingLinks = pgTable(
+  "tracking_links",
+  {
+    id: uuid("id")
+      .defaultRandom()
+      .primaryKey(),
+
+    publisherId: uuid("publisher_id")
+      .notNull()
+      .references(() => profiles.userId, {
+        onDelete: "cascade",
+      }),
+
+    platform: text("platform")
+      .notNull(),
+
+    destinationUrl: text("destination_url")
+      .notNull(),
+
+      campaignId: text("campaign_id"),
+
+      offerId: text("offer_id"),
+
+    shortCode: text("short_code")
+      .notNull(),
+
+    status: text("status")
+      .default("active")
+      .notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique("tracking_links_short_code_unique").on(
+      table.shortCode,
+    ),
+
+    unique("tracking_links_id_publisher_unique").on(
+      table.id,
+      table.publisherId,
+    ),
+
+    index("tracking_links_publisher_created_at_idx").on(
+      table.publisherId,
+      table.createdAt,
+    ),
+
+    check(
+      "tracking_links_platform_check",
+      sql`${table.platform} in ('shopee', 'tiktok')`,
+    ),
+
+    check(
+      "tracking_links_destination_url_https_check",
+      sql`${table.destinationUrl} ~ '^https://'`,
+    ),
+
+    check(
+      "tracking_links_campaign_id_not_blank_check",
+      sql`char_length(trim(${table.campaignId})) > 0`,
+    ),
+
+    check(
+      "tracking_links_offer_id_not_blank_check",
+      sql`char_length(trim(${table.offerId})) > 0`,
+    ),
+
+    check(
+      "tracking_links_classification_pair_check",
+      sql`
+        (
+          ${table.campaignId} is null
+          and ${table.offerId} is null
+        )
+        or
+        (
+          ${table.campaignId} is not null
+          and ${table.offerId} is not null
+        )
+      `,
+    ),
+
+    check(
+      "tracking_links_short_code_check",
+      sql`${table.shortCode} ~ '^[A-Za-z0-9_-]{10,32}$'`,
+    ),
+
+    check(
+      "tracking_links_status_check",
+      sql`${table.status} in ('active', 'paused', 'disabled')`,
+    ),
+  ],
+);
+
+// ─── Consumer cashback clicks ────────────────────────────────────────────────
+
+export const clicks = pgTable(
+  "clicks",
+  {
+    id: uuid("id")
+      .defaultRandom()
+      .primaryKey(),
+
+    trackingLinkId: uuid("tracking_link_id")
+      .notNull(),
+
+    publisherId: uuid("publisher_id")
+      .notNull()
+      .references(() => profiles.userId, {
+        onDelete: "cascade",
+      }),
+
+    networkSubId: text("network_sub_id")
+      .notNull(),
+
+    referrer: text("referrer"),
+    userAgentHash: text("user_agent_hash"),
+    ipHash: text("ip_hash"),
+    fingerprintHash: text("fingerprint_hash"),
+
+    isUnique: boolean("is_unique")
+      .default(true)
+      .notNull(),
+
+    clickedAt: timestamp("clicked_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [
+        table.trackingLinkId,
+        table.publisherId,
+      ],
+      foreignColumns: [
+        trackingLinks.id,
+        trackingLinks.publisherId,
+      ],
+      name: "clicks_tracking_link_publisher_fk",
+    }).onDelete("cascade"),
+
+    unique("clicks_network_sub_id_unique").on(
+      table.networkSubId,
+    ),
+
+    index("clicks_publisher_clicked_at_idx").on(
+      table.publisherId,
+      table.clickedAt,
+    ),
+
+    index("clicks_tracking_link_clicked_at_idx").on(
+      table.trackingLinkId,
+      table.clickedAt,
+    ),
+
+    index("clicks_fingerprint_clicked_at_idx").on(
+      table.fingerprintHash,
+      table.clickedAt,
+    ),
+
+    check(
+      "clicks_network_sub_id_not_blank_check",
+      sql`char_length(trim(${table.networkSubId})) > 0`,
+    ),
+
+    check(
+      "clicks_user_agent_hash_check",
+      sql`${table.userAgentHash} is null or ${table.userAgentHash} ~ '^[a-f0-9]{64}$'`,
+    ),
+
+    check(
+      "clicks_ip_hash_check",
+      sql`${table.ipHash} is null or ${table.ipHash} ~ '^[a-f0-9]{64}$'`,
+    ),
+
+    check(
+      "clicks_fingerprint_hash_check",
+      sql`${table.fingerprintHash} is null or ${table.fingerprintHash} ~ '^[a-f0-9]{64}$'`,
+    ),
+  ],
 );
 // ─── Conversion ledger ──────────────────────────────────────────────────────
 
@@ -427,6 +627,12 @@ export type NewProfileRow = typeof profiles.$inferInsert;
 
 export type PayoutAccountRow = typeof payoutAccounts.$inferSelect;
 export type NewPayoutAccountRow = typeof payoutAccounts.$inferInsert;
+
+export type TrackingLinkRow = typeof trackingLinks.$inferSelect;
+export type NewTrackingLinkRow = typeof trackingLinks.$inferInsert;
+
+export type ClickRow = typeof clicks.$inferSelect;
+export type NewClickRow = typeof clicks.$inferInsert;
 
 export type ConversionRow = typeof conversions.$inferSelect;
 export type NewConversionRow = typeof conversions.$inferInsert;

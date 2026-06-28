@@ -2,6 +2,7 @@ export type AdvertiserId = string;
 export type CampaignId = string;
 export type OfferId = string;
 export type TrackingLinkId = string;
+export type ClickId = string;
 export type ConversionId = string;
 export type OrderId = string;
 export type PublisherId = string;
