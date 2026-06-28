@@ -57,3 +57,53 @@ export interface CreateCashbackTrackingLinkActionState {
   message: string;
   trackingLink: CashbackTrackingLinkResult | null;
 }
+export type ShopeeProductPreviewErrorCode =
+  | "invalid_url"
+  | "unsupported_host"
+  | "not_product_url"
+  | "redirect_failed"
+  | "too_many_redirects"
+  | "request_timeout"
+  | "service_unavailable"
+  | "product_not_found"
+  | "invalid_response"
+  | "commission_unavailable";
+
+export interface ShopeeProductPreview {
+  platform: "shopee";
+
+  shopId: string;
+  itemId: string;
+
+  productUrl: string;
+  productName: string;
+  shopName: string | null;
+  imageUrl: string | null;
+
+  priceVnd: number;
+  sales: number | null;
+  rating: number | null;
+
+  estimatedCommissionVnd: number;
+  sellerCommissionVnd: number;
+  shopeeCommissionVnd: number;
+
+  cashbackShareBps: number;
+  estimatedCashbackVnd: number;
+  estimatedCashbackRatePercent: number;
+
+  isXtra: boolean;
+  isCapped: boolean;
+  commissionCapVnd: number | null;
+
+  partnerDataUpdatedAt: string | null;
+  fetchedAt: string;
+  dataSource: "api" | "db";
+}
+
+export interface PreviewShopeeProductActionState {
+  success: boolean;
+  message: string;
+  errorCode: ShopeeProductPreviewErrorCode | null;
+  preview: ShopeeProductPreview | null;
+}
