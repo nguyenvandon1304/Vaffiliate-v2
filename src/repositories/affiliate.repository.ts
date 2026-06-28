@@ -5,7 +5,6 @@ import type {
   Advertiser,
   AffiliateData,
   Campaign,
-  Conversion,
   Offer,
   OfferDetailData,
   OfferJoinStatus,
@@ -26,7 +25,6 @@ export async function getAffiliateDataAsync(): Promise<
     campaigns,
     offers,
     trackingLinks,
-    conversions,
     joinedOfferIds,
     publisherProfile,
     trackingLinkStats,
@@ -42,9 +40,6 @@ export async function getAffiliateDataAsync(): Promise<
     ),
     apiClient.get<TrackingLink[]>(
       API_ENDPOINTS.AFFILIATE.TRACKING_LINKS,
-    ),
-    apiClient.get<Conversion[]>(
-      API_ENDPOINTS.AFFILIATE.CONVERSIONS,
     ),
     apiClient.get<OfferId[]>(
       API_ENDPOINTS.AFFILIATE.JOINED_OFFERS,
@@ -64,7 +59,9 @@ export async function getAffiliateDataAsync(): Promise<
       campaigns: campaigns.data,
       offers: offers.data,
       trackingLinks: trackingLinks.data,
-      conversions: conversions.data,
+      // Publisher conversions are session-scoped and loaded from
+      // Supabase by loadPublisherAffiliateAsync().
+      conversions: [],
       joinedOfferIds: joinedOfferIds.data,
       publisherProfile: publisherProfile.data,
       trackingLinkStats: trackingLinkStats.data,

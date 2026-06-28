@@ -6,18 +6,22 @@ import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
-function readRequiredString(formData: FormData, key: string) {
-const value = formData.get(key);
+function readRequiredString(
+  formData: FormData,
+  key: string,
+): string | null {
+  const value = formData.get(key);
 
-if (typeof value !== "string" || !value.trim()) {
-return null;
+  if (typeof value !== "string" || !value.trim()) {
+    return null;
+  }
+
+  return value.trim();
 }
 
-return value.trim();
-}
-
-async function getRequestOrigin() {
-  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+async function getRequestOrigin(): Promise<string> {
+  const configuredSiteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim();
 
   if (configuredSiteUrl) {
     return new URL(configuredSiteUrl).origin;
@@ -31,8 +35,10 @@ async function getRequestOrigin() {
   }
 
   const host =
-    headerStore.get("x-forwarded-host") ?? headerStore.get("host");
-  const protocol = headerStore.get("x-forwarded-proto") ?? "http";
+    headerStore.get("x-forwarded-host") ??
+    headerStore.get("host");
+  const protocol =
+    headerStore.get("x-forwarded-proto") ?? "http";
 
   if (!host) {
     throw new Error("Request host is required");
@@ -40,7 +46,8 @@ async function getRequestOrigin() {
 
   return new URL(`${protocol}://${host}`).origin;
 }
-function getSafeAppRedirect(value: string | null) {
+
+function getSafeAppRedirect(value: string | null): string {
   const fallbackPath = "/app";
 
   if (!value) {
@@ -54,7 +61,10 @@ function getSafeAppRedirect(value: string | null) {
       redirectUrl.pathname === "/app" ||
       redirectUrl.pathname.startsWith("/app/");
 
-    if (redirectUrl.origin !== baseUrl.origin || !isAppPath) {
+    if (
+      redirectUrl.origin !== baseUrl.origin ||
+      !isAppPath
+    ) {
       return fallbackPath;
     }
 
@@ -68,82 +78,131 @@ function getSafeAppRedirect(value: string | null) {
   }
 }
 
+function buildLoginRedirect(
+  key: "error" | "message",
+  value: string,
+  next: string,
+): string {
+  const params = new URLSearchParams({ [key]: value });
+
+  if (next !== "/app") {
+    params.set("next", next);
+  }
+
+  return `/login?${params.toString()}`;
+}
+
 export async function login(formData: FormData) {
   const email = readRequiredString(formData, "email");
-  const password = readRequiredString(formData, "password");
+  const password = readRequiredString(
+    formData,
+    "password",
+  );
   const next = getSafeAppRedirect(
     readRequiredString(formData, "next"),
   );
 
   if (!email || !password) {
-    redirect("/login?error=missing-fields");
+    redirect(
+      buildLoginRedirect(
+        "error",
+        "missing-fields",
+        next,
+      ),
+    );
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email: email.toLowerCase(),
-    password,
-  });
+  const { error } =
+    await supabase.auth.signInWithPassword({
+      email: email.toLowerCase(),
+      password,
+    });
 
   if (error) {
-    redirect("/login?error=invalid-credentials");
+    redirect(
+      buildLoginRedirect(
+        "error",
+        "invalid-credentials",
+        next,
+      ),
+    );
   }
 
   revalidatePath("/", "layout");
   redirect(next);
 }
+
 export async function signup(formData: FormData) {
-const fullName = readRequiredString(formData, "fullName");
-const email = readRequiredString(formData, "email");
-const password = readRequiredString(formData, "password");
-const acceptedTerms = formData.get("acceptedTerms") === "on";
+  const fullName = readRequiredString(
+    formData,
+    "fullName",
+  );
+  const email = readRequiredString(formData, "email");
+  const password = readRequiredString(
+    formData,
+    "password",
+  );
+  const acceptedTerms =
+    formData.get("acceptedTerms") === "on";
 
-if (!fullName || !email || !password || !acceptedTerms) {
-redirect("/register?error=missing-fields");
-}
+  if (
+    !fullName ||
+    !email ||
+    !password ||
+    !acceptedTerms
+  ) {
+    redirect("/register?error=missing-fields");
+  }
 
-if (password.length < 8) {
-redirect("/register?error=weak-password");
-}
+  if (password.length < 8) {
+    redirect("/register?error=weak-password");
+  }
 
-const origin = await getRequestOrigin();
-const supabase = await createClient();
+  const origin = await getRequestOrigin();
+  const supabase = await createClient();
 
-const { data, error } = await supabase.auth.signUp({
-email: email.toLowerCase(),
-password,
-options: {
-emailRedirectTo: origin + "/auth/callback",
-data: {
-full_name: fullName,
-},
-},
-});
-
-if (error) {
-  console.error("Supabase signup failed", {
-    name: error.name,
-    code: error.code,
-    status: error.status,
-    message: error.message,
+  const { data, error } = await supabase.auth.signUp({
+    email: email.toLowerCase(),
+    password,
+    options: {
+      emailRedirectTo: `${origin}/auth/callback`,
+      data: {
+        full_name: fullName,
+      },
+    },
   });
 
-  redirect("/register?error=signup-failed");
-}
+  if (error) {
+    console.error("Supabase signup failed", {
+      name: error.name,
+      code: error.code,
+      status: error.status,
+      message: error.message,
+    });
 
-revalidatePath("/", "layout");
+    redirect("/register?error=signup-failed");
+  }
 
-if (data.session) {
-redirect("/app");
-}
+  revalidatePath("/", "layout");
 
-redirect("/login?message=check-email");
+  if (data.session) {
+    redirect("/app");
+  }
+
+  redirect(
+    buildLoginRedirect(
+      "message",
+      "check-email",
+      "/app",
+    ),
+  );
 }
 
 export async function logout() {
-const supabase = await createClient();
+  const supabase = await createClient();
 
-await supabase.auth.signOut();
-revalidatePath("/", "layout");
-redirect("/login");
+  await supabase.auth.signOut();
+  revalidatePath("/", "layout");
+  redirect("/login");
 }
