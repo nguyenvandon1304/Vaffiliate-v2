@@ -47,7 +47,9 @@ async function getRequestOrigin(): Promise<string> {
   return new URL(`${protocol}://${host}`).origin;
 }
 
-function getSafeAppRedirect(value: string | null): string {
+function getSafePostLoginRedirect(
+  value: string | null,
+): string {
   const fallbackPath = "/app";
 
   if (!value) {
@@ -57,19 +59,27 @@ function getSafeAppRedirect(value: string | null): string {
   try {
     const baseUrl = new URL("http://localhost");
     const redirectUrl = new URL(value, baseUrl);
+    const pathname = redirectUrl.pathname;
+
     const isAppPath =
-      redirectUrl.pathname === "/app" ||
-      redirectUrl.pathname.startsWith("/app/");
+      pathname === "/app" ||
+      pathname.startsWith("/app/");
+
+    const isCashbackTrackingPath =
+      /^\/go\/[A-Za-z0-9_-]{10,32}$/.test(
+        pathname,
+      );
 
     if (
       redirectUrl.origin !== baseUrl.origin ||
-      !isAppPath
+      (!isAppPath &&
+        !isCashbackTrackingPath)
     ) {
       return fallbackPath;
     }
 
     return (
-      redirectUrl.pathname +
+      pathname +
       redirectUrl.search +
       redirectUrl.hash
     );
@@ -98,7 +108,7 @@ export async function login(formData: FormData) {
     formData,
     "password",
   );
-  const next = getSafeAppRedirect(
+  const next = getSafePostLoginRedirect(
     readRequiredString(formData, "next"),
   );
 

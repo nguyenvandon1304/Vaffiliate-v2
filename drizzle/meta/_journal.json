@@ -57,6 +57,48 @@
       "when": 1782578138455,
       "tag": "0007_secure_conversions",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1782645664149,
+      "tag": "0008_create_cashback_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1782646002343,
+      "tag": "0009_secure_cashback_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782646219708,
+      "tag": "0010_create_cashback_tracking_rpcs",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1782647302233,
+      "tag": "0011_allow_unclassified_cashback_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1782647725381,
+      "tag": "0012_enforce_cashback_link_classification_pair",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1782648050828,
+      "tag": "0013_allow_unclassified_tracking_rpc",
+      "breakpoints": true
     }
   ]
 }

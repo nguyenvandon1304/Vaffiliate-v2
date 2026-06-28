@@ -1,0 +1,796 @@
+{
+  "id": "052d5f05-68f3-4ccc-9c69-6eb850d9b488",
+  "prevId": "dcf4a3e7-ac5a-4bb5-a205-1e7f9208ed0a",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.clicks": {
+      "name": "clicks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tracking_link_id": {
+          "name": "tracking_link_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "publisher_id": {
+          "name": "publisher_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "network_sub_id": {
+          "name": "network_sub_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "referrer": {
+          "name": "referrer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_agent_hash": {
+          "name": "user_agent_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ip_hash": {
+          "name": "ip_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fingerprint_hash": {
+          "name": "fingerprint_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_unique": {
+          "name": "is_unique",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "clicked_at": {
+          "name": "clicked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "clicks_publisher_clicked_at_idx": {
+          "name": "clicks_publisher_clicked_at_idx",
+          "columns": [
+            {
+              "expression": "publisher_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "clicks_tracking_link_clicked_at_idx": {
+          "name": "clicks_tracking_link_clicked_at_idx",
+          "columns": [
+            {
+              "expression": "tracking_link_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "clicks_fingerprint_clicked_at_idx": {
+          "name": "clicks_fingerprint_clicked_at_idx",
+          "columns": [
+            {
+              "expression": "fingerprint_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "clicked_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "clicks_publisher_id_profiles_user_id_fk": {
+          "name": "clicks_publisher_id_profiles_user_id_fk",
+          "tableFrom": "clicks",
+          "columnsFrom": [
+            "publisher_id"
+          ],
+          "tableTo": "profiles",
+          "columnsTo": [
+            "user_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        },
+        "clicks_tracking_link_publisher_fk": {
+          "name": "clicks_tracking_link_publisher_fk",
+          "tableFrom": "clicks",
+          "columnsFrom": [
+            "tracking_link_id",
+            "publisher_id"
+          ],
+          "tableTo": "tracking_links",
+          "columnsTo": [
+            "id",
+            "publisher_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "clicks_network_sub_id_unique": {
+          "name": "clicks_network_sub_id_unique",
+          "columns": [
+            "network_sub_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "clicks_network_sub_id_not_blank_check": {
+          "name": "clicks_network_sub_id_not_blank_check",
+          "value": "char_length(trim(\"clicks\".\"network_sub_id\")) > 0"
+        },
+        "clicks_user_agent_hash_check": {
+          "name": "clicks_user_agent_hash_check",
+          "value": "\"clicks\".\"user_agent_hash\" is null or \"clicks\".\"user_agent_hash\" ~ '^[a-f0-9]{64}$'"
+        },
+        "clicks_ip_hash_check": {
+          "name": "clicks_ip_hash_check",
+          "value": "\"clicks\".\"ip_hash\" is null or \"clicks\".\"ip_hash\" ~ '^[a-f0-9]{64}$'"
+        },
+        "clicks_fingerprint_hash_check": {
+          "name": "clicks_fingerprint_hash_check",
+          "value": "\"clicks\".\"fingerprint_hash\" is null or \"clicks\".\"fingerprint_hash\" ~ '^[a-f0-9]{64}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.conversions": {
+      "name": "conversions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "network": {
+          "name": "network",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "external_order_id": {
+          "name": "external_order_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "publisher_id": {
+          "name": "publisher_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advertiser_id": {
+          "name": "advertiser_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "campaign_id": {
+          "name": "campaign_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "offer_id": {
+          "name": "offer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tracking_link_id": {
+          "name": "tracking_link_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "order_amount": {
+          "name": "order_amount",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "network_commission": {
+          "name": "network_commission",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_cashback": {
+          "name": "user_cashback",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "platform_profit": {
+          "name": "platform_profit",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "occurred_at": {
+          "name": "occurred_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "approved_at": {
+          "name": "approved_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "payable_at": {
+          "name": "payable_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paid_at": {
+          "name": "paid_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejected_at": {
+          "name": "rejected_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "rejected_reason": {
+          "name": "rejected_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "conversions_publisher_occurred_at_idx": {
+          "name": "conversions_publisher_occurred_at_idx",
+          "columns": [
+            {
+              "expression": "publisher_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "occurred_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "conversions_publisher_id_profiles_user_id_fk": {
+          "name": "conversions_publisher_id_profiles_user_id_fk",
+          "tableFrom": "conversions",
+          "columnsFrom": [
+            "publisher_id"
+          ],
+          "tableTo": "profiles",
+          "columnsTo": [
+            "user_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "conversions_network_external_order_unique": {
+          "name": "conversions_network_external_order_unique",
+          "columns": [
+            "network",
+            "external_order_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "conversions_network_not_blank_check": {
+          "name": "conversions_network_not_blank_check",
+          "value": "char_length(trim(\"conversions\".\"network\")) > 0"
+        },
+        "conversions_external_order_id_not_blank_check": {
+          "name": "conversions_external_order_id_not_blank_check",
+          "value": "char_length(trim(\"conversions\".\"external_order_id\")) > 0"
+        },
+        "conversions_advertiser_id_not_blank_check": {
+          "name": "conversions_advertiser_id_not_blank_check",
+          "value": "char_length(trim(\"conversions\".\"advertiser_id\")) > 0"
+        },
+        "conversions_campaign_id_not_blank_check": {
+          "name": "conversions_campaign_id_not_blank_check",
+          "value": "char_length(trim(\"conversions\".\"campaign_id\")) > 0"
+        },
+        "conversions_offer_id_not_blank_check": {
+          "name": "conversions_offer_id_not_blank_check",
+          "value": "char_length(trim(\"conversions\".\"offer_id\")) > 0"
+        },
+        "conversions_tracking_link_id_not_blank_check": {
+          "name": "conversions_tracking_link_id_not_blank_check",
+          "value": "char_length(trim(\"conversions\".\"tracking_link_id\")) > 0"
+        },
+        "conversions_status_check": {
+          "name": "conversions_status_check",
+          "value": "\"conversions\".\"status\" in (\n        'pending',\n        'approved',\n        'rejected',\n        'payable',\n        'paid'\n      )"
+        },
+        "conversions_order_amount_non_negative_check": {
+          "name": "conversions_order_amount_non_negative_check",
+          "value": "\"conversions\".\"order_amount\" >= 0"
+        },
+        "conversions_network_commission_non_negative_check": {
+          "name": "conversions_network_commission_non_negative_check",
+          "value": "\"conversions\".\"network_commission\" >= 0"
+        },
+        "conversions_user_cashback_non_negative_check": {
+          "name": "conversions_user_cashback_non_negative_check",
+          "value": "\"conversions\".\"user_cashback\" >= 0"
+        },
+        "conversions_platform_profit_non_negative_check": {
+          "name": "conversions_platform_profit_non_negative_check",
+          "value": "\"conversions\".\"platform_profit\" >= 0"
+        },
+        "conversions_commission_allocation_check": {
+          "name": "conversions_commission_allocation_check",
+          "value": "\"conversions\".\"network_commission\" = \"conversions\".\"user_cashback\" + \"conversions\".\"platform_profit\""
+        },
+        "conversions_rejection_metadata_check": {
+          "name": "conversions_rejection_metadata_check",
+          "value": "\n        (\n          \"conversions\".\"status\" = 'rejected'\n          and \"conversions\".\"rejected_at\" is not null\n          and nullif(trim(\"conversions\".\"rejected_reason\"), '') is not null\n        )\n        or\n        (\n          \"conversions\".\"status\" <> 'rejected'\n          and \"conversions\".\"rejected_at\" is null\n          and \"conversions\".\"rejected_reason\" is null\n        )\n      "
+        },
+        "conversions_approved_at_check": {
+          "name": "conversions_approved_at_check",
+          "value": "\n        (\n          \"conversions\".\"status\" in ('approved', 'payable', 'paid')\n          and \"conversions\".\"approved_at\" is not null\n        )\n        or\n        (\n          \"conversions\".\"status\" in ('pending', 'rejected')\n          and \"conversions\".\"approved_at\" is null\n        )\n      "
+        },
+        "conversions_payable_at_check": {
+          "name": "conversions_payable_at_check",
+          "value": "\n        (\n          \"conversions\".\"status\" in ('payable', 'paid')\n          and \"conversions\".\"payable_at\" is not null\n        )\n        or\n        (\n          \"conversions\".\"status\" in ('pending', 'approved', 'rejected')\n          and \"conversions\".\"payable_at\" is null\n        )\n      "
+        },
+        "conversions_paid_at_check": {
+          "name": "conversions_paid_at_check",
+          "value": "\n        (\n          \"conversions\".\"status\" = 'paid'\n          and \"conversions\".\"paid_at\" is not null\n        )\n        or\n        (\n          \"conversions\".\"status\" <> 'paid'\n          and \"conversions\".\"paid_at\" is null\n        )\n      "
+        },
+        "conversions_lifecycle_timestamp_order_check": {
+          "name": "conversions_lifecycle_timestamp_order_check",
+          "value": "\n        (\"conversions\".\"approved_at\" is null or \"conversions\".\"approved_at\" >= \"conversions\".\"occurred_at\")\n        and\n        (\n          \"conversions\".\"payable_at\" is null\n          or (\n            \"conversions\".\"approved_at\" is not null\n            and \"conversions\".\"payable_at\" >= \"conversions\".\"approved_at\"\n          )\n        )\n        and\n        (\n          \"conversions\".\"paid_at\" is null\n          or (\n            \"conversions\".\"payable_at\" is not null\n            and \"conversions\".\"paid_at\" >= \"conversions\".\"payable_at\"\n          )\n        )\n        and\n        (\n          \"conversions\".\"rejected_at\" is null\n          or \"conversions\".\"rejected_at\" >= \"conversions\".\"occurred_at\"\n        )\n      "
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.payout_accounts": {
+      "name": "payout_accounts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "method": {
+          "name": "method",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'bank'"
+        },
+        "provider": {
+          "name": "provider",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_name": {
+          "name": "account_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "account_number": {
+          "name": "account_number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'unverified'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "payout_accounts_user_id_profiles_user_id_fk": {
+          "name": "payout_accounts_user_id_profiles_user_id_fk",
+          "tableFrom": "payout_accounts",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "tableTo": "profiles",
+          "columnsTo": [
+            "user_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "payout_accounts_user_id_unique": {
+          "name": "payout_accounts_user_id_unique",
+          "columns": [
+            "user_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "payout_accounts_method_check": {
+          "name": "payout_accounts_method_check",
+          "value": "\"payout_accounts\".\"method\" = 'bank'"
+        },
+        "payout_accounts_status_check": {
+          "name": "payout_accounts_status_check",
+          "value": "\"payout_accounts\".\"status\" in ('unverified', 'verified', 'rejected', 'disabled')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.profiles": {
+      "name": "profiles",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "full_name": {
+          "name": "full_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_url": {
+          "name": "avatar_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "member_tier": {
+          "name": "member_tier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'standard'"
+        },
+        "preferred_platforms": {
+          "name": "preferred_platforms",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::text[]"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.tracking_links": {
+      "name": "tracking_links",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "publisher_id": {
+          "name": "publisher_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "platform": {
+          "name": "platform",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "destination_url": {
+          "name": "destination_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "campaign_id": {
+          "name": "campaign_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "offer_id": {
+          "name": "offer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "short_code": {
+          "name": "short_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "tracking_links_publisher_created_at_idx": {
+          "name": "tracking_links_publisher_created_at_idx",
+          "columns": [
+            {
+              "expression": "publisher_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "tracking_links_publisher_id_profiles_user_id_fk": {
+          "name": "tracking_links_publisher_id_profiles_user_id_fk",
+          "tableFrom": "tracking_links",
+          "columnsFrom": [
+            "publisher_id"
+          ],
+          "tableTo": "profiles",
+          "columnsTo": [
+            "user_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "cascade"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "tracking_links_short_code_unique": {
+          "name": "tracking_links_short_code_unique",
+          "columns": [
+            "short_code"
+          ],
+          "nullsNotDistinct": false
+        },
+        "tracking_links_id_publisher_unique": {
+          "name": "tracking_links_id_publisher_unique",
+          "columns": [
+            "id",
+            "publisher_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "tracking_links_platform_check": {
+          "name": "tracking_links_platform_check",
+          "value": "\"tracking_links\".\"platform\" in ('shopee', 'tiktok')"
+        },
+        "tracking_links_destination_url_https_check": {
+          "name": "tracking_links_destination_url_https_check",
+          "value": "\"tracking_links\".\"destination_url\" ~ '^https://'"
+        },
+        "tracking_links_campaign_id_not_blank_check": {
+          "name": "tracking_links_campaign_id_not_blank_check",
+          "value": "char_length(trim(\"tracking_links\".\"campaign_id\")) > 0"
+        },
+        "tracking_links_offer_id_not_blank_check": {
+          "name": "tracking_links_offer_id_not_blank_check",
+          "value": "char_length(trim(\"tracking_links\".\"offer_id\")) > 0"
+        },
+        "tracking_links_classification_pair_check": {
+          "name": "tracking_links_classification_pair_check",
+          "value": "\n        (\n          \"tracking_links\".\"campaign_id\" is null\n          and \"tracking_links\".\"offer_id\" is null\n        )\n        or\n        (\n          \"tracking_links\".\"campaign_id\" is not null\n          and \"tracking_links\".\"offer_id\" is not null\n        )\n      "
+        },
+        "tracking_links_short_code_check": {
+          "name": "tracking_links_short_code_check",
+          "value": "\"tracking_links\".\"short_code\" ~ '^[A-Za-z0-9_-]{10,32}$'"
+        },
+        "tracking_links_status_check": {
+          "name": "tracking_links_status_check",
+          "value": "\"tracking_links\".\"status\" in ('active', 'paused', 'disabled')"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
