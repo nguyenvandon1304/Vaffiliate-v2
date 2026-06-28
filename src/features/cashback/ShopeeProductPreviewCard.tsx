@@ -90,17 +90,6 @@ export default function ShopeeProductPreviewCard({
           </div>
 
           <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2">
-            <div className="flex justify-between gap-3">
-              <dt className="text-[color:var(--text-muted)]">
-                Hoa hồng dự kiến
-              </dt>
-
-              <dd className="font-semibold text-[color:var(--text)]">
-                {formatVnd(
-                  preview.estimatedCommissionVnd,
-                )}
-              </dd>
-            </div>
 
             <div className="flex justify-between gap-3">
               <dt className="text-[color:var(--text-muted)]">
