@@ -2,646 +2,328 @@
 
 ## Current Status
 
-Project:
-Vaffiliate
+Project: Vaffiliate
 
-Architecture Version:
-V2 Async Architecture
+Current phase: Phase 20G.0 - Architecture and Data Contract Documentation
 
-Current Phase:
-Phase 19.5 Complete
+Phase status: In progress
 
-Latest Remediation:
-Consumer Responsive UX Remediation Complete
+Current branch:
 
-Last Stable Tag:
-`phase-19.5-complete`
+`docs/phase-20g0-architecture-data-contract`
 
-Stable Tag Commit:
-`0afeb8b` — `phase19.5: tracking link generator cleanup and metrics foundation`
+Current baseline commit:
 
-Last Verified Implementation Commit:
-`94cd971` — `fix: remediate consumer responsive UX`
+`2baa327` - merge of Pull Request #13, pre-Phase 20G delivery baseline
 
-Integration Branch:
+Latest implementation merge:
+
+`389ef9c` - merge of Pull Request #12, Phase 20F consumer cashback flow
+
+Integration branch:
+
 `main`
 
-Post-Merge Baseline Commit:
-`16cdc9e`
+Latest reachable stable tag:
 
-Merge State:
-Consumer Responsive UX Remediation merged into `main` through Pull Request #3.
-
-Next Planned Phase:
-Phase 20 — TBD, not started. Do not begin without approval.
-
-Quality Gates:
-
-- TypeScript: PASS — `npx tsc --noEmit` — exit 0
-- ESLint: PASS — `npm run lint` — 0 errors, 0 warnings
-- Diff check: PASS — `git diff --check` — exit 0
-- Production build: PASS — `npm run build` — Next.js 16.2.9, Turbopack
-- Generated pages: PASS — 30/30 page instances
-- Route patterns: PASS — 21 patterns (15 static, 4 parameterized SSG, 2 dynamic)
-- Manual responsive verification: PASS — `/app` and `/app/orders` at 390 × 844; desktop-shell breakpoint at 768 × 844; wide desktop at 1280 × 844
-
-Route Summary:
-
-- 21 route patterns total
-- 15 static route patterns (`○`)
-- 4 parameterized SSG route patterns (`●`)
-- 2 dynamic route patterns (`ƒ`)
-
-Important:
-`30/30` is the number of generated page instances in the production build. It
-is not the number of route patterns.
-
----
-
-## Current Architecture
-
-Mandatory data flow:
-
-```text
-Page
-→ Async Loader
-→ Service
-→ Repository
-→ apiClient
-→ mock-backend
-→ mock domain slice
-```
-
-The legacy synchronous architecture has been removed. All future work must
-preserve the async path above.
-
----
-
-## Global Rules
-
-- Async-first architecture
-- Server Component first
-- No client-side data fetching
-- No React Query
-- No SWR
-- No Redux
-- No Zustand
-- No Context-based data loading
-- No direct repository access from pages
-- No direct mock imports in pages or presentational components
-- Presentational components receive data via props
-- Joins and aggregations remain in the page layer
-- Shopee and TikTok Shop only
-- No generic affiliate-network abstraction layer
-- Do not introduce duplicate data paths for read-only compositions
-
----
-
-## Analytics Architecture Rules
-
-### Click
-
-Click is a standalone domain.
-
-```text
-Page
-→ loadClickAsync
-→ clickService
-→ clickRepository
-→ apiClient
-→ mock-backend
-```
-
-### Conversion Analytics
-
-Uses `loadAffiliateAsync()`.
-
-Do not create:
-
-- `loadConversionAsync`
-- a Conversion repository
-- a Conversion service
-
-Aggregations stay in the page layer.
-
-### Revenue Analytics
-
-Uses `loadAffiliateAsync()`.
-
-Do not create:
-
-- `loadRevenueAsync`
-- a Revenue repository
-- a Revenue service
-
-Aggregations stay in the page layer.
-
-### Commission Analytics
-
-Uses `loadAffiliateAsync()`.
-
-Do not create:
-
-- `loadCommissionAsync`
-- a Commission repository
-- a Commission service
-
-Aggregations stay in the page layer.
-
-### Approved-Bucket Rule
-
-`paid` is treated as approved through the shared predicate
-`isApprovedStatus(status)` in `src/lib/analytics/format.ts`.
-
-Commission reconciliation must satisfy:
-
-```text
-approved + pending + rejected = total
-```
-
----
-
-## Completed Phases
-
-### Core Migration
-
-- Phase 10A Complete
-- Phase 10B Complete
-- Phase 11A Complete
-- Phase 11B Complete
-
-### Affiliate Foundation and Core
-
-- Phase 12B Affiliate Foundation Complete
-- Phase 13A Offer Center Complete
-- Phase 13B Tracking Links Complete
-- Phase 13C Conversions Complete
-- Phase 13D Commission Dashboard Complete
-- Phase 13E Revenue Analytics Complete
-
-### Cashback
-
-- Phase 14A Cashback Center Complete
-
-### Notification
-
-- Phase 14B-A Notification Foundation Complete
-- Phase 14B-B Notification Center UI Complete
-
-### Analytics Center
-
-- Phase 15A Click Analytics Center Complete
-- Phase 15B Conversion Analytics Center Complete
-- Phase 15C Revenue Analytics Center Complete
-- Phase 15D Commission Analytics Center Complete
-
-### Phase 15E — Architecture Stabilization
-
-Complete.
-
-Delivered:
-
-- Landing route `/` migrated to `loadDashboardAsync`
-- No route uses the legacy synchronous hook path
-- `paid` normalized into the approved analytics bucket
-- Shared analytics helpers extracted to `src/lib/analytics/format.ts`
-- Async loaders renamed from `useXAsync` to `loadXAsync`
-- Legacy sync hooks, service objects, sync wrappers, sync repository methods,
-  sync helper getters, and orphaned direct mock imports removed
-
-### Profile
-
-- Phase 16A Profile Foundation Complete
-- Phase 16B Profile UI Complete
-- Phase 16C Profile Management and Navigation Complete
-
-Profile is a standalone domain and is not part of User.
-
-### Phase 17 — Campaign Detail
-
-Complete.
-
-Campaign Detail belongs to Affiliate and is not a separate domain.
-
-Delivered:
-
-- `/app/campaigns/[campaignId]`
-- `generateStaticParams` for `cmp-shopee-q2` and `cmp-tiktok-launch`
-- Read-only campaign detail composition
-- Campaign drill-down links from Offers and Tracking Links
-- Parameterized mock-backend routing
-- Orphaned `src/lib/mock/campaign-detail.ts` removed
-
-### Phase 18 — Offer Detail Delivery
-
-Complete.
-
-Stable tag:
-`phase-18-complete`
-
-Delivered:
-
-- `/app/offers/[offerId]`
-- Offer detail composition
-- Use-case-specific affiliate data loading
-- Tracking requirements and commission presentation
-
-### Phase 18 — Consumer UX Remediation
-
-Complete.
-
-Delivered:
-
-- Consumer-focused dashboard and shared primary navigation
-- Orders filter state driven by `?status=`
-- Invalid order filters fall back to `all`
-- Canonical order statuses:
-  - `recorded`
-  - `reconciling`
-  - `approved`
-  - `rejected`
-  - `payable`
-  - `paid`
-- Orders loading and error route boundaries
-- Filtered and global empty states
-- Active order filter chip automatically scrolls into view
-- Responsive verification at 360, 390, 430, 768, and desktop widths
-- Affiliate use-case DTO ownership corrected
-- Unsafe result casts removed
-- No direct mock imports in `src/app` or `src/features`
-
-### Phase 19 and 19.5 — Tracking Links Generator
-
-Complete.
-
-Stable tag:
 `phase-19.5-complete`
 
-Delivered:
+The stable tag is historical. No Phase 20 completion tag has been created.
 
-- Workflow rename from `/create` to `/generator`
-- `/app/tracking-links/generator/[offerId]`
-- `TrackingLinkGeneratorNotFound`
-- AOV fixture values reset to `0`
-- AOV removed from `TrackingLinkAttributionCard` UI
-- Existing Affiliate data path reused; no new domain or duplicate chain
-
-### Post-Phase 19.5 — Consumer Responsive UX Remediation
-
-Complete.
-
-Implementation Branch (historical): `fix/consumer-responsive-ux-remediation`
-
-Implementation Commit: `94cd971` — `fix: remediate consumer responsive UX`
-
-Merge Result: Merged into `main` through Pull Request #3 at `16cdc9e`.
-
-No separate stable tag was created for this remediation.
-
-Delivered:
-
-- Shared navigation identities and inline SVG icons
-- Canonical navigation active-state handling
-- Sticky mobile header
-- Removal of horizontal-overflow-causing negative margin
-- Fixed bottom-navigation safe clearance
-- Responsive `SectionHeader`
-- Centralized canonical order-status presentation
-- Rejected-order amount presentation (muted, no `+` prefix)
-- Runtime responsive verification at 390 × 844, 768 × 844, and 1280 × 844
-
-No changes to:
-
-- Repository, service, or loader files
-- API routes or mock backend
-- Business-rule or domain-layer logic
-- Phase 20 or AOV implementation
+Phase 20G.0 is documentation-only. It must not introduce production schema,
+migration, repository, service, route, authentication, or financial behavior
+changes.
 
 ---
 
-## Current Domains
+## Current Platform Architecture
 
-### Dashboard
+Vaffiliate is a full-stack Next.js application deployed as one application
+boundary.
 
-Status: Complete
+Current platform decisions:
 
-```text
-Page
-→ loadDashboardAsync
-→ dashboardService
-→ dashboardRepository
-→ apiClient
-→ mock-backend
-```
+- Next.js App Router for UI and server execution;
+- Vercel for application deployment;
+- Supabase Auth for authentication;
+- Supabase PostgreSQL for persisted application data;
+- Drizzle ORM and Drizzle Kit for schema definitions and migrations;
+- no separate Render backend in the current phase;
+- Render may be introduced later only for long-running workers or heavy
+  scheduled synchronization jobs.
 
-### Orders
+The current architecture is documented in:
 
-Status: Complete
+- `docs/ARCHITECTURE.md`
+- `docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md`
 
-```text
-Page
-→ loadOrdersAsync
-→ ordersService
-→ ordersRepository
-→ apiClient
-→ mock-backend
-```
-
-### Finance
-
-Status: Complete
-
-```text
-Page
-→ loadFinanceAsync
-→ financeService
-→ financeRepository
-→ apiClient
-→ mock-backend
-```
-
-### User
-
-Status: Complete
-
-Purpose:
-More-menu navigation data only.
-
-User is not the identity/profile domain.
-
-```text
-Page
-→ loadUserAsync
-→ userService
-→ userRepository
-→ apiClient
-→ mock-backend
-```
-
-### Affiliate
-
-Status: Complete
-
-```text
-Page
-→ loadAffiliateAsync
-→ affiliateService
-→ affiliateRepository
-→ apiClient
-→ mock-backend
-```
-
-Affiliate remains the source of truth for:
-
-- Offers
-- Tracking Links
-- Conversions
-- Revenue
-- Commission
-- Read-only Campaign Detail compositions
-
-Current use-case DTOs include:
-
-- `AffiliateData`
-- `TrackingLinkGeneratorData`
-- `OfferDetailData`
-
-### Cashback
-
-Status: Complete
-
-```text
-Page
-→ loadCashbackAsync
-→ cashbackService
-→ cashbackRepository
-→ apiClient
-→ mock-backend
-```
-
-### Notification
-
-Status: Complete
-
-```text
-Page
-→ loadNotificationAsync
-→ notificationService
-→ notificationRepository
-→ apiClient
-→ mock-backend
-```
-
-### Click
-
-Status: Complete
-
-Standalone domain.
-
-```text
-Page
-→ loadClickAsync
-→ clickService
-→ clickRepository
-→ apiClient
-→ mock-backend
-```
-
-### Profile
-
-Status: Complete — foundation, UI, management, and navigation
-
-Standalone domain. Not part of User.
-
-```text
-Page
-→ loadProfileAsync
-→ getProfileDataServiceAsync
-→ profileRepository
-→ apiClient
-→ mock-backend
-```
-
-Current capabilities:
-
-- Identity and contact information
-- Initials or `avatarUrl` rendering
-- Preferred platforms
-- Membership tier
-- Payout account
-- Mock-only profile and payout editing
-- Navigation entry from `/app/more`
-
-Deferred:
-
-- Avatar upload
-- Real backend persistence
-- Withdrawal
-- Membership workflows
-- Referral
-- Settings
-
-### Campaign Detail
-
-Status: Complete
-
-Part of Affiliate. Not a separate domain.
-
-```text
-Page
-→ loadCampaignDetailAsync
-→ campaignDetailService
-→ campaignDetailRepository
-→ apiClient
-→ mock-backend
-→ campaignDetails[campaignId]
-```
+The Phase 20G.0 contract is authoritative for conversion granularity,
+attribution, ingestion, reconciliation, identifiers, status transitions,
+money invariants, security boundaries, and migration safety.
 
 ---
 
-## Current Route Inventory
+## Current Data Boundaries
 
-### Static Routes (`○`) — 15
+### Persisted in Supabase PostgreSQL
 
-- `/`
-- `/_not-found`
-- `/app`
-- `/app/cashback`
-- `/app/clicks`
-- `/app/commission`
-- `/app/conversions`
-- `/app/finance`
-- `/app/more`
-- `/app/notifications`
-- `/app/offers`
-- `/app/profile`
-- `/app/revenue`
-- `/login`
-- `/register`
+The current persisted foundation includes:
 
-### Parameterized SSG Routes (`●`) — 4
+- Supabase authentication users;
+- publisher profiles;
+- payout accounts;
+- tracking-link creation;
+- cashback click recording;
+- conversion reads associated with the authenticated publisher.
 
-- `/app/campaigns/[campaignId]`
-  - `cmp-shopee-q2`
-  - `cmp-tiktok-launch`
-- `/app/offers/[offerId]`
-  - `off-shopee-fashion`
-  - `off-shopee-beauty`
-  - `off-tiktok-home`
-- `/app/tracking-links/[trackingLinkId]`
-  - `trk-001`
-  - `trk-002`
-  - `trk-003`
-- `/app/tracking-links/generator/[offerId]`
-  - `off-shopee-fashion`
-  - `off-shopee-beauty`
-  - `off-tiktok-home`
+These persisted flows must not silently fall back to mock records.
 
-### Dynamic Routes (`ƒ`) — 2
+### Mock or Partial
 
-- `/app/orders`
-- `/app/tracking-links`
+The following domains remain mock-backed or only partially persisted:
 
-Total:
-21 route patterns.
+- dashboard summaries;
+- consumer Orders;
+- Finance and wallet balances;
+- withdrawal history;
+- cashback history views;
+- advertiser, campaign, and offer catalog data;
+- tracking-link list and analytics data;
+- notifications.
 
-Latest production build:
-30/30 generated page instances.
+Pages that combine multiple data sources must keep the source boundaries
+explicit.
+
+Persisted UUID identifiers and legacy mock identifiers such as `trk-001` must
+not be treated as interchangeable.
 
 ---
 
-## Current Stable Tags
+## Conversion and Attribution Contract
 
-- `architecture-v2-stable`
-- `phase-11-stable`
-- `phase-14A-stable`
-- `phase-14B-foundation-stable`
-- `phase-14B-ui-stable`
-- `phase-14B-complete`
-- `phase-15D-complete`
-- `phase-15E-complete`
-- `phase-16A-complete`
-- `phase-16B-complete`
-- `phase-16C-complete`
-- `phase-17-complete`
-- `phase-18-complete`
-- `phase-19.5-complete`
+A conversion is the canonical commission-bearing record.
 
-Latest stable tag:
-`phase-19.5-complete`
+A consumer Order is a read projection derived by grouping conversions using:
 
----
+```text
+network + external_order_id + publisher_id
+```
 
-## Current Repository State
+Orders must not become a second financial source of truth.
 
-Baseline commit: `16cdc9e`
+The current conversion uniqueness boundary based on:
 
-Architecture:
-PASS — one async data path only.
+```text
+network + external_order_id
+```
 
-Build:
-PASS — `npm run build` — Next.js 16.2.9, Turbopack.
+is temporary architecture debt.
 
-TypeScript:
-PASS — `npx tsc --noEmit` — 0 errors.
+The future conversion identity boundary will use:
 
-ESLint:
-PASS — `npm run lint` — 0 errors, 0 warnings.
+```text
+network + source_conversion_key
+```
 
-Diff check:
-PASS — `git diff --check` — exit 0.
+where the source conversion key is supplied by the partner or deterministically
+derived from immutable source fields.
 
-Generated pages:
-PASS — 30/30 page instances.
+Validation and settlement are separate dimensions.
 
-Routes:
-PASS — 15 static, 4 parameterized SSG, 2 dynamic.
+Validation lifecycle:
 
-Manual responsive verification (consumer responsive UX remediation at `16cdc9e`):
-PASS — `/app` and `/app/orders` at 390 × 844; desktop-shell breakpoint at 768 × 844; wide desktop at 1280 × 844; no document-level horizontal overflow at 390px; mobile header sticky; bottom-navigation touch targets minimum 44 × 44px; last content not obscured by fixed bottom navigation; Orders filter chips scroll horizontally with intent; canonical order-status badge presentation correct; rejected-order amount muted without `+` prefix.
+```text
+recorded
+reconciling
+approved
+rejected
+reversed
+```
 
-Known remaining architecture debt from the synchronous path:
-None. The legacy sync architecture was removed in Phase 15E.
+Settlement lifecycle:
 
----
+```text
+not_payable
+payable
+paid
+```
 
-## Next Planned Phase
+Persisted financial values use integer VND amounts and must satisfy:
 
-Phase 20 — TBD, not started.
+```text
+network_commission =
+user_cashback + platform_profit
+```
 
-Do not begin Phase 20 without explicit approval.
-
-Potential Phase 20 work already deferred from prior phases includes:
-
-- Real AOV aggregate calculation for tracking-link metrics
-- Other approved roadmap items after architecture review
+Attribution must come from trusted partner evidence. Storing an internal
+`network_sub_id` does not prove that the merchant received it.
 
 ---
 
-## Mandatory Workflow Before Any New Phase
+## Security Boundaries
 
-1. Read `docs/PROJECT_STATE.md`
-2. Read `docs/HANDOFF.md`
-3. Verify the current branch
-4. Verify the latest stable tag
-5. Verify the latest commits
-6. Run the production build
-7. Audit the current architecture
-8. Produce analysis only
-9. Wait for approval before creating or modifying implementation files
+Publisher-facing access must enforce ownership through RLS or a controlled
+server boundary.
 
-Never start coding immediately.
+Publishers may not:
 
-Never skip architecture analysis.
+- directly insert or mutate conversions;
+- assign attribution;
+- change conversion validation state;
+- change conversion settlement state.
 
-Never create files before approval.
+Privileged ingestion and reconciliation writes must:
+
+- execute only on trusted server boundaries;
+- use server-only credentials;
+- never expose credentials through `NEXT_PUBLIC_*`;
+- use controlled database functions where required;
+- use a fixed safe `search_path`;
+- explicitly control function execution privileges.
+
+---
+
+## Phase Boundaries
+
+### Phase 20G.0
+
+Architecture and data-contract documentation only.
+
+No production schema or implementation change belongs in this phase.
+
+### Phase 20G.1
+
+Expected foundation:
+
+- verified partner attribution adapters;
+- ingestion-event persistence;
+- exact sub-ID attribution;
+- idempotent normalized conversion writes;
+- immutable attribution evidence;
+- server-only ingestion security.
+
+### Phase 20G.2
+
+Expected reconciliation and consumer-order scope:
+
+- validation and settlement separation;
+- immutable status history;
+- reversal handling;
+- persisted consumer Orders projection;
+- removal of corresponding Orders mock data after parity verification.
+
+### Phase 20H
+
+Wallet and withdrawal infrastructure.
+
+Wallet implementation must not begin inside Phase 20G.
+
+---
+
+## Recent Delivered Milestones
+
+- Phase 20C: persisted publisher profile editing;
+- Phase 20D: persisted payout-account settings;
+- Phase 20E: persisted publisher conversions and reporting;
+- Phase 20F: consumer cashback tracking-link creation and click redirect flow;
+- pre-Phase 20G baseline: CI and delivery checks established in Pull Request #13.
+
+Relevant merge commits:
+
+- `cdf213e` - Pull Request #9, Phase 20C;
+- `04e8aa8` - Pull Request #10, Phase 20D;
+- `39bba45` - Pull Request #11, Phase 20E;
+- `389ef9c` - Pull Request #12, Phase 20F;
+- `2baa327` - Pull Request #13, pre-Phase 20G baseline.
+
+---
+
+## Delivery Baseline
+
+The baseline CI workflow uses:
+
+```text
+npm ci
+npm run lint
+npm run typecheck
+npm run db:check
+npm run build
+```
+
+The project baseline requires Node.js 24 and npm 11.
+
+Route and generated-page counts must be taken from current verified Next.js
+build output. They must not be copied from the historical Phase 19.5
+documentation.
+
+Final quality gates for the Phase 20G.0 branch remain pending until all four
+documentation files are complete.
+
+---
+
+## Current Documentation Scope
+
+Phase 20G.0 updates only:
+
+- `docs/ARCHITECTURE.md`
+- `docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md`
+- `docs/PROJECT_STATE.md`
+- `docs/HANDOFF.md`
+
+No implementation file should be modified during this phase.
+
+---
+
+## Next Required Work
+
+1. Complete `docs/PROJECT_STATE.md`.
+2. Replace stale operational content in `docs/HANDOFF.md`.
+3. Verify documentation structure and cross-document consistency.
+4. Run `git diff --check`.
+5. Run the delivery quality gates.
+6. Review the complete branch diff against `origin/main`.
+7. Commit and push only after review and explicit approval.
+
+Do not begin Phase 20G.1 implementation from this branch.
 
 ---
 
 ## Source of Truth
 
-This document is authoritative for roadmap, phase status, route counts, and the
-current stable tag.
+`docs/PROJECT_STATE.md` is authoritative for:
 
-`docs/HANDOFF.md` is authoritative for operational context, implementation
-notes, verification history, and detailed architecture constraints.
+- current roadmap phase;
+- current baseline;
+- completed and planned phase boundaries;
+- delivery status.
+
+`docs/ARCHITECTURE.md` is authoritative for the current application
+architecture and persisted/mock boundaries.
+
+`docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md` is authoritative for the
+Phase 20G conversion, attribution, ingestion, reconciliation, and migration
+contract.
+
+`docs/HANDOFF.md` is authoritative for operational continuation, verification
+steps, and repository handoff instructions.
+
+Git history, source code, migrations, and verified command output take
+precedence when stale documentation conflicts with the repository.
+
+---
+
+## Mandatory Workflow Before Implementation
+
+1. Read all four authoritative documents.
+2. Verify the current branch and baseline commit.
+3. Verify the affected persisted and mock boundaries.
+4. Run lint, typecheck, database checks, and production build.
+5. Audit migration and rollback safety.
+6. Produce an implementation plan.
+7. Wait for explicit approval before changing production implementation files.
+
+Never invent a completion tag.
+
+Never bypass architecture analysis.
+
+Never use destructive Git recovery commands without explicit approval.
