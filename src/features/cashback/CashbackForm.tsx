@@ -103,15 +103,6 @@ function isValidDestinationUrl(
 }
 
 export default function CashbackForm() {
-  const [
-    actionState,
-    createAction,
-    isCreatePending,
-  ] = useActionState(
-    createCashbackTrackingLinkAction,
-    initialActionState,
-  );
-
   const [platform, setPlatform] =
     useState<PlatformName>("Shopee");
 
@@ -133,6 +124,43 @@ export default function CashbackForm() {
     platformCodes[platform]
   }:${inputLink.trim()}`;
 
+  const [
+    actionState,
+    createAction,
+    isCreatePending,
+  ] = useActionState(
+    async (
+      previousState: CreateCashbackTrackingLinkActionState,
+      formData: FormData,
+    ): Promise<CreateCashbackTrackingLinkActionState> => {
+      const nextState =
+        await createCashbackTrackingLinkAction(
+          previousState,
+          formData,
+        );
+
+      const trackingPath =
+        nextState.trackingLink?.trackingPath;
+
+      if (
+        nextState.success &&
+        trackingPath
+      ) {
+        const absoluteTrackingUrl = new URL(
+          trackingPath,
+          window.location.origin,
+        ).toString();
+
+        setTrackingUrl(absoluteTrackingUrl);
+        setStep("modal");
+        setCopyOk(false);
+      }
+
+      return nextState;
+    },
+    initialActionState,
+  );
+
   useEffect(() => {
     if (!copyOk) {
       return;
@@ -146,29 +174,6 @@ export default function CashbackForm() {
     return () => window.clearTimeout(timer);
   }, [copyOk]);
 
-  useEffect(() => {
-    const trackingPath =
-      actionState.trackingLink?.trackingPath;
-
-    if (
-      !actionState.success ||
-      !trackingPath
-    ) {
-      return;
-    }
-
-    const absoluteTrackingUrl = new URL(
-      trackingPath,
-      window.location.origin,
-    ).toString();
-
-    setTrackingUrl(absoluteTrackingUrl);
-    setStep("modal");
-    setCopyOk(false);
-  }, [
-    actionState.success,
-    actionState.trackingLink,
-  ]);
 
   const reset = () => {
     setStep("idle");
