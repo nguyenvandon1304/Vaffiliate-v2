@@ -1,7 +1,7 @@
 import AppShell from "@/components/layout/AppShell";
 import AppSection from "@/components/layout/AppSection";
 import PageHeader from "@/components/layout/PageHeader";
-import CashbackForm from "@/features/cashback/CashbackForm";
+import ShopeeCashbackPreviewForm from "@/features/cashback/ShopeeCashbackPreviewForm";
 import CashbackFilters from "@/features/cashback/CashbackFilters";
 import CashbackHistoryTable from "@/features/cashback/CashbackHistoryTable";
 import CashbackStats from "@/features/cashback/CashbackStats";
@@ -64,7 +64,7 @@ export default async function CashbackPage() {
 
       <CashbackStats stats={stats} />
 
-      <CashbackForm />
+      <ShopeeCashbackPreviewForm />
 
       <CashbackFilters filters={filters} />
       <CashbackHistoryTable history={supportedHistory} />
@@ -113,7 +113,7 @@ export default async function CashbackPage() {
       </AppSection>
 
       <AppSection>
-        <CashbackForm />
+        <ShopeeCashbackPreviewForm />
       </AppSection>
 
       <AppSection>
