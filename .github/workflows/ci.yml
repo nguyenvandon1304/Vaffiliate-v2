@@ -1,0 +1,55 @@
+﻿name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      CASHBACK_CLICK_HASH_SECRET: ci-placeholder-secret-at-least-32-characters
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Use pinned npm version
+        run: npm install --global npm@11.13.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Check database migrations
+        run: npm run db:check
+
+      - name: Build
+        run: npm run build
