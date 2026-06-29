@@ -1,5 +1,7 @@
 import Image from "next/image";
 
+import ShopeeCashbackPurchaseAction from "@/features/cashback/ShopeeCashbackPurchaseAction";
+
 import type {
   ShopeeProductPreview,
 } from "@/types/cashback";
@@ -131,6 +133,10 @@ export default function ShopeeProductPreviewCard({
               </div>
             ) : null}
           </dl>
+
+          <ShopeeCashbackPurchaseAction
+            preview={preview}
+          />
         </div>
       </div>
 
