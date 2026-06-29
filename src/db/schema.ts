@@ -98,12 +98,13 @@ export const payoutAccounts = pgTable(
       sql`${table.method} = 'bank'`,
     ),
 
-check(
-  "payout_accounts_status_check",
-  sql`${table.status} in ('unverified', 'verified', 'rejected', 'disabled')`,
-),
-],
+    check(
+      "payout_accounts_status_check",
+      sql`${table.status} in ('unverified', 'verified', 'rejected', 'disabled')`,
+    ),
+  ],
 );
+
 // ─── Consumer cashback tracking links ───────────────────────────────────────
 
 export const trackingLinks = pgTable(
@@ -122,12 +123,37 @@ export const trackingLinks = pgTable(
     platform: text("platform")
       .notNull(),
 
+    /**
+     * Original product or merchant URL supplied by the customer.
+     *
+     * This URL is used as the source destination when generating an
+     * affiliate URL, but it is not the final attribution redirect target.
+     */
     destinationUrl: text("destination_url")
       .notNull(),
 
-      campaignId: text("campaign_id"),
+    /**
+     * Network-generated affiliate URL for the same destination.
+     *
+     * The URL should contain the stable tracking-link attribution token
+     * in Shopee Sub_id1. It remains nullable until affiliate-link
+     * generation has completed successfully.
+     */
+    affiliateUrl: text("affiliate_url"),
 
-      offerId: text("offer_id"),
+    campaignId: text("campaign_id"),
+
+    offerId: text("offer_id"),
+
+    /**
+     * Stable network attribution token owned by this tracking link.
+     *
+     * Shopee convention:
+     * - Sub_id1 = networkSubId
+     * - Sub_id2 may later contain a click-specific token
+     */
+    networkSubId: text("network_sub_id")
+      .notNull(),
 
     shortCode: text("short_code")
       .notNull(),
@@ -155,6 +181,10 @@ export const trackingLinks = pgTable(
       table.shortCode,
     ),
 
+    unique("tracking_links_network_sub_id_unique").on(
+      table.networkSubId,
+    ),
+
     unique("tracking_links_id_publisher_unique").on(
       table.id,
       table.publisherId,
@@ -173,6 +203,22 @@ export const trackingLinks = pgTable(
     check(
       "tracking_links_destination_url_https_check",
       sql`${table.destinationUrl} ~ '^https://'`,
+    ),
+
+    check(
+      "tracking_links_affiliate_url_https_check",
+      sql`
+        ${table.affiliateUrl} is null
+        or ${table.affiliateUrl} ~ '^https://'
+      `,
+    ),
+
+    check(
+      "tracking_links_network_sub_id_check",
+      sql`
+        ${table.networkSubId}
+        ~ '^vaf_lnk_[a-f0-9]{24}$'
+      `,
     ),
 
     check(
@@ -230,7 +276,13 @@ export const clicks = pgTable(
         onDelete: "cascade",
       }),
 
-    networkSubId: text("network_sub_id")
+    /**
+     * Unique identifier for this individual click.
+     *
+     * This is separate from trackingLinks.networkSubId. It may later be
+     * passed to an affiliate network through Sub_id2 when supported.
+     */
+    clickToken: text("click_token")
       .notNull(),
 
     referrer: text("referrer"),
@@ -262,8 +314,8 @@ export const clicks = pgTable(
       name: "clicks_tracking_link_publisher_fk",
     }).onDelete("cascade"),
 
-    unique("clicks_network_sub_id_unique").on(
-      table.networkSubId,
+    unique("clicks_click_token_unique").on(
+      table.clickToken,
     ),
 
     index("clicks_publisher_clicked_at_idx").on(
@@ -282,8 +334,8 @@ export const clicks = pgTable(
     ),
 
     check(
-      "clicks_network_sub_id_not_blank_check",
-      sql`char_length(trim(${table.networkSubId})) > 0`,
+      "clicks_click_token_not_blank_check",
+      sql`char_length(trim(${table.clickToken})) > 0`,
     ),
 
     check(
@@ -302,6 +354,7 @@ export const clicks = pgTable(
     ),
   ],
 );
+
 // ─── Conversion ledger ──────────────────────────────────────────────────────
 
 export const conversions = pgTable(
@@ -344,7 +397,7 @@ export const conversions = pgTable(
 
     /**
      * Catalog identifiers remain text in Phase 20E because advertisers,
-     * campaigns, offers, and tracking links are not persisted yet.
+     * campaigns, offers, and legacy tracking links may still use text IDs.
      */
     advertiserId: text("advertiser_id")
       .notNull(),
@@ -355,6 +408,10 @@ export const conversions = pgTable(
     offerId: text("offer_id")
       .notNull(),
 
+    /**
+     * Remains text while legacy conversion rows still contain identifiers
+     * such as trk-001, trk-002, and trk-003.
+     */
     trackingLinkId: text("tracking_link_id")
       .notNull(),
 
@@ -432,6 +489,9 @@ export const conversions = pgTable(
   (table) => [
     /**
      * Prevent duplicate ingestion of the same network order.
+     *
+     * This constraint remains unchanged during the attribution migration.
+     * Line-level Shopee idempotency will be introduced in the CSV phase.
      */
     unique("conversions_network_external_order_unique").on(
       table.network,
