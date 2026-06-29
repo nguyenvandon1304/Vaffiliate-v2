@@ -73,7 +73,7 @@ export async function GET(
     const click = await recordCashbackClickAsync(supabase, shortCode, metadata);
 
     return applyPrivateRedirectHeaders(
-      NextResponse.redirect(new URL(click.destinationUrl), 302),
+      NextResponse.redirect(new URL(click.affiliateUrl), 302),
     );
   } catch (error) {
     if (error instanceof CashbackTrackingLinkNotFoundError) {

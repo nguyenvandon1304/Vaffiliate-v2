@@ -113,6 +113,20 @@
       "when": 1782693214392,
       "tag": "0015_phase_20g2_shopee_subid_alphanumeric",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1782695749255,
+      "tag": "0016_phase_20g2_affiliate_redirect_rpc",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1782704598040,
+      "tag": "0017_phase_20g2_tracking_link_creation_contract",
+      "breakpoints": true
     }
   ]
 }

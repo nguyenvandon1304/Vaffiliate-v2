@@ -16,6 +16,8 @@ interface CashbackTrackingLinkDatabaseRow {
   offer_id: string | null;
   status: string;
   created_at: string;
+  network_sub_id: string;
+  affiliate_url: string | null;
 }
 
 const supportedPlatforms =
@@ -75,6 +77,8 @@ function mapTrackingLinkRow(
     offerId: row.offer_id,
     status: parseTrackingLinkStatus(row.status),
     createdAt: row.created_at,
+    networkSubId: row.network_sub_id,
+    affiliateUrl: row.affiliate_url,
     trackingPath: `/go/${encodeURIComponent(
       row.short_code,
     )}`,
