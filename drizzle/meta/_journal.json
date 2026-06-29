@@ -127,6 +127,13 @@
       "when": 1782704598040,
       "tag": "0017_phase_20g2_tracking_link_creation_contract",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1782740442931,
+      "tag": "0018_phase_20g2_shopee_csv_staging",
+      "breakpoints": true
     }
   ]
 }

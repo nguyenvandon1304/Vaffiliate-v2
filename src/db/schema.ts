@@ -5,6 +5,9 @@ import {
   check,
   foreignKey,
   index,
+  integer,
+  jsonb,
+  numeric,
   pgTable,
   text,
   timestamp,
@@ -352,6 +355,499 @@ export const clicks = pgTable(
     check(
       "clicks_fingerprint_hash_check",
       sql`${table.fingerprintHash} is null or ${table.fingerprintHash} ~ '^[a-f0-9]{64}$'`,
+    ),
+  ],
+);
+
+// ─── Shopee CSV import staging ────────────────────────────────────────────────
+
+export const shopeeCsvImportBatches = pgTable(
+  "shopee_csv_import_batches",
+  {
+    id: uuid("id")
+      .defaultRandom()
+      .primaryKey(),
+
+    sourceFileName: text("source_file_name")
+      .notNull(),
+
+    /**
+     * SHA-256 of the original file bytes.
+     *
+     * This is the file-level idempotency boundary. The same official report
+     * cannot be imported twice as a separate batch.
+     */
+    sourceFileSha256: text("source_file_sha256")
+      .notNull(),
+
+    sourceFileSizeBytes: bigint("source_file_size_bytes", {
+      mode: "number",
+    })
+      .notNull(),
+
+    /**
+     * Original Shopee headers in their received order.
+     *
+     * The parser must retain exact official header spellings, including any
+     * spelling inconsistencies present in the exported report.
+     */
+    sourceHeaders: jsonb("source_headers")
+      .$type<string[]>()
+      .notNull(),
+
+    parserVersion: text("parser_version")
+      .notNull(),
+
+    status: text("status")
+      .default("pending")
+      .notNull(),
+
+    totalRows: integer("total_rows")
+      .default(0)
+      .notNull(),
+
+    insertedRows: integer("inserted_rows")
+      .default(0)
+      .notNull(),
+
+    duplicateRows: integer("duplicate_rows")
+      .default(0)
+      .notNull(),
+
+    attributedRows: integer("attributed_rows")
+      .default(0)
+      .notNull(),
+
+    unattributedRows: integer("unattributed_rows")
+      .default(0)
+      .notNull(),
+
+    awaitingClassificationRows: integer(
+      "awaiting_classification_rows",
+    )
+      .default(0)
+      .notNull(),
+
+    rejectedRows: integer("rejected_rows")
+      .default(0)
+      .notNull(),
+
+    errorMessage: text("error_message"),
+
+    startedAt: timestamp("started_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    completedAt: timestamp("completed_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique(
+      "shopee_csv_import_batches_source_file_sha256_unique",
+    ).on(
+      table.sourceFileSha256,
+    ),
+
+    index(
+      "shopee_csv_import_batches_status_created_at_idx",
+    ).on(
+      table.status,
+      table.createdAt,
+    ),
+
+    check(
+      "shopee_csv_import_batches_source_file_name_check",
+      sql`char_length(trim(${table.sourceFileName})) > 0`,
+    ),
+
+    check(
+      "shopee_csv_import_batches_source_file_sha256_check",
+      sql`${table.sourceFileSha256} ~ '^[a-f0-9]{64}$'`,
+    ),
+
+    check(
+      "shopee_csv_import_batches_source_file_size_check",
+      sql`${table.sourceFileSizeBytes} >= 0`,
+    ),
+
+    check(
+      "shopee_csv_import_batches_source_headers_check",
+      sql`jsonb_typeof(${table.sourceHeaders}) = 'array'`,
+    ),
+
+    check(
+      "shopee_csv_import_batches_parser_version_check",
+      sql`char_length(trim(${table.parserVersion})) > 0`,
+    ),
+
+    check(
+      "shopee_csv_import_batches_status_check",
+      sql`${table.status} in (
+        'pending',
+        'processing',
+        'completed',
+        'failed'
+      )`,
+    ),
+
+    check(
+      "shopee_csv_import_batches_row_counts_check",
+      sql`
+        ${table.totalRows} >= 0
+        and ${table.insertedRows} >= 0
+        and ${table.duplicateRows} >= 0
+        and ${table.attributedRows} >= 0
+        and ${table.unattributedRows} >= 0
+        and ${table.awaitingClassificationRows} >= 0
+        and ${table.rejectedRows} >= 0
+      `,
+    ),
+
+    check(
+      "shopee_csv_import_batches_completion_check",
+      sql`
+        (
+          ${table.status} in ('completed', 'failed')
+          and ${table.completedAt} is not null
+        )
+        or
+        (
+          ${table.status} in ('pending', 'processing')
+          and ${table.completedAt} is null
+        )
+      `,
+    ),
+
+    check(
+      "shopee_csv_import_batches_error_check",
+      sql`
+        (
+          ${table.status} = 'failed'
+          and nullif(trim(${table.errorMessage}), '') is not null
+        )
+        or
+        (
+          ${table.status} <> 'failed'
+          and ${table.errorMessage} is null
+        )
+      `,
+    ),
+  ],
+);
+
+export const shopeeCsvRows = pgTable(
+  "shopee_csv_rows",
+  {
+    id: uuid("id")
+      .defaultRandom()
+      .primaryKey(),
+
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(
+        () => shopeeCsvImportBatches.id,
+        {
+          onDelete: "cascade",
+        },
+      ),
+
+    /**
+     * Physical row number in the original CSV file.
+     *
+     * The header is row 1, so imported data starts at row 2.
+     */
+    sourceRowNumber: integer("source_row_number")
+      .notNull(),
+
+    /**
+     * SHA-256 of the canonical complete source row.
+     *
+     * This prevents the same row snapshot from being inserted again,
+     * including when it appears in an overlapping Shopee report.
+     */
+    rowFingerprintSha256: text(
+      "row_fingerprint_sha256",
+    )
+      .notNull(),
+
+    /**
+     * Exact source values keyed by the original official Shopee headers.
+     */
+    rawRow: jsonb("raw_row")
+      .$type<Record<string, string>>()
+      .notNull(),
+
+    externalOrderId: text("external_order_id"),
+
+    checkoutId: text("checkout_id"),
+
+    orderStatus: text("order_status"),
+
+    orderedAt: timestamp("ordered_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+
+    completedAt: timestamp("completed_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+
+    clickedAt: timestamp("clicked_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+
+    shopId: text("shop_id"),
+
+    itemId: text("item_id"),
+
+    modelId: text("model_id"),
+
+    promotionId: text("promotion_id"),
+
+    quantity: integer("quantity"),
+
+    /**
+     * Source money remains exact decimal VND.
+     *
+     * Conversion into the integer-VND ledger must happen only during
+     * promotion into conversions and must never silently round.
+     */
+    orderValue: numeric("order_value", {
+      precision: 20,
+      scale: 5,
+    }),
+
+    refundedAmount: numeric("refunded_amount", {
+      precision: 20,
+      scale: 5,
+    }),
+
+    totalProductCommission: numeric(
+      "total_product_commission",
+      {
+        precision: 20,
+        scale: 5,
+      },
+    ),
+
+    totalOrderCommission: numeric(
+      "total_order_commission",
+      {
+        precision: 20,
+        scale: 5,
+      },
+    ),
+
+    netAffiliateCommission: numeric(
+      "net_affiliate_commission",
+      {
+        precision: 20,
+        scale: 5,
+      },
+    ),
+
+    linkedProductStatus: text(
+      "linked_product_status",
+    ),
+
+    sourceSubId1: text("source_sub_id1"),
+
+    sourceSubId2: text("source_sub_id2"),
+
+    sourceSubId3: text("source_sub_id3"),
+
+    sourceSubId4: text("source_sub_id4"),
+
+    sourceSubId5: text("source_sub_id5"),
+
+    channel: text("channel"),
+
+    /**
+     * Processing lifecycle:
+     *
+     * - pending: parsed but not evaluated
+     * - unattributed: Sub_id1 is blank or has no exact tracking-link match
+     * - awaiting_classification: tracking link matched but lacks catalog IDs
+     * - ready_for_conversion: attribution and classification are complete
+     * - rejected: malformed or unsupported source row
+     */
+    processingStatus: text("processing_status")
+      .default("pending")
+      .notNull(),
+
+    trackingLinkId: uuid("tracking_link_id"),
+
+    publisherId: uuid("publisher_id"),
+
+    rejectionReason: text("rejection_reason"),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique(
+      "shopee_csv_rows_batch_row_unique",
+    ).on(
+      table.batchId,
+      table.sourceRowNumber,
+    ),
+
+    unique(
+      "shopee_csv_rows_fingerprint_unique",
+    ).on(
+      table.rowFingerprintSha256,
+    ),
+
+    foreignKey({
+      columns: [
+        table.trackingLinkId,
+        table.publisherId,
+      ],
+      foreignColumns: [
+        trackingLinks.id,
+        trackingLinks.publisherId,
+      ],
+      name: "shopee_csv_rows_tracking_owner_fk",
+    }).onDelete("set null"),
+
+    index("shopee_csv_rows_batch_idx").on(
+      table.batchId,
+    ),
+
+    index("shopee_csv_rows_order_idx").on(
+      table.externalOrderId,
+    ),
+
+    index("shopee_csv_rows_sub_id1_idx").on(
+      table.sourceSubId1,
+    ),
+
+    index("shopee_csv_rows_status_idx").on(
+      table.processingStatus,
+    ),
+
+    check(
+      "shopee_csv_rows_source_row_check",
+      sql`${table.sourceRowNumber} >= 2`,
+    ),
+
+    check(
+      "shopee_csv_rows_fingerprint_check",
+      sql`${table.rowFingerprintSha256} ~ '^[a-f0-9]{64}$'`,
+    ),
+
+    check(
+      "shopee_csv_rows_raw_row_check",
+      sql`jsonb_typeof(${table.rawRow}) = 'object'`,
+    ),
+
+    check(
+      "shopee_csv_rows_quantity_check",
+      sql`
+        ${table.quantity} is null
+        or ${table.quantity} >= 0
+      `,
+    ),
+
+    check(
+      "shopee_csv_rows_processing_status_check",
+      sql`${table.processingStatus} in (
+        'pending',
+        'unattributed',
+        'awaiting_classification',
+        'ready_for_conversion',
+        'rejected'
+      )`,
+    ),
+
+    check(
+      "shopee_csv_rows_attribution_pair_check",
+      sql`
+        (
+          ${table.trackingLinkId} is null
+          and ${table.publisherId} is null
+        )
+        or
+        (
+          ${table.trackingLinkId} is not null
+          and ${table.publisherId} is not null
+        )
+      `,
+    ),
+
+    check(
+      "shopee_csv_rows_status_attribution_check",
+      sql`
+        (
+          ${table.processingStatus} in (
+            'awaiting_classification',
+            'ready_for_conversion'
+          )
+          and ${table.sourceSubId1} is not null
+          and ${table.trackingLinkId} is not null
+          and ${table.publisherId} is not null
+        )
+        or
+        (
+          ${table.processingStatus} in (
+            'pending',
+            'unattributed',
+            'rejected'
+          )
+          and ${table.trackingLinkId} is null
+          and ${table.publisherId} is null
+        )
+      `,
+    ),
+
+    check(
+      "shopee_csv_rows_rejection_check",
+      sql`
+        (
+          ${table.processingStatus} = 'rejected'
+          and nullif(
+            trim(${table.rejectionReason}),
+            ''
+          ) is not null
+        )
+        or
+        (
+          ${table.processingStatus} <> 'rejected'
+          and ${table.rejectionReason} is null
+        )
+      `,
     ),
   ],
 );
