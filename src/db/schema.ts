@@ -150,6 +150,7 @@ export const trackingLinks = pgTable(
      *
      * Shopee convention:
      * - Sub_id1 = networkSubId
+     * - Sub IDs accept ASCII letters and digits only
      * - Sub_id2 may later contain a click-specific token
      */
     networkSubId: text("network_sub_id")
@@ -217,7 +218,7 @@ export const trackingLinks = pgTable(
       "tracking_links_network_sub_id_check",
       sql`
         ${table.networkSubId}
-        ~ '^vaf_lnk_[a-f0-9]{24}$'
+        ~ '^vaflnk[a-f0-9]{24}$'
       `,
     ),
 
