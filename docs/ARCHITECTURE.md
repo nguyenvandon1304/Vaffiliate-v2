@@ -14,7 +14,7 @@ Current platform decisions:
 - Drizzle ORM and Drizzle Kit for schema definitions and migrations;
 - no separate Render backend in the current phase;
 - Render may be introduced later only for long-running workers or heavy
-scheduled synchronization jobs.
+  scheduled synchronization jobs.
 
 The detailed Phase 20G data contract is defined in:
 
@@ -22,7 +22,8 @@ The detailed Phase 20G data contract is defined in:
 
 That contract is authoritative for conversion granularity, attribution,
 ingestion, reconciliation, identifiers, status transitions, and migration
-safety.
+safety. Updates annotated after Pull Request #17 reflect the partial
+Phase 20G.1 delivery without rewriting the historical contract.
 
 ---
 
@@ -69,21 +70,23 @@ conversion, payout, or wallet data.
 - Pages and presentational components must not access Supabase directly.
 - Pages and components must not import mock domain data directly.
 - Domain joins, financial calculations, and integrity checks belong in the
-service, repository, or database layer.
+  service, repository, or database layer.
 - Browser clients must not insert or update conversions.
 - Publisher-scoped reads must enforce ownership through RLS or a controlled
-server boundary.
+  server boundary.
 - Privileged writes must use server-only credentials.
 - Server credentials must never use a `NEXT_PUBLIC_*` environment variable.
 - Persisted and mock identifiers must not be treated as interchangeable.
 - Financial values use integer VND amounts.
 - Formatted currency strings are presentation-only.
 - No React Query, Redux, Zustand, or Context-based data-loading layer is
-currently required.
+  currently required.
 - Shopee and TikTok Shop are the only supported commerce platforms.
 - Do not add guessed affiliate parameters to merchant URLs.
 - Partner attribution must use a verified partner-specific adapter.
 - Do not build a speculative universal affiliate-network implementation.
+- TikTok Shop remains deferred; no TikTok-specific implementation may be
+  mixed into the current Shopee phase.
 
 ---
 
@@ -96,12 +99,40 @@ The current persisted foundation includes:
 - Supabase authentication users;
 - publisher profiles;
 - payout accounts;
-- tracking-link creation;
-- cashback click recording;
-- conversion reads associated with the authenticated publisher.
+- tracking links with stable `network_sub_id`;
+- cashback click records with click-specific `click_token`;
+- Shopee CSV import batches with file-level SHA-256 idempotency;
+- Shopee CSV source rows with row-level SHA-256 fingerprint idempotency;
+- persisted conversions readable for the authenticated publisher;
+- persisted Shopee advertisers, campaigns, offers, and cashback policies.
 
 These flows are real persisted flows and must not fall back silently to mock
 records.
+
+### Repository foundation versus production workflow
+
+Pull Request #17 introduced the following capabilities at the repository,
+schema, and test level. They are not yet a complete production operational
+workflow:
+
+- Shopee CSV file parsing and persisted staging
+  (`shopee_csv_import_batches` and `shopee_csv_rows`);
+- CSV batch attribution that exact-matches
+  `shopee_csv_rows.source_sub_id1` against `tracking_links.network_sub_id`;
+- Shopee catalog classification through
+  `classifyShopeeTrackingLinkAsync`, which acquires sequential
+  `SELECT FOR UPDATE` row locks on `offers`, `campaigns`, `advertisers`, and
+  `cashback_policies`, validates the locked eligibility snapshot against the
+  full catalog contract, then acquires a `SELECT FOR UPDATE` row lock on the
+  single owned `tracking_links` row and performs a conditional update of the
+  `(campaign_id, offer_id)` pair only when both are currently `NULL`;
+- the `scripts/classify-shopee-tracking-link-worker.ts` test worker that
+  exercises the classification repository;
+- the PostgreSQL concurrency integration test covering the classification
+  path.
+
+There is no production administration UI, route, scheduled worker, or
+end-to-end operational command for the complete CSV ingestion pipeline.
 
 ### Mock or partial
 
@@ -110,13 +141,15 @@ The following domains remain mock-backed or only partially persisted:
 - dashboard summaries;
 - consumer Orders;
 - Finance and wallet balances;
+- wallet transactions;
 - withdrawal history;
 - cashback history views;
-- advertiser, campaign, and offer catalog data;
 - tracking-link list and analytics data;
-- notifications.
+- notifications;
+- some catalog-facing UI and detail surfaces.
 
-A page using data from multiple sources must keep the source boundary explicit.
+A page using data from multiple sources must keep the source boundary
+explicit.
 
 ### Identifier boundary
 
@@ -125,10 +158,18 @@ Persisted tracking-link IDs are UUID values.
 Legacy mock identifiers such as `trk-001`, `trk-002`, and `trk-003` are not
 valid persisted tracking-link IDs.
 
-Code must not join mock and persisted records only because both identifiers are
-represented as TypeScript strings.
+Code must not join mock and persisted records only because both identifiers
+are represented as TypeScript strings.
 
 Existing text values must not be blindly cast to UUID during migrations.
+
+`tracking_links.network_sub_id` is the stable per-tracking-link attribution
+token. It is formatted `vaflnk` followed by 24 lowercase hexadecimal
+characters and is the Shopee `Sub_id1` value carried in the verified
+affiliate URL.
+
+`clicks.click_token` is the per-click token. It is distinct from
+`tracking_links.network_sub_id` and is not currently transmitted to Shopee.
 
 ---
 
@@ -158,10 +199,33 @@ Ownership is derived from the authenticated user ID.
 
 ### Catalog
 
-Advertisers, campaigns, and offers currently remain mock-backed.
+The persisted Shopee catalog foundation is delivered through Pull Request
+#17. Persisted catalog tables include:
 
-Their text identifiers remain temporary until the catalog receives an approved
-persistence and migration design.
+- `advertisers`;
+- `campaigns`;
+- `offers`;
+- `cashback_policies`.
+
+The catalog is intentionally read-only from the client. It is
+server-managed, and client writes against the catalog tables are
+not part of the current application flow.
+
+Classification acquires sequential `SELECT FOR UPDATE` row locks on
+`offers`, `campaigns`, `advertisers`, and `cashback_policies` to read the
+catalog tuple for the requested offer, then validates that locked snapshot
+against the full eligibility contract. After the catalog lock chain succeeds,
+it acquires a `SELECT FOR UPDATE` row lock on the single publisher-owned
+`tracking_links` row and performs a conditional update of the
+`(campaign_id, offer_id)` pair only when both columns are currently `NULL`.
+The result is a consistent transactional database state where the persisted
+eligibility snapshot and the persisted tracking-link classification reflect
+the same locked catalog tuple.
+
+Public catalog-facing UI, Campaign Detail, and Offer Detail pages are not
+yet migrated from mock data. The catalog text identifiers used by the
+mock UI are temporary and must not be joined with persisted UUID tracking
+records.
 
 ### Tracking Links
 
@@ -174,27 +238,76 @@ Authenticated publisher action
 -> PostgreSQL tracking_links record
 ```
 
+`tracking_links.network_sub_id` is the stable per-tracking-link attribution
+token. It is unique, immutable, non-blank, and carried into the Shopee
+affiliate URL through `Sub_id1`.
+
 Tracking-link list and analytics surfaces may still contain mock-backed data
 during migration. They must not silently combine UUID records with legacy
 `trk-*` records.
 
 ### Cashback Clicks
 
-The cashback redirect flow records a click before redirecting to the merchant.
+The cashback redirect flow records a click before redirecting to the
+merchant.
 
 ```text
 Publisher tracking link
 -> Server route
 -> Validate ownership and destination
--> Create click and internal `network_sub_id`
+-> Create click record with click_token
 -> Construct verified partner outbound URL
 -> Redirect to merchant
 ```
 
-The stored `network_sub_id` is an internal attribution token.
+`clicks.click_token` is unique, immutable, non-blank, and traceable to one
+click. Storing the token does not prove that Shopee received or returned it.
+A verified Shopee partner adapter must apply the Shopee parameter and
+encoding contract. The current Shopee pipeline transmits the stable
+`tracking_links.network_sub_id` in `Sub_id1`; the per-click `click_token` is
+not currently transmitted to Shopee.
 
-Storing the token does not prove that the merchant received it. A partner
-adapter must apply the verified partner parameter and encoding contract.
+Exact `Sub_id1` matching between returned CSV evidence and
+`tracking_links.network_sub_id` proves tracking-link and publisher
+attribution. It does not prove which individual click produced the order.
+A matched click identifier must not be persisted or claimed as the click
+that produced an order unless a verified click-specific token is returned
+through `Sub_id2` (or equivalent trusted partner evidence). The current
+CSV ingestion path does not persist or claim click-level attribution.
+
+### Shopee Affiliate URL Provisioning
+
+`provisionShopeeAffiliateUrlAsync` is wired into the cashback Server Action
+and:
+
+- reads the authenticated publisher's `tracking_links` row;
+- rejects calls for non-Shopee platforms with a typed platform error;
+- verifies that the supplied URL belongs to the configured Shopee
+  affiliate account through `utm_source` or `mmp_pid`;
+- verifies that the URL carries the tracking-link `network_sub_id` in
+  `Sub_id1` (`utm_content`);
+- persists the verified affiliate URL on the tracking link.
+
+### Shopee CSV Ingestion Foundation
+
+The CSV ingestion foundation is delivered as repositories, schema, and a
+PostgreSQL concurrency test.
+
+```text
+Shopee CSV file
+-> parseShopeeCsvFile (parserVersion-bound, official headers preserved)
+-> importShopeeCsvFileAsync (file-level SHA-256, batch-level status)
+-> shopee_csv_rows (row-level SHA-256 fingerprint, raw payload retained)
+-> attributeShopeeCsvBatchAsync (exact source_sub_id1 to network_sub_id match)
+-> row processing_status moves to:
+   unattributed | awaiting_classification | ready_for_conversion
+```
+
+The pipeline currently stops at `ready_for_conversion`. No code in the
+current repository inserts normalized conversions from the staged rows.
+
+The shopee affiliate URL provisioning flow and the CSV batch attribution
+flow share the same `tracking_links.network_sub_id` anchor.
 
 ### Conversions
 
@@ -204,7 +317,10 @@ A conversion is the canonical commission-bearing record. It is not guaranteed
 to represent a complete consumer order.
 
 The current application does not yet contain a complete production conversion
-ingestion pipeline.
+ingestion pipeline. The CSV foundation stops at the `ready_for_conversion`
+processing status; there is no service, worker, route, or Server Action that
+inserts a normalized conversion from a staged Shopee CSV row. There is no
+`source_conversion_key`.
 
 Future ingestion must be:
 
@@ -215,12 +331,27 @@ Future ingestion must be:
 - auditable;
 - linked to immutable ingestion evidence.
 
+The current conversion uniqueness boundary is temporary:
+
+```text
+network + external_order_id
+```
+
+The future target is:
+
+```text
+network + source_conversion_key
+```
+
+Validation and settlement are not yet split in the persisted conversion
+model.
+
 ### Consumer Orders
 
 The current Orders UI remains mock-backed.
 
-The target consumer Order is a read projection derived by grouping conversions
-using:
+The target consumer Order is a read projection derived by grouping
+conversions using:
 
 ```text
 network + external_order_id + publisher_id
@@ -232,12 +363,15 @@ A physical `orders` table may be introduced later only when justified by
 provider metadata, reconciliation performance, or stable order-level
 attributes.
 
+Removing the Orders mock data is gated on a future parity verification
+performed during Phase 20G.2.
+
 ### Dashboard
 
 Dashboard summaries currently use mock or mixed data.
 
-Future persisted summaries must derive from canonical persisted records rather
-than duplicate page-level calculations.
+Future persisted summaries must derive from canonical persisted records
+rather than duplicate page-level calculations.
 
 ### Finance and Wallet
 
@@ -258,7 +392,8 @@ Phase 20H will define:
 
 Notifications remain mock-backed.
 
-Their future persistence model must not be coupled to financial state mutation.
+Their future persistence model must not be coupled to financial state
+mutation.
 
 ---
 
@@ -283,8 +418,8 @@ The future conversion identity boundary will use:
 network + source_conversion_key
 ```
 
-where the source conversion key is supplied by the partner or deterministically
-derived from immutable source fields.
+where the source conversion key is supplied by the partner or
+deterministically derived from immutable source fields.
 
 ### Status dimensions
 
@@ -333,7 +468,8 @@ reproduce the original calculation.
 
 Publisher-facing access:
 
-- publishers may read only their owned tracking links, clicks, and conversions;
+- publishers may read only their owned tracking links, clicks, and
+  conversions;
 - publishers may not directly insert or mutate conversions;
 - publishers may not assign attribution;
 - publishers may not change validation or settlement state.
@@ -343,7 +479,20 @@ Trusted server access:
 - ingestion and reconciliation use server-only credentials;
 - privileged database functions use a fixed safe `search_path`;
 - execute privileges are explicitly revoked and granted;
-- attribution ownership comes from trusted evidence rather than browser input.
+- attribution ownership comes from trusted evidence rather than browser input;
+- Shopee affiliate URL provisioning uses `server-only` modules and a
+  typed error model so that `Sub_id1` mismatches cannot silently fall back to
+  a default;
+- catalog classification through `classifyShopeeTrackingLinkAsync` acquires
+  sequential `SELECT FOR UPDATE` row locks on `offers`, `campaigns`,
+  `advertisers`, and `cashback_policies` and validates the locked eligibility
+  snapshot against the full catalog contract, then acquires a
+  `SELECT FOR UPDATE` row lock on the single owned `tracking_links` row and
+  performs a conditional update of the `(campaign_id, offer_id)` pair only
+  when both columns are currently `NULL`. The result is a consistent
+  transactional database state where the persisted eligibility snapshot
+  and the persisted tracking-link classification reflect the same locked
+  catalog tuple.
 
 ---
 
@@ -353,18 +502,44 @@ Trusted server access:
 
 Architecture and data-contract documentation only.
 
-No production schema change belongs in this phase.
+Phase 20G.0 remains the canonical historical architecture and data
+contract for Phase 20G.1 and beyond. The exact Phase 20G.0 merge commit
+and Pull Request number are not separately verified in the current
+documentation branch and must not be invented here.
 
 ### Phase 20G.1
 
-Expected foundation:
+Partially delivered foundation, merged through Pull Request #17.
 
-- partner attribution adapters;
-- ingestion-event persistence;
-- exact sub-ID attribution;
-- idempotent normalized conversion writes;
-- attribution evidence;
-- server-only ingestion security.
+Delivered scope:
+
+- stable `tracking_links.network_sub_id` tokens;
+- verified Shopee affiliate URL provisioning with `Sub_id1`;
+- persisted Shopee CSV import batches and source rows;
+- file-level CSV idempotency;
+- row-level CSV fingerprint idempotency;
+- exact `source_sub_id1` attribution;
+- persisted Shopee advertiser, campaign, offer, and cashback-policy
+  foundation;
+- transactionally protected tracking-link classification through
+  `classifyShopeeTrackingLinkAsync` (sequential `SELECT FOR UPDATE` row
+  locks on `offers`, `campaigns`, `advertisers`, and `cashback_policies`,
+  then a `SELECT FOR UPDATE` row lock on the owned `tracking_links` row
+  with a conditional update of the `(campaign_id, offer_id)` pair);
+- a PostgreSQL concurrency integration test for the classification path.
+
+Remaining scope:
+
+- production orchestration for CSV import and batch processing;
+- deterministic `source_conversion_key` from immutable source fields;
+- idempotent normalized conversion writes linking back to the staged CSV row
+  and import batch;
+- immutable conversion linkage to source rows and import evidence;
+- replay handling, partial-batch failure handling, and operational failure
+  recovery.
+
+Phase 20G.1 must not introduce speculative query parameters or a universal
+affiliate-network abstraction without verified partner contracts.
 
 ### Phase 20G.2
 
@@ -388,8 +563,8 @@ Wallet implementation must not begin inside Phase 20G.
 
 Route count must be derived from the current Next.js build output.
 
-Do not maintain a hard-coded route count in this document because routes change
-as features are added or migrated.
+Do not maintain a hard-coded route count in this document because routes
+change as features are added or migrated.
 
 ---
 
