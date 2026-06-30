@@ -95,7 +95,6 @@ export {
 };
 
 export type {
-  ActiveShopeeCatalogOffer,
   ClassifyShopeeTrackingLinkResult,
   ShopeeCatalogInactiveReason,
   ShopeeCatalogTrackingLinkAlreadyClassifiedSnapshot,
@@ -193,16 +192,14 @@ export async function getActiveShopeeOfferByOfferIdAsync(
     throw new ShopeeCatalogOfferNotFoundError(normalized);
   }
 
-  // Full eligibility check: advertiser, campaign, offer, policy, platform
+  // Full eligibility check: advertiser, campaign, offer, policy, platform.
+  // TypeScript narrows `entry` to `ActiveShopeeCatalogOffer` here, so
+  // `advertiserPlatform` is the literal "shopee" and `cashbackShareBps`
+  // is `number` (never null).
   validateShopeeCatalogOffer(entry);
 
-  return {
-    offerId: entry.offerId,
-    campaignId: entry.campaignId,
-    advertiserId: entry.advertiserId,
-    advertiserPlatform: entry.advertiserPlatform,
-    cashbackShareBps: entry.cashbackShareBps,
-  };
+  // Return the validated object directly — no field-by-field re-mapping needed.
+  return entry;
 }
 
 export interface ClassifyShopeeTrackingLinkInput {
@@ -241,18 +238,16 @@ export interface ClassifyShopeeTrackingLinkInput {
  *
  * Concurrency safety rationale:
  *
- * - Each step acquires a lock before reading the next entity, guaranteeing
- *   that no concurrent transaction can insert or modify any row in the
- *   catalog tuple between the lock acquisition and the classification write.
- * - A row that exists at lock time is locked. A row that does not exist
- *   at lock time causes the helper to throw immediately; classification does
- *   not continue with a subsequent catalog query.
- * - PostgreSQL READ COMMITTED does not see rows committed after a
- *   transaction's read snapshot. A row inserted by a concurrent transaction
- *   after our SELECT FOR UPDATE returns is invisible to this transaction
- *   and cannot be locked or classified by it.
- * - No second catalog query observes newly-committed rows that were absent
- *   at lock time.
+ * - Each statement inside READ COMMITTED gets its own snapshot, so this
+ *   transaction can see rows committed by other transactions before each
+ *   individual statement begins.
+ * - A row that exists at SELECT FOR UPDATE lock time is locked and held
+ *   until the transaction ends. A row that does not exist at lock time
+ *   simply does not get locked — no gap-lock is acquired.
+ * - A row that is not locked cannot block a concurrent INSERT of a
+ *   matching row. Because this helper throws immediately when a required
+ *   row is absent at lock time, classification does not continue with a
+ *   subsequent catalog query that might see the newly-inserted row.
  *
  * Step-by-step locking order:
  *
@@ -265,8 +260,8 @@ export interface ClassifyShopeeTrackingLinkInput {
  *   4. Lock cashback_policy row by offerId. If absent: throw
  *      `ShopeeCatalogOfferInactiveError` with reason `cashback_policy_missing`.
  *   5. Validate the locked entry (advertiser active, platform=shopee,
- *      campaign active, offer active, cashback_share_bps present).
- *   6. Return the validated `ShopeeOfferCatalogEntry`.
+ *      campaign active, offer active, cashback_share_bps valid).
+ *   6. Return the validated `ActiveShopeeCatalogOffer`.
  *
  * The caller MUST await the returned Promise before proceeding with any
  * writes in the same transaction.
@@ -274,7 +269,7 @@ export interface ClassifyShopeeTrackingLinkInput {
 async function lockAndLoadShopeeCatalogForClassification(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   offerId: string,
-): Promise<ShopeeOfferCatalogEntry> {
+): Promise<ActiveShopeeCatalogOffer> {
   // Step 1: Lock the offer row.
   const offerRows = await tx.execute(sql`
     SELECT id, campaign_id AS "campaignId", status

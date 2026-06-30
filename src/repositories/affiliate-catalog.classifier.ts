@@ -16,15 +16,13 @@ export type ShopeeCatalogInactiveReason =
   | "advertiser_platform_mismatch"
   | "campaign_inactive"
   | "offer_inactive"
-  | "cashback_policy_missing";
+  | "cashback_policy_missing"
+  | "cashback_policy_invalid";
 
 /**
- * Complete catalog entry returned by `lockAndLoadShopeeCatalogForClassification`.
- *
- * Unlike `ShopeeCatalogOffer`, this type exposes all four entity fields
- * (advertiser, campaign, offer, cashbackPolicy) so the caller can validate
- * the full eligibility chain from a single locked snapshot without issuing
- * a second read query.
+ * Input type fed by callers (repository lock-and-load helpers) before
+ * validation. `advertiserPlatform` is a plain `string` and `cashbackShareBps`
+ * may be `null` because they come directly from the database row.
  */
 export interface ShopeeOfferCatalogEntry {
   offerId: string;
@@ -38,21 +36,55 @@ export interface ShopeeOfferCatalogEntry {
 }
 
 /**
- * Validates a locked catalog entry against Shopee eligibility rules.
+ * Active, fully-typed catalog offer produced by {@link validateShopeeCatalogOffer}.
  *
- * Unlike `assertActiveShopeeOffer`, this function receives the full
- * `ShopeeOfferCatalogEntry` from a lock-and-load helper, so it never
- * needs to issue another read query. Throws `ShopeeCatalogOfferInactiveError`
- * with a precise reason so the caller can tell data-quality issues apart
- * from intentional catalog pauses.
+ * Extends `ShopeeOfferCatalogEntry` so the type predicate `asserts entry is
+ * ActiveShopeeCatalogOffer` is valid: the asserted type must be assignable
+ * to (not narrower than) the parameter type. TypeScript narrows
+ * `advertiserPlatform` to the literal `"shopee"` and `cashbackShareBps`
+ * to `number` after the assertion succeeds, so callers never need to
+ * handle null or re-check the platform.
+ */
+export interface ActiveShopeeCatalogOffer extends ShopeeOfferCatalogEntry {
+  advertiserPlatform: "shopee";
+  cashbackShareBps: number;
+}
+
+/**
+ * Validates a locked catalog entry against Shopee eligibility rules and
+ * narrows its types in place.
+ *
+ * Unlike the previous {@link validateShopeeCatalogOffer} overload, this
+ * function is an assertion — it either returns the input narrowed to
+ * `ActiveShopeeCatalogOffer` (where `advertiserPlatform` is the literal
+ * `"shopee"` and `cashbackShareBps` is guaranteed to be `number`) or it
+ * throws `ShopeeCatalogOfferInactiveError` with a precise reason so the
+ * caller can tell data-quality issues apart from intentional catalog pauses.
+ *
+ * Cashback policy checks enforced here mirror the database CHECK constraint
+ * on `cashback_policies.cashback_share_bps` so TypeScript fails fast in
+ * the application layer before a bad row reaches the database.
  */
 export function validateShopeeCatalogOffer(
   entry: ShopeeOfferCatalogEntry,
-): void {
+): asserts entry is ActiveShopeeCatalogOffer {
   if (entry.cashbackShareBps === null || entry.cashbackShareBps === undefined) {
     throw new ShopeeCatalogOfferInactiveError(
       entry.offerId,
       "cashback_policy_missing",
+    );
+  }
+
+  if (
+    typeof entry.cashbackShareBps !== "number" ||
+    !Number.isFinite(entry.cashbackShareBps) ||
+    !Number.isSafeInteger(entry.cashbackShareBps) ||
+    entry.cashbackShareBps < 0 ||
+    entry.cashbackShareBps > 10_000
+  ) {
+    throw new ShopeeCatalogOfferInactiveError(
+      entry.offerId,
+      "cashback_policy_invalid",
     );
   }
 

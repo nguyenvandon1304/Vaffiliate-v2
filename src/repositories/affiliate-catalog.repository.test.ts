@@ -314,7 +314,7 @@ test("validateShopeeCatalogOffer throws on cashback_policy_missing before other 
 test("validateShopeeCatalogOffer exposes correct error reason values", () => {
   const cases: Array<{
     modify: Partial<ShopeeOfferCatalogEntry>;
-    reason: "advertiser_disabled" | "advertiser_platform_mismatch" | "campaign_inactive" | "offer_inactive" | "cashback_policy_missing";
+    reason: "advertiser_disabled" | "advertiser_platform_mismatch" | "campaign_inactive" | "offer_inactive" | "cashback_policy_missing" | "cashback_policy_invalid";
   }> = [
     { modify: { advertiserStatus: "disabled" }, reason: "advertiser_disabled" },
     { modify: { advertiserPlatform: "tiktok" }, reason: "advertiser_platform_mismatch" },
@@ -356,4 +356,68 @@ test("validateShopeeCatalogOffer passes for cashbackShareBps of 10000", () => {
       cashbackShareBps: 10_000,
     }),
   );
+});
+
+test("validateShopeeCatalogOffer throws cashback_policy_invalid for out-of-range integers", () => {
+  // Below the minimum (0).
+  assert.throws(
+    () =>
+      validateShopeeCatalogOffer({
+        ...validEntry,
+        cashbackShareBps: -1,
+      }),
+    ShopeeCatalogOfferInactiveError,
+  );
+
+  // Above the maximum (10_000).
+  assert.throws(
+    () =>
+      validateShopeeCatalogOffer({
+        ...validEntry,
+        cashbackShareBps: 10_001,
+      }),
+    ShopeeCatalogOfferInactiveError,
+  );
+});
+
+test("validateShopeeCatalogOffer throws cashback_policy_invalid for non-integer numbers", () => {
+  assert.throws(
+    () =>
+      validateShopeeCatalogOffer({
+        ...validEntry,
+        cashbackShareBps: 1.5,
+      }),
+    ShopeeCatalogOfferInactiveError,
+  );
+});
+
+test("validateShopeeCatalogOffer throws cashback_policy_invalid for NaN", () => {
+  assert.throws(
+    () =>
+      validateShopeeCatalogOffer({
+        ...validEntry,
+        cashbackShareBps: Number.NaN,
+      }),
+    ShopeeCatalogOfferInactiveError,
+  );
+});
+
+test("validateShopeeCatalogOffer exposes cashback_policy_invalid reason correctly", () => {
+  const cases = [-1, 10_001, 1.5, Number.NaN];
+  for (const badValue of cases) {
+    try {
+      validateShopeeCatalogOffer({
+        ...validEntry,
+        cashbackShareBps: badValue,
+      });
+      assert.fail(`should have thrown for value: ${badValue}`);
+    } catch (err) {
+      assert.ok(err instanceof ShopeeCatalogOfferInactiveError);
+      assert.equal(
+        (err as ShopeeCatalogOfferInactiveError).reason,
+        "cashback_policy_invalid",
+        `expected cashback_policy_invalid for value ${badValue}`,
+      );
+    }
+  }
 });
