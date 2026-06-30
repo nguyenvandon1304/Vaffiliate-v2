@@ -6,16 +6,31 @@ This document defines the architecture and data contracts that must be agreed
 before implementing affiliate conversion ingestion, attribution,
 reconciliation, consumer orders, wallet balances, or withdrawals.
 
-Verified repository baseline:
+Phase 20G.0 is the Phase 20G architecture and data-contract documentation
+milestone. It remains the canonical contract reference for Phase 20G.1 and
+later phases. The exact Phase 20G.0 merge commit and Pull Request number
+are not separately verified in the current documentation branch and must
+not be invented here.
 
-* Integration commit: `2baa327`
-* Phase 20F merge: Pull Request #12
-* Pre-Phase 20G delivery baseline: Pull Request #13
-* Supported commerce platforms: Shopee and TikTok Shop
+This document is a historical contract reference. Section 2 describes the
+verified current state at the pre-Phase 20G baseline (`2baa327`,
+Pull Request #13). Sections 3 through 15 contain the Phase 20G
+architecture and data contract. The core invariants in those sections
+remain authoritative for Phase 20G implementation. Selected sections
+were corrected or amended after Pull Request #17 to reflect the partial
+Phase 20G.1 delivery; Section 16 records the deltas introduced by Pull
+Request #17, and any post-PR17 amendments inside Sections 3 through 15
+describe current implementation state.
 
-Phase 20G.0 is documentation and architecture alignment only.
+Verified history referenced by this contract:
 
-It must not:
+* `2baa327` - Pull Request #13, pre-Phase 20G delivery baseline
+  (CI and delivery checks only; no catalog, CSV, or token-model
+  changes).
+* `11c24dd` - Pull Request #17, Phase 20G.1 Shopee attribution and
+  CSV ingestion foundation.
+
+Phase 20G.0 is documentation and architecture alignment only. It must not:
 
 * apply database migrations;
 * create ingestion endpoints;
@@ -71,6 +86,16 @@ The following areas still depend wholly or partly on the mock backend:
 
 This composition does not guarantee referential integrity between real
 conversion identifiers and mock entity identifiers.
+
+> Note: this section describes the pre-Phase 20G baseline
+> (Pull Request #13, `2baa327`). Section 16 records the Phase 20G.1
+> partial delivery through Pull Request #17 (`11c24dd`), which added
+> the persisted Shopee CSV staging tables, the persisted Shopee
+> advertiser, campaign, offer, and cashback-policy foundation, and
+> the verified Shopee affiliate URL provisioning used by the cashback
+> Server Action. The CSV foundation remains a repository-and-test
+> baseline in the current branch and is not a complete production
+> operational workflow.
 
 ---
 
@@ -189,8 +214,39 @@ required, including:
 
 ### 5.2 Catalog identifiers
 
-Advertiser, campaign, and offer identifiers remain text until the catalog is
-persisted and a migration plan is approved.
+The Phase 20G.1 partial delivery introduced persisted Shopee
+catalog tables. Their identifier and foreign-key types are
+verified directly from `src/db/schema.ts` and the catalog migration
+(`drizzle/0019_phase_20g2_shopee_catalog_foundation.sql`):
+
+| Table              | Primary key (`id` / `offer_id`) | Foreign keys (text -> text)                                                |
+| ------------------ | ------------------------------- | -------------------------------------------------------------------------- |
+| `advertisers`      | `text`                          | none                                                                       |
+| `campaigns`        | `text`                          | `advertiser_id text -> advertisers.id` (FK, `ON DELETE restrict`)           |
+| `offers`           | `text`                          | `campaign_id text -> campaigns.id` (FK, `ON DELETE restrict`)              |
+| `cashback_policies`| `text` (`offer_id`)             | `offer_id text -> offers.id` (FK, `ON DELETE cascade`)                     |
+
+Persisted catalog identifiers and their inter-table foreign keys are
+`text` rather than `uuid`. The catalog is intentionally compatible
+with the existing text identifiers on `tracking_links.campaign_id`,
+`tracking_links.offer_id`, and `conversions.advertiser_id`,
+`conversions.campaign_id`, `conversions.offer_id`. No catalog
+identifier has been migrated to `uuid`; no blind text-to-UUID cast
+is authorized by this contract.
+
+The Shopee catalog tables are server-managed: there is no public
+catalog identifier surface in the current application flow, and
+client writes against these tables are not part of the supported
+flow.
+
+Legacy mock or public text catalog identifiers (such as the mock
+`cmp-*` / `off-*` strings used by older CashbackForm fixtures, or
+any unverified public catalog identifier that has not yet been
+migrated into the catalog tables) remain text and are not
+interchangeable with persisted UUID tracking-link or click
+identifiers. Joining such legacy or public text identifiers with
+persisted records requires explicit validation and a documented
+migration, not a blind cast.
 
 ### 5.3 Tracking-link identifiers
 
@@ -221,20 +277,33 @@ Required migration sequence:
 
 ## 6. Attribution Contract
 
-### 6.1 Internal click token
+### 6.1 Stable attribution token
 
-`clicks.network_sub_id` is the internal attribution token generated for a
-recorded cashback click.
+The current attribution anchor for a tracking link is
+`tracking_links.network_sub_id`. It is generated once per tracking link,
+formatted `vaflnk` followed by 24 lowercase hexadecimal characters, and
+carried into the Shopee affiliate URL through `Sub_id1`.
 
-It must be:
+`tracking_links.network_sub_id` must be:
 
 - unique;
 - immutable;
 - non-blank;
-- traceable to exactly one click;
-- stored before the merchant redirect occurs.
+- traceable to exactly one tracking link.
 
-### 6.2 Partner-specific outbound URL construction
+### 6.2 Per-click token
+
+The cashback redirect flow records `clicks.click_token` per click.
+
+`clicks.click_token` is separate from `tracking_links.network_sub_id`. It
+may later be passed to an affiliate network through `Sub_id2` if a partner
+contract supports that parameter.
+
+The attribution contract in this document refers to the stable per-tracking-
+link token. `clicks` must not be described as owning the long-lived
+attribution token.
+
+### 6.3 Partner-specific outbound URL construction
 
 The application must not generically append `sub_id`, `utm_*`, or any guessed
 parameter to merchant URLs.
@@ -261,14 +330,24 @@ Each adapter must define:
 Until a partner contract is verified, the system may record clicks but must
 not claim that downstream orders can be attributed automatically.
 
-### 6.3 Inbound attribution matching
+### 6.4 Inbound attribution matching
 
 Inbound partner data must first attempt exact matching using the normalized
 partner sub-ID.
 
+Exact `Sub_id1` matching against the stable per-tracking-link token proves
+tracking-link and publisher attribution. It does not prove which individual
+click produced the order. A matched click identifier must not be persisted
+or claimed as the click that produced an order unless a verified
+click-specific token is returned through `Sub_id2` (or equivalent trusted
+partner evidence). `clicks.click_token` remains separate from the
+attribution evidence persisted by exact `Sub_id1` matching and is not
+currently transmitted to Shopee.
+
 Successful attribution must persist evidence including:
 
-- matched click ID;
+- matched click ID (only when one exists and only when the partner
+  evidence carries a verified click-specific token such as `Sub_id2`);
 - matched tracking-link ID;
 - publisher ID;
 - partner sub-ID;
@@ -285,6 +364,10 @@ Any fallback attribution must be:
 - auditable;
 - assigned a confidence level;
 - reviewable before financial settlement.
+
+The Phase 20G.1 partial delivery implements exact matching only, against
+`shopee_csv_rows.source_sub_id1` and `tracking_links.network_sub_id`, and
+does not persist click-level attribution.
 
 ---
 
@@ -355,6 +438,11 @@ At minimum:
 - `paid` maps to validation `approved` plus settlement `paid`;
 - `pending` requires contextual classification as `recorded` or
   `reconciling`.
+
+> Note: the validation and settlement split above is still future work for
+> the persisted `conversions` model. The Phase 20G.1 partial delivery did
+> not introduce split validation and settlement columns and must not be
+> described as having done so.
 
 ---
 
@@ -433,6 +521,13 @@ network + external_order_id
 must not be expanded or replaced until live conversion data has been
 inventoried and a source-conversion key strategy has been approved.
 
+The Phase 20G.1 partial delivery implements file-level and row-level CSV
+idempotency against `shopee_csv_import_batches.source_file_sha256` and
+`shopee_csv_rows.row_fingerprint_sha256`. There is no production code path
+that inserts normalized conversions from staged rows. The CSV ingestion
+pipeline currently terminates at the `ready_for_conversion` processing
+status on `shopee_csv_rows`.
+
 ---
 
 ## 10. Reconciliation and Audit History
@@ -465,6 +560,10 @@ Reconciliation must support:
 * cancellation;
 * reversal;
 * reprocessing after recoverable failure.
+
+The Phase 20G.1 partial delivery does not include reconciliation workflow,
+reversal handling, or immutable conversion status history. These remain
+explicit Phase 20G.2 deliverables.
 
 ---
 
@@ -516,7 +615,7 @@ Migration order:
 
 ## 13. Phase Boundaries
 
-### Phase 20G.0 - Architecture and Data Contract
+### 13.1 Phase 20G.0 - Architecture and Data Contract
 
 Deliverables:
 
@@ -525,7 +624,7 @@ Deliverables:
 * approved migration sequence;
 * no production schema change.
 
-### Phase 20G.1 - Ingestion and Attribution Foundation
+### 13.2 Phase 20G.1 - Ingestion and Attribution Foundation
 
 Expected scope:
 
@@ -536,7 +635,13 @@ Expected scope:
 * attribution evidence;
 * server-only security boundary.
 
-### Phase 20G.2 - Reconciliation and Consumer Orders
+The Phase 20G.1 partial delivery through Pull Request #17 covers the
+foundation items listed in Section 16.1. Items such as idempotent
+normalized conversion writes, conversion-level ingestion-event linkage,
+and operational orchestration for partial-batch and replay handling
+remain Phase 20G.1 scope and are listed in Section 16.2.
+
+### 13.3 Phase 20G.2 - Reconciliation and Consumer Orders
 
 Expected scope:
 
@@ -546,7 +651,7 @@ Expected scope:
 * persisted consumer Orders projection;
 * replacement of mock Orders data.
 
-### Phase 20H - Wallet and Withdrawal
+### 13.4 Phase 20H - Wallet and Withdrawal
 
 Expected scope:
 
@@ -587,7 +692,7 @@ Forbidden shortcuts:
 
 ## 15. Phase 20G.0 Acceptance Criteria
 
-Phase 20G.0 is complete only when:
+Phase 20G.0 is complete when:
 
 * canonical conversion granularity is documented;
 * consumer Order is defined as a projection;
@@ -601,3 +706,94 @@ Phase 20G.0 is complete only when:
 * database migration safety rules are documented;
 * `ARCHITECTURE.md`, `PROJECT_STATE.md`, and `HANDOFF.md` are reconciled;
 * lint, typecheck, database check, build, and diff checks pass.
+
+Phase 20G.0 is the historical contract reference for Phase 20G. The criteria
+above describe the merge conditions for the Phase 20G.0 documentation PR and
+continue to be true. The exact Phase 20G.0 merge commit and Pull Request
+number are not separately verified in the current documentation branch
+and must not be invented here.
+
+---
+
+## 16. Post-Phase 20G.0 Updates
+
+This section records the deltas introduced after the pre-Phase 20G
+baseline (`2baa327`, Pull Request #13) by Pull Request #17
+(`11c24dd`). The core invariants in Sections 3 through 15 remain
+authoritative for Phase 20G implementation. Selected sections were
+corrected or amended after Pull Request #17 to reflect the partial
+Phase 20G.1 delivery; Section 2 represents the verified
+pre-Phase 20G baseline, and Section 16 together with any post-PR17
+amendments inside Sections 3 through 15 describes the current
+implementation state.
+
+### 16.1 Phase 20G.1 partial delivery through Pull Request #17
+
+Delivered scope:
+
+- a stable `tracking_links.network_sub_id` token, formatted `vaflnk` followed
+  by 24 lowercase hexadecimal characters;
+- verified Shopee affiliate URL provisioning that uses the tracking-link
+  token in `Sub_id1`, wired through the cashback Server Action via
+  `provisionShopeeAffiliateUrlAsync`;
+- a Shopee CSV parser that preserves official headers and exposes a parser
+  version stamp;
+- file-level CSV idempotency using SHA-256 of the source file against
+  `shopee_csv_import_batches.source_file_sha256`;
+- row-level CSV idempotency using SHA-256 row fingerprints against
+  `shopee_csv_rows.row_fingerprint_sha256`;
+- persisted Shopee CSV staging covering batch status transitions of
+  `pending`, `processing`, `completed`, and `failed`, and row processing
+  statuses of `pending`, `unattributed`, `awaiting_classification`,
+  `ready_for_conversion`, and `rejected`;
+- exact `shopee_csv_rows.source_sub_id1` to `tracking_links.network_sub_id`
+  attribution with a transactional `attributeShopeeCsvBatchAsync` repository;
+- persisted Shopee advertiser, campaign, offer, and cashback-policy
+  foundation (`advertisers`, `campaigns`, `offers`, `cashback_policies`);
+- transactionally protected tracking-link classification through
+  `classifyShopeeTrackingLinkAsync`, which acquires sequential
+  `SELECT FOR UPDATE` row locks on `offers`, `campaigns`, `advertisers`,
+  and `cashback_policies`, validates the locked eligibility snapshot
+  against the full catalog contract, then acquires a `SELECT FOR UPDATE`
+  row lock on the single owned `tracking_links` row and performs a
+  conditional update of the `(campaign_id, offer_id)` pair only when
+  both columns are currently `NULL`. The result is a consistent
+  transactional database state;
+- the `scripts/classify-shopee-tracking-link-worker.ts` test worker that
+  exercises the classification repository;
+- a PostgreSQL concurrency integration test covering the classification path;
+- CI quality-gate updates so the test, integration test, database migration
+  validation, and Supabase role bootstrap run on every pull request and push
+  to `main`.
+
+### 16.2 Phase 20G.1 scope not yet delivered
+
+The following Phase 20G.1 items remain open and are explicitly not covered
+by Pull Request #17:
+
+- production orchestration for CSV import and batch attribution;
+- deterministic `source_conversion_key` from immutable source fields;
+- idempotent normalized conversion writes that link back to the staged CSV
+  row, import batch, and ingestion-event evidence;
+- immutable conversion linkage to source rows and import evidence;
+- replay handling, partial-batch failure handling, and operational failure
+  recovery.
+
+### 16.3 Phase 20G.2 boundaries reaffirmed
+
+Phase 20G.2 continues to own the validation and settlement split, immutable
+status history, reversal handling, reconciliation workflows, the persisted
+consumer Orders projection, and the removal of corresponding Orders mock
+data only after parity verification. None of those items are part of the
+Phase 20G.1 partial delivery.
+
+### 16.4 Phase 20H boundaries reaffirmed
+
+Wallet, withdrawal, payout processing, and ledger implementation continue to
+belong to Phase 20H and must not begin inside Phase 20G.
+
+### 16.5 TikTok Shop and other networks
+
+TikTok Shop remains deferred. No TikTok-specific implementation may be mixed
+into the current Shopee phase. Lazada, Tiki, Sendo, Amazon, and unverified
+affiliate networks remain outside the current product scope.

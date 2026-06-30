@@ -4,21 +4,22 @@
 
 Project: Vaffiliate
 
-Current phase: Phase 20G.0 - Architecture and Data Contract Documentation
+Current phase: Phase 20G.1 - Shopee Ingestion and Attribution Foundation
 
-Phase status: In progress
+Phase status: Partially delivered; documentation synchronization in progress
 
 Current branch:
 
-`docs/phase-20g0-architecture-data-contract`
+`docs/sync-project-state-after-pr17`
 
 Current baseline commit:
 
-`2baa327` - merge of Pull Request #13, pre-Phase 20G delivery baseline
+`11c24dd` - merge of Pull Request #17, Shopee attribution and CSV ingestion
+foundation
 
 Latest implementation merge:
 
-`389ef9c` - merge of Pull Request #12, Phase 20F consumer cashback flow
+`11c24dd` - Pull Request #17
 
 Integration branch:
 
@@ -30,9 +31,13 @@ Latest reachable stable tag:
 
 The stable tag is historical. No Phase 20 completion tag has been created.
 
-Phase 20G.0 is documentation-only. It must not introduce production schema,
-migration, repository, service, route, authentication, or financial behavior
-changes.
+Pull Request #17 delivered a verified Shopee ingestion and attribution
+foundation, but it does not yet complete normalized conversion ingestion,
+reconciliation, consumer Orders persistence, wallet infrastructure, or a
+production CSV administration workflow.
+
+Git history, source code, migrations, and verified command output take
+precedence when stale documentation conflicts with the repository.
 
 ---
 
@@ -57,9 +62,9 @@ The current architecture is documented in:
 - `docs/ARCHITECTURE.md`
 - `docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md`
 
-The Phase 20G.0 contract is authoritative for conversion granularity,
-attribution, ingestion, reconciliation, identifiers, status transitions,
-money invariants, security boundaries, and migration safety.
+The Phase 20G architecture and data contract is authoritative for conversion
+granularity, attribution, ingestion, reconciliation, identifiers, status
+transitions, money invariants, security boundaries, and migration safety.
 
 ---
 
@@ -72,24 +77,101 @@ The current persisted foundation includes:
 - Supabase authentication users;
 - publisher profiles;
 - payout accounts;
-- tracking-link creation;
-- cashback click recording;
-- conversion reads associated with the authenticated publisher.
+- tracking links;
+- cashback clicks;
+- Shopee CSV import batches;
+- Shopee CSV source rows;
+- conversions;
+- advertisers;
+- campaigns;
+- offers;
+- cashback policies.
 
-These persisted flows must not silently fall back to mock records.
+Persisted flows must not silently fall back to mock records.
 
-### Mock or Partial
+### Delivered Shopee ingestion and attribution foundation
 
-The following domains remain mock-backed or only partially persisted:
+Pull Request #17 delivered the following:
+
+- a stable `tracking_links.network_sub_id` token, formatted `vaflnk` followed by
+  24 lowercase hexadecimal characters;
+- verified Shopee affiliate URL provisioning using the tracking-link token in
+  `Sub_id1`;
+- file-level CSV idempotency using the SHA-256 of the source file;
+- row-level CSV idempotency using a SHA-256 row fingerprint;
+- persisted Shopee CSV staging (`shopee_csv_import_batches` and
+  `shopee_csv_rows`);
+- exact `shopee_csv_rows.source_sub_id1` to `tracking_links.network_sub_id`
+  attribution;
+- persisted Shopee advertiser, campaign, offer, and cashback-policy foundation;
+- transactionally protected tracking-link classification through
+  `classifyShopeeTrackingLinkAsync`, which acquires sequential
+  `SELECT FOR UPDATE` row locks on `offers`, `campaigns`, `advertisers`,
+  and `cashback_policies`, validates the locked eligibility snapshot
+  against the full catalog contract, then acquires a `SELECT FOR UPDATE`
+  row lock on the single owned `tracking_links` row and performs a
+  conditional update of the `(campaign_id, offer_id)` pair only when
+  both columns are currently `NULL`. The result is a consistent
+  transactional database state;
+- a PostgreSQL concurrency integration test covering the classification path.
+
+`provisionShopeeAffiliateUrlAsync` is wired into the cashback Server Action
+so that the verified affiliate URL is persisted on the tracking link.
+
+### Repository and test foundations that currently exist
+
+The following capabilities exist in repositories or test tooling on
+`11c24dd`:
+
+- Shopee CSV file import (`parseShopeeCsvFile`,
+  `importShopeeCsvFileAsync` against
+  `shopee_csv_import_batches` and `shopee_csv_rows`);
+- CSV batch attribution that exact-matches
+  `shopee_csv_rows.source_sub_id1` against
+  `tracking_links.network_sub_id` through
+  `attributeShopeeCsvBatchAsync`;
+- Shopee catalog classification through
+  `classifyShopeeTrackingLinkAsync` (sequential `SELECT FOR UPDATE`
+  row locks on `offers`, `campaigns`, `advertisers`, and
+  `cashback_policies`, then a `SELECT FOR UPDATE` row lock on the
+  single owned `tracking_links` row with a conditional update of the
+  `(campaign_id, offer_id)` pair only when both columns are currently
+  `NULL`);
+- the `scripts/classify-shopee-tracking-link-worker.ts` test worker
+  that exercises the classification repository;
+- a PostgreSQL concurrency integration test covering the
+  classification path.
+
+### Production or implementation capabilities that remain absent
+
+The following production or implementation capabilities are not in
+the current repository:
+
+- production orchestration for CSV import and batch attribution;
+- idempotent normalized conversion creation from staged
+  `shopee_csv_rows`;
+- a deterministic `source_conversion_key`;
+- production administration UI, route, scheduled worker, or
+  end-to-end operational command for the complete CSV pipeline.
+
+The current CSV ingestion pipeline stops at the
+`ready_for_conversion` processing status on `shopee_csv_rows`. There
+is no code path that inserts a normalized conversion from a staged
+row.
+
+### Mock or partial
+
+The following domains remain mock-backed, mixed, or incomplete:
 
 - dashboard summaries;
 - consumer Orders;
 - Finance and wallet balances;
+- wallet transactions;
 - withdrawal history;
 - cashback history views;
-- advertiser, campaign, and offer catalog data;
 - tracking-link list and analytics data;
-- notifications.
+- notifications;
+- some catalog-facing UI and detail surfaces.
 
 Pages that combine multiple data sources must keep the source boundaries
 explicit.
@@ -155,8 +237,22 @@ network_commission =
 user_cashback + platform_profit
 ```
 
-Attribution must come from trusted partner evidence. Storing an internal
-`network_sub_id` does not prove that the merchant received it.
+### Shopee attribution evidence
+
+Shopee attribution uses exact matching between
+`shopee_csv_rows.source_sub_id1` and the stable `tracking_links.network_sub_id`
+carried in the verified affiliate URL through Shopee `Sub_id1`.
+
+Affiliate URL verification proves that the generated URL contains the expected
+token. Returned CSV evidence confirms partner-side attribution only for source
+rows that actually contain the matching `Sub_id1`.
+
+The per-click `clicks.click_token` is separate from
+`tracking_links.network_sub_id` and is not currently transmitted to Shopee.
+
+Silent fuzzy or time-window attribution fallback is not authorized. Any
+fallback attribution path must be explicitly named, deterministic, and
+reviewable before it can drive financial settlement.
 
 ---
 
@@ -189,18 +285,42 @@ Privileged ingestion and reconciliation writes must:
 
 Architecture and data-contract documentation only.
 
-No production schema or implementation change belongs in this phase.
+Phase 20G.0 remains the canonical historical architecture and data
+contract for Phase 20G.1 and beyond. The exact Phase 20G.0 merge commit
+and Pull Request number are not separately verified in the current
+documentation branch and must not be invented here.
 
 ### Phase 20G.1
 
-Expected foundation:
+Partially delivered foundation, merged through Pull Request #17.
 
-- verified partner attribution adapters;
-- ingestion-event persistence;
-- exact sub-ID attribution;
-- idempotent normalized conversion writes;
-- immutable attribution evidence;
-- server-only ingestion security.
+Delivered scope:
+
+- verified Shopee affiliate URL provisioning with stable `Sub_id1` attribution;
+- persisted Shopee CSV import batches and source rows;
+- file-level and row-level CSV idempotency;
+- exact returned `Sub_id1` attribution;
+- persisted Shopee advertiser, campaign, offer, and cashback-policy
+  foundation;
+- transactionally protected tracking-link classification through
+  `classifyShopeeTrackingLinkAsync` (sequential `SELECT FOR UPDATE` row
+  locks on `offers`, `campaigns`, `advertisers`, and `cashback_policies`,
+  then a `SELECT FOR UPDATE` row lock on the owned `tracking_links` row
+  with a conditional update of the `(campaign_id, offer_id)` pair);
+- PostgreSQL concurrency coverage for the classification path.
+
+Remaining scope:
+
+- production orchestration for CSV import and batch attribution;
+- deterministic `source_conversion_key` from immutable source fields;
+- idempotent normalized conversion writes that link back to the staged CSV row
+  and import batch;
+- immutable conversion linkage to source rows and import evidence;
+- replay handling, partial-batch failure handling, and operational failure
+  recovery.
+
+Phase 20G.1 must not introduce speculative query parameters or a universal
+affiliate-network abstraction without verified partner contracts.
 
 ### Phase 20G.2
 
@@ -208,15 +328,26 @@ Expected reconciliation and consumer-order scope:
 
 - validation and settlement separation;
 - immutable status history;
-- reversal handling;
-- persisted consumer Orders projection;
-- removal of corresponding Orders mock data after parity verification.
+- reversal and adjustment handling;
+- reconciliation workflows;
+- persisted consumer Orders projection derived from canonical conversions;
+- parity verification against current Orders behavior;
+- removal of corresponding Orders mock data only after parity is proven.
+
+The consumer Orders projection must remain derived from canonical conversion
+records. Orders must not become a second financial source of truth.
 
 ### Phase 20H
 
-Wallet and withdrawal infrastructure.
+Expected wallet and withdrawal scope:
 
-Wallet implementation must not begin inside Phase 20G.
+- immutable wallet ledger entries;
+- balance projections;
+- withdrawal requests;
+- payout processing;
+- financial adjustments and clawbacks.
+
+Wallet and withdrawal implementation must not begin inside Phase 20G.
 
 ---
 
@@ -224,9 +355,13 @@ Wallet implementation must not begin inside Phase 20G.
 
 - Phase 20C: persisted publisher profile editing;
 - Phase 20D: persisted payout-account settings;
-- Phase 20E: persisted publisher conversions and reporting;
+- Phase 20E: persisted publisher conversion reads and reporting;
 - Phase 20F: consumer cashback tracking-link creation and click redirect flow;
-- pre-Phase 20G baseline: CI and delivery checks established in Pull Request #13.
+- pre-Phase 20G delivery baseline: CI and delivery checks established;
+- Phase 20G.0 architecture and data-contract documentation;
+- Phase 20G.1 foundation: Shopee affiliate URL provisioning, CSV staging,
+  exact `Sub_id1` attribution, persisted Shopee catalog and cashback-policy
+  foundation, and PostgreSQL concurrency coverage.
 
 Relevant merge commits:
 
@@ -234,57 +369,143 @@ Relevant merge commits:
 - `04e8aa8` - Pull Request #10, Phase 20D;
 - `39bba45` - Pull Request #11, Phase 20E;
 - `389ef9c` - Pull Request #12, Phase 20F;
-- `2baa327` - Pull Request #13, pre-Phase 20G baseline.
+- `2baa327` - Pull Request #13, pre-Phase 20G delivery baseline;
+- `11c24dd` - Pull Request #17, Phase 20G.1 Shopee attribution and CSV
+  ingestion foundation.
+
+The exact Phase 20G.0 documentation merge commit and Pull Request number
+are not separately verified in the current documentation branch and must
+not be invented here.
 
 ---
 
 ## Delivery Baseline
 
-The baseline CI workflow uses:
+The CI workflow uses Node.js 24, npm 11.13.0, and a PostgreSQL 16 service.
+
+The current delivery path is:
 
 ```text
 npm ci
+bootstrap Supabase-compatible PostgreSQL roles and auth helpers
+npx drizzle-kit migrate
 npm run lint
 npm run typecheck
+npm test
+npm run test:integration
 npm run db:check
 npm run build
 ```
 
-The project baseline requires Node.js 24 and npm 11.
+The PostgreSQL integration test runs with:
 
-Route and generated-page counts must be taken from current verified Next.js
-build output. They must not be copied from the historical Phase 19.5
-documentation.
+```text
+NODE_OPTIONS=--conditions=react-server
+```
 
-Final quality gates for the Phase 20G.0 branch remain pending until all four
-documentation files are complete.
+`npx drizzle-kit migrate` and `npm run test:integration` both
+require a reachable PostgreSQL database. Migration runtime
+validation also requires the Supabase compatibility bootstrap
+defined in `scripts/ci-bootstrap-supabase.sql`, which provisions
+the `anon` and `authenticated` roles, the `auth` schema, and the
+`auth.uid()` helper that the migrations and RLS policies depend
+on. The CI pipeline starts the PostgreSQL 16 service, installs
+the PostgreSQL client, and runs the same bootstrap before
+applying migrations.
+
+When suitable local PostgreSQL is unavailable, both runtime
+migration validation (bootstrap + `npx drizzle-kit migrate`) and
+integration testing (`npm run test:integration`) may be validated
+by a green GitHub Actions run for the exact same commit. Do not
+claim a local PASS for a command that was not run locally.
+
+Pull Request #17 passed this delivery pipeline before merge. The current
+documentation synchronization branch must run the same quality gates before
+it is considered merge-ready.
+
+Route classifications and generated-page counts must come from the current
+verified Next.js build output. They must not be copied from the historical
+Phase 19.5 documentation.
 
 ---
 
 ## Current Documentation Scope
 
-Phase 20G.0 updates only:
+The current documentation synchronization branch updates only:
 
-- `docs/ARCHITECTURE.md`
-- `docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md`
-- `docs/PROJECT_STATE.md`
-- `docs/HANDOFF.md`
+- `docs/ARCHITECTURE.md`;
+- `docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md`;
+- `docs/PROJECT_STATE.md`;
+- `docs/HANDOFF.md`.
 
-No implementation file should be modified during this phase.
+The purpose of this branch is to synchronize documentation with repository
+state after Pull Request #17.
+
+No production schema, migration, repository, service, route, authentication,
+attribution, conversion, or financial behavior change belongs in this branch.
 
 ---
 
 ## Next Required Work
 
-1. Complete `docs/PROJECT_STATE.md`.
-2. Replace stale operational content in `docs/HANDOFF.md`.
-3. Verify documentation structure and cross-document consistency.
-4. Run `git diff --check`.
-5. Run the delivery quality gates.
-6. Review the complete branch diff against `origin/main`.
-7. Commit and push only after review and explicit approval.
+### Current documentation branch work
 
-Do not begin Phase 20G.1 implementation from this branch.
+1. Finish synchronization of all four documents
+   (`docs/ARCHITECTURE.md`, `docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md`,
+   `docs/PROJECT_STATE.md`, `docs/HANDOFF.md`).
+2. Verify cross-document consistency for the partial Phase 20G.1
+   delivery, identifier boundary, attribution evidence, conversion
+   identity, validation/settlement split, money invariant, and
+   security boundaries.
+3. Run `git diff --check`.
+4. Run the full quality gates in the order used by CI:
+   - bootstrap Supabase-compatible PostgreSQL roles and auth helpers
+     (`scripts/ci-bootstrap-supabase.sql`);
+   - `npx drizzle-kit migrate`;
+   - `npm run lint`;
+   - `npm run typecheck`;
+   - `npm test`;
+   - `npm run test:integration`;
+   - `npm run db:check`;
+   - `npm run build`.
+
+   `npx drizzle-kit migrate` and `npm run test:integration` both
+   require a reachable PostgreSQL database, and migration
+   validation also requires the Supabase compatibility bootstrap
+   used by CI. When suitable local PostgreSQL is unavailable,
+   both runtime migration validation and integration testing may
+   be validated by a green GitHub Actions run for the exact same
+   commit. Do not claim a local PASS for a command that was not
+   run locally.
+5. Review the complete diff for contradictions and unsupported history.
+6. Commit, push, and merge only after explicit approval.
+
+### Implementation work after this documentation branch is merged
+
+1. Complete the documented partial Phase 20G.1 foundation by adding
+   production orchestration for CSV import and batch attribution.
+2. Introduce a deterministic `source_conversion_key` so that the conversion
+   uniqueness boundary can move from
+   `network + external_order_id` to `network + source_conversion_key`.
+3. Implement idempotent normalized conversion ingestion that links each
+   normalized conversion back to the staged `shopee_csv_rows` row and the
+   `shopee_csv_import_batches` evidence.
+4. Add replay, partial-batch failure, and operational failure handling for
+   CSV ingestion.
+5. Split persisted `conversions` validation and settlement into separate
+   state columns and add immutable status history.
+6. Implement reversal and adjustment records without erasing historical
+   approval or payment facts.
+7. Persist a consumer Orders projection derived from canonical conversion
+   records and verify parity before removing the corresponding mock data.
+8. Begin Phase 20H work only after Phase 20G.2 has produced verified parity
+   for reconciliation and consumer Orders.
+
+Do not begin any of the items above on the current documentation branch.
+
+Do not invent a Phase 20 completion tag.
+
+Do not mix TikTok Shop implementation into the current Shopee phase.
 
 ---
 
@@ -302,7 +523,7 @@ architecture and persisted/mock boundaries.
 
 `docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md` is authoritative for the
 Phase 20G conversion, attribution, ingestion, reconciliation, and migration
-contract.
+contract, with updates annotated to reflect Pull Request #17.
 
 `docs/HANDOFF.md` is authoritative for operational continuation, verification
 steps, and repository handoff instructions.
@@ -317,7 +538,25 @@ precedence when stale documentation conflicts with the repository.
 1. Read all four authoritative documents.
 2. Verify the current branch and baseline commit.
 3. Verify the affected persisted and mock boundaries.
-4. Run lint, typecheck, database checks, and production build.
+4. Run the full quality gates in the order used by CI:
+   - bootstrap Supabase-compatible PostgreSQL roles and auth helpers
+     (`scripts/ci-bootstrap-supabase.sql`);
+   - `npx drizzle-kit migrate`;
+   - `npm run lint`;
+   - `npm run typecheck`;
+   - `npm test`;
+   - `npm run test:integration`;
+   - `npm run db:check`;
+   - `npm run build`.
+
+   `npx drizzle-kit migrate` and `npm run test:integration` both
+   require a reachable PostgreSQL database, and migration
+   validation also requires the Supabase compatibility bootstrap
+   used by CI. When suitable local PostgreSQL is unavailable,
+   both runtime migration validation and integration testing may
+   be validated by a green GitHub Actions run for the exact same
+   commit. Do not claim a local PASS for a command that was not
+   run locally.
 5. Audit migration and rollback safety.
 6. Produce an implementation plan.
 7. Wait for explicit approval before changing production implementation files.
