@@ -134,6 +134,13 @@
       "when": 1782740442931,
       "tag": "0018_phase_20g2_shopee_csv_staging",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1782765177006,
+      "tag": "0019_phase_20g2_shopee_catalog_foundation",
+      "breakpoints": true
     }
   ]
 }

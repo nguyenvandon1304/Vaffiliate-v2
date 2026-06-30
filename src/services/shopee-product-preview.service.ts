@@ -3,6 +3,11 @@ import "server-only";
 import {
   resolveShopeeProductUrl,
 } from "@/lib/shopee/product-url";
+import {
+  BASIS_POINTS,
+  calculateCashbackAllocation,
+  SHOPEE_PREVIEW_DEFAULT_CASHBACK_SHARE_BPS,
+} from "@/lib/cashback/cashback-policy";
 import type {
   ShopeeProductPreview,
   ShopeeProductPreviewErrorCode,
@@ -12,8 +17,6 @@ const PRODUCT_DATA_ENDPOINT =
   "https://data.addlivetag.com/product-data/product-data.php";
 
 const REQUEST_TIMEOUT_MS = 10_000;
-const CASHBACK_SHARE_BPS = 6_000;
-const BASIS_POINTS = 10_000;
 
 type ProductPreviewServiceErrorCode = Extract<
   ShopeeProductPreviewErrorCode,
@@ -139,7 +142,7 @@ function calculateCashbackRatePercent(
   }
 
   return Math.round(
-    (cashbackVnd / priceVnd) * 10_000,
+    (cashbackVnd / priceVnd) * Number(BASIS_POINTS),
   ) / 100;
 }
 
@@ -311,12 +314,12 @@ function parseProductPreview(
     );
   }
 
-  const estimatedCashbackVnd = Math.floor(
-    (
-      estimatedCommissionVnd *
-      CASHBACK_SHARE_BPS
-    ) / BASIS_POINTS,
-  );
+  const { userCashback: estimatedCashbackVnd } =
+    calculateCashbackAllocation({
+      networkCommission: estimatedCommissionVnd,
+      cashbackShareBps:
+        SHOPEE_PREVIEW_DEFAULT_CASHBACK_SHARE_BPS,
+    });
 
   const rawCap =
     readNullableNonNegativeInteger(
@@ -351,7 +354,7 @@ function parseProductPreview(
     shopeeCommissionVnd,
 
     cashbackShareBps:
-      CASHBACK_SHARE_BPS,
+      SHOPEE_PREVIEW_DEFAULT_CASHBACK_SHARE_BPS,
     estimatedCashbackVnd,
     estimatedCashbackRatePercent:
       calculateCashbackRatePercent(

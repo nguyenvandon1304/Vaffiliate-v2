@@ -1177,6 +1177,211 @@ export const conversions = pgTable(
   ],
 );
 
+// ─── Affiliate catalog ──────────────────────────────────────────────────────
+
+export const advertisers = pgTable(
+  "advertisers",
+  {
+    id: text("id").primaryKey(),
+
+    name: text("name").notNull(),
+
+    /**
+     * Affiliate platform the advertiser belongs to.
+     *
+     * Tracking-link and conversion catalog identifiers are text today, so
+     * the catalog must use the same text ids and remain compatible with
+     * existing rows in tracking_links and conversions.
+     */
+    platform: text("platform").notNull(),
+
+    status: text("status")
+      .default("active")
+      .notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "advertisers_platform_check",
+      sql`${table.platform} in ('shopee', 'tiktok')`,
+    ),
+
+    check(
+      "advertisers_status_check",
+      sql`${table.status} in ('active', 'disabled')`,
+    ),
+
+    check(
+      "advertisers_id_not_blank_check",
+      sql`char_length(trim(${table.id})) > 0`,
+    ),
+
+    check(
+      "advertisers_name_not_blank_check",
+      sql`char_length(trim(${table.name})) > 0`,
+    ),
+  ],
+).enableRLS();
+
+export const campaigns = pgTable(
+  "campaigns",
+  {
+    id: text("id").primaryKey(),
+
+    advertiserId: text("advertiser_id")
+      .notNull()
+      .references(() => advertisers.id, {
+        onDelete: "restrict",
+      }),
+
+    name: text("name").notNull(),
+
+    status: text("status")
+      .default("active")
+      .notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("campaigns_advertiser_idx").on(
+      table.advertiserId,
+    ),
+
+    check(
+      "campaigns_id_not_blank_check",
+      sql`char_length(trim(${table.id})) > 0`,
+    ),
+
+    check(
+      "campaigns_name_not_blank_check",
+      sql`char_length(trim(${table.name})) > 0`,
+    ),
+
+    check(
+      "campaigns_status_check",
+      sql`${table.status} in ('active', 'paused', 'disabled')`,
+    ),
+  ],
+).enableRLS();
+
+export const offers = pgTable(
+  "offers",
+  {
+    id: text("id").primaryKey(),
+
+    campaignId: text("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, {
+        onDelete: "restrict",
+      }),
+
+    name: text("name").notNull(),
+
+    status: text("status")
+      .default("active")
+      .notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("offers_campaign_idx").on(
+      table.campaignId,
+    ),
+
+    check(
+      "offers_id_not_blank_check",
+      sql`char_length(trim(${table.id})) > 0`,
+    ),
+
+    check(
+      "offers_name_not_blank_check",
+      sql`char_length(trim(${table.name})) > 0`,
+    ),
+
+    check(
+      "offers_status_check",
+      sql`${table.status} in ('active', 'paused', 'disabled')`,
+    ),
+  ],
+).enableRLS();
+
+export const cashbackPolicies = pgTable(
+  "cashback_policies",
+  {
+    offerId: text("offer_id")
+      .primaryKey()
+      .references(() => offers.id, {
+        onDelete: "cascade",
+      }),
+
+    /**
+     * Share of the network commission that is paid out as user cashback,
+     * expressed in basis points where 10000 == 100%.
+     *
+     * The remaining share is retained as platform profit.
+     */
+    cashbackShareBps: integer("cashback_share_bps")
+      .notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "cashback_policies_share_bps_range_check",
+      sql`${table.cashbackShareBps} between 0 and 10000`,
+    ),
+  ],
+).enableRLS();
+
 // ─── Inferred database row types ────────────────────────────────────────────
 
 export type ProfileRow = typeof profiles.$inferSelect;
@@ -1193,3 +1398,15 @@ export type NewClickRow = typeof clicks.$inferInsert;
 
 export type ConversionRow = typeof conversions.$inferSelect;
 export type NewConversionRow = typeof conversions.$inferInsert;
+
+export type AdvertiserRow = typeof advertisers.$inferSelect;
+export type NewAdvertiserRow = typeof advertisers.$inferInsert;
+
+export type CampaignRow = typeof campaigns.$inferSelect;
+export type NewCampaignRow = typeof campaigns.$inferInsert;
+
+export type OfferRow = typeof offers.$inferSelect;
+export type NewOfferRow = typeof offers.$inferInsert;
+
+export type CashbackPolicyRow = typeof cashbackPolicies.$inferSelect;
+export type NewCashbackPolicyRow = typeof cashbackPolicies.$inferInsert;
