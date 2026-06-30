@@ -85,6 +85,11 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: PostgreSQL integration test
+        env:
+          NODE_OPTIONS: --conditions=react-server
+        run: npm run test:integration
+
       - name: Check database migrations
         run: npm run db:check
 
