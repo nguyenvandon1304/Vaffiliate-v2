@@ -49,6 +49,8 @@ export interface CashbackTrackingLinkResult {
   offerId: OfferId | null;
   status: TrackingLinkStatus;
   createdAt: string;
+  networkSubId: string;
+  affiliateUrl: string | null;
   trackingPath: string;
 }
 
@@ -56,6 +58,12 @@ export interface CreateCashbackTrackingLinkActionState {
   success: boolean;
   message: string;
   trackingLink: CashbackTrackingLinkResult | null;
+}
+export interface ProvisionShopeeAffiliateUrlActionState {
+  success: boolean;
+  message: string;
+  trackingLinkId: TrackingLinkId | null;
+  affiliateUrl: string | null;
 }
 export type ShopeeProductPreviewErrorCode =
   | "invalid_url"

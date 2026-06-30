@@ -166,6 +166,7 @@ export default function ShopeeCashbackPreviewForm() {
 
       {visiblePreview ? (
         <ShopeeProductPreviewCard
+          key={visiblePreview.productUrl}
           preview={visiblePreview}
         />
       ) : (
@@ -182,9 +183,10 @@ export default function ShopeeCashbackPreviewForm() {
       )}
 
       <p className="mt-4 rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.08)] bg-[rgba(255,250,246,0.72)] px-4 py-3 text-xs leading-5 text-[color:var(--text-muted)] shadow-[var(--shadow-sm)]">
-        Đây mới là bước kiểm tra sản phẩm. Link
-        mua hàng có tracking affiliate sẽ được
-        kích hoạt ở bước triển khai tiếp theo.
+        Hãy mua hàng qua nút “Mua ngay nhận hoàn tiền”
+        vừa tạo và hạn chế chuyển sang link khác trước
+        khi thanh toán để đơn có cơ hội được ghi nhận
+        chính xác.
       </p>
     </div>
   );

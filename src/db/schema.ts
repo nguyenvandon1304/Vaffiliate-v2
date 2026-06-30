@@ -5,6 +5,9 @@ import {
   check,
   foreignKey,
   index,
+  integer,
+  jsonb,
+  numeric,
   pgTable,
   text,
   timestamp,
@@ -98,12 +101,13 @@ export const payoutAccounts = pgTable(
       sql`${table.method} = 'bank'`,
     ),
 
-check(
-  "payout_accounts_status_check",
-  sql`${table.status} in ('unverified', 'verified', 'rejected', 'disabled')`,
-),
-],
+    check(
+      "payout_accounts_status_check",
+      sql`${table.status} in ('unverified', 'verified', 'rejected', 'disabled')`,
+    ),
+  ],
 );
+
 // ─── Consumer cashback tracking links ───────────────────────────────────────
 
 export const trackingLinks = pgTable(
@@ -122,12 +126,38 @@ export const trackingLinks = pgTable(
     platform: text("platform")
       .notNull(),
 
+    /**
+     * Original product or merchant URL supplied by the customer.
+     *
+     * This URL is used as the source destination when generating an
+     * affiliate URL, but it is not the final attribution redirect target.
+     */
     destinationUrl: text("destination_url")
       .notNull(),
 
-      campaignId: text("campaign_id"),
+    /**
+     * Network-generated affiliate URL for the same destination.
+     *
+     * The URL should contain the stable tracking-link attribution token
+     * in Shopee Sub_id1. It remains nullable until affiliate-link
+     * generation has completed successfully.
+     */
+    affiliateUrl: text("affiliate_url"),
 
-      offerId: text("offer_id"),
+    campaignId: text("campaign_id"),
+
+    offerId: text("offer_id"),
+
+    /**
+     * Stable network attribution token owned by this tracking link.
+     *
+     * Shopee convention:
+     * - Sub_id1 = networkSubId
+     * - Sub IDs accept ASCII letters and digits only
+     * - Sub_id2 may later contain a click-specific token
+     */
+    networkSubId: text("network_sub_id")
+      .notNull(),
 
     shortCode: text("short_code")
       .notNull(),
@@ -155,6 +185,10 @@ export const trackingLinks = pgTable(
       table.shortCode,
     ),
 
+    unique("tracking_links_network_sub_id_unique").on(
+      table.networkSubId,
+    ),
+
     unique("tracking_links_id_publisher_unique").on(
       table.id,
       table.publisherId,
@@ -173,6 +207,22 @@ export const trackingLinks = pgTable(
     check(
       "tracking_links_destination_url_https_check",
       sql`${table.destinationUrl} ~ '^https://'`,
+    ),
+
+    check(
+      "tracking_links_affiliate_url_https_check",
+      sql`
+        ${table.affiliateUrl} is null
+        or ${table.affiliateUrl} ~ '^https://'
+      `,
+    ),
+
+    check(
+      "tracking_links_network_sub_id_check",
+      sql`
+        ${table.networkSubId}
+        ~ '^vaflnk[a-f0-9]{24}$'
+      `,
     ),
 
     check(
@@ -230,7 +280,13 @@ export const clicks = pgTable(
         onDelete: "cascade",
       }),
 
-    networkSubId: text("network_sub_id")
+    /**
+     * Unique identifier for this individual click.
+     *
+     * This is separate from trackingLinks.networkSubId. It may later be
+     * passed to an affiliate network through Sub_id2 when supported.
+     */
+    clickToken: text("click_token")
       .notNull(),
 
     referrer: text("referrer"),
@@ -262,8 +318,8 @@ export const clicks = pgTable(
       name: "clicks_tracking_link_publisher_fk",
     }).onDelete("cascade"),
 
-    unique("clicks_network_sub_id_unique").on(
-      table.networkSubId,
+    unique("clicks_click_token_unique").on(
+      table.clickToken,
     ),
 
     index("clicks_publisher_clicked_at_idx").on(
@@ -282,8 +338,8 @@ export const clicks = pgTable(
     ),
 
     check(
-      "clicks_network_sub_id_not_blank_check",
-      sql`char_length(trim(${table.networkSubId})) > 0`,
+      "clicks_click_token_not_blank_check",
+      sql`char_length(trim(${table.clickToken})) > 0`,
     ),
 
     check(
@@ -302,6 +358,500 @@ export const clicks = pgTable(
     ),
   ],
 );
+
+// ─── Shopee CSV import staging ────────────────────────────────────────────────
+
+export const shopeeCsvImportBatches = pgTable(
+  "shopee_csv_import_batches",
+  {
+    id: uuid("id")
+      .defaultRandom()
+      .primaryKey(),
+
+    sourceFileName: text("source_file_name")
+      .notNull(),
+
+    /**
+     * SHA-256 of the original file bytes.
+     *
+     * This is the file-level idempotency boundary. The same official report
+     * cannot be imported twice as a separate batch.
+     */
+    sourceFileSha256: text("source_file_sha256")
+      .notNull(),
+
+    sourceFileSizeBytes: bigint("source_file_size_bytes", {
+      mode: "number",
+    })
+      .notNull(),
+
+    /**
+     * Original Shopee headers in their received order.
+     *
+     * The parser must retain exact official header spellings, including any
+     * spelling inconsistencies present in the exported report.
+     */
+    sourceHeaders: jsonb("source_headers")
+      .$type<string[]>()
+      .notNull(),
+
+    parserVersion: text("parser_version")
+      .notNull(),
+
+    status: text("status")
+      .default("pending")
+      .notNull(),
+
+    totalRows: integer("total_rows")
+      .default(0)
+      .notNull(),
+
+    insertedRows: integer("inserted_rows")
+      .default(0)
+      .notNull(),
+
+    duplicateRows: integer("duplicate_rows")
+      .default(0)
+      .notNull(),
+
+    attributedRows: integer("attributed_rows")
+      .default(0)
+      .notNull(),
+
+    unattributedRows: integer("unattributed_rows")
+      .default(0)
+      .notNull(),
+
+    awaitingClassificationRows: integer(
+      "awaiting_classification_rows",
+    )
+      .default(0)
+      .notNull(),
+
+    rejectedRows: integer("rejected_rows")
+      .default(0)
+      .notNull(),
+
+    errorMessage: text("error_message"),
+
+    startedAt: timestamp("started_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    completedAt: timestamp("completed_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique(
+      "shopee_csv_import_batches_source_file_sha256_unique",
+    ).on(
+      table.sourceFileSha256,
+    ),
+
+    index(
+      "shopee_csv_import_batches_status_created_at_idx",
+    ).on(
+      table.status,
+      table.createdAt,
+    ),
+
+    check(
+      "shopee_csv_import_batches_source_file_name_check",
+      sql`char_length(trim(${table.sourceFileName})) > 0`,
+    ),
+
+    check(
+      "shopee_csv_import_batches_source_file_sha256_check",
+      sql`${table.sourceFileSha256} ~ '^[a-f0-9]{64}$'`,
+    ),
+
+    check(
+      "shopee_csv_import_batches_source_file_size_check",
+      sql`${table.sourceFileSizeBytes} >= 0`,
+    ),
+
+    check(
+      "shopee_csv_import_batches_source_headers_check",
+      sql`jsonb_typeof(${table.sourceHeaders}) = 'array'`,
+    ),
+
+    check(
+      "shopee_csv_import_batches_parser_version_check",
+      sql`char_length(trim(${table.parserVersion})) > 0`,
+    ),
+
+    check(
+      "shopee_csv_import_batches_status_check",
+      sql`${table.status} in (
+        'pending',
+        'processing',
+        'completed',
+        'failed'
+      )`,
+    ),
+
+    check(
+      "shopee_csv_import_batches_row_counts_check",
+      sql`
+        ${table.totalRows} >= 0
+        and ${table.insertedRows} >= 0
+        and ${table.duplicateRows} >= 0
+        and ${table.attributedRows} >= 0
+        and ${table.unattributedRows} >= 0
+        and ${table.awaitingClassificationRows} >= 0
+        and ${table.rejectedRows} >= 0
+      `,
+    ),
+
+    check(
+      "shopee_csv_import_batches_completion_check",
+      sql`
+        (
+          ${table.status} in ('completed', 'failed')
+          and ${table.completedAt} is not null
+        )
+        or
+        (
+          ${table.status} in ('pending', 'processing')
+          and ${table.completedAt} is null
+        )
+      `,
+    ),
+
+    check(
+      "shopee_csv_import_batches_error_check",
+      sql`
+        (
+          ${table.status} = 'failed'
+          and nullif(trim(${table.errorMessage}), '') is not null
+        )
+        or
+        (
+          ${table.status} <> 'failed'
+          and ${table.errorMessage} is null
+        )
+      `,
+    ),
+  ],
+);
+
+export const shopeeCsvRows = pgTable(
+  "shopee_csv_rows",
+  {
+    id: uuid("id")
+      .defaultRandom()
+      .primaryKey(),
+
+    batchId: uuid("batch_id")
+      .notNull()
+      .references(
+        () => shopeeCsvImportBatches.id,
+        {
+          onDelete: "cascade",
+        },
+      ),
+
+    /**
+     * Physical row number in the original CSV file.
+     *
+     * The header is row 1, so imported data starts at row 2.
+     */
+    sourceRowNumber: integer("source_row_number")
+      .notNull(),
+
+    /**
+     * SHA-256 of the canonical complete source row.
+     *
+     * This prevents the same row snapshot from being inserted again,
+     * including when it appears in an overlapping Shopee report.
+     */
+    rowFingerprintSha256: text(
+      "row_fingerprint_sha256",
+    )
+      .notNull(),
+
+    /**
+     * Exact source values keyed by the original official Shopee headers.
+     */
+    rawRow: jsonb("raw_row")
+      .$type<Record<string, string>>()
+      .notNull(),
+
+    externalOrderId: text("external_order_id"),
+
+    checkoutId: text("checkout_id"),
+
+    orderStatus: text("order_status"),
+
+    orderedAt: timestamp("ordered_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+
+    completedAt: timestamp("completed_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+
+    clickedAt: timestamp("clicked_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+
+    shopId: text("shop_id"),
+
+    itemId: text("item_id"),
+
+    modelId: text("model_id"),
+
+    promotionId: text("promotion_id"),
+
+    quantity: integer("quantity"),
+
+    /**
+     * Source money remains exact decimal VND.
+     *
+     * Conversion into the integer-VND ledger must happen only during
+     * promotion into conversions and must never silently round.
+     */
+    orderValue: numeric("order_value", {
+      precision: 20,
+      scale: 5,
+    }),
+
+    refundedAmount: numeric("refunded_amount", {
+      precision: 20,
+      scale: 5,
+    }),
+
+    totalProductCommission: numeric(
+      "total_product_commission",
+      {
+        precision: 20,
+        scale: 5,
+      },
+    ),
+
+    totalOrderCommission: numeric(
+      "total_order_commission",
+      {
+        precision: 20,
+        scale: 5,
+      },
+    ),
+
+    netAffiliateCommission: numeric(
+      "net_affiliate_commission",
+      {
+        precision: 20,
+        scale: 5,
+      },
+    ),
+
+    linkedProductStatus: text(
+      "linked_product_status",
+    ),
+
+    sourceSubId1: text("source_sub_id1"),
+
+    sourceSubId2: text("source_sub_id2"),
+
+    sourceSubId3: text("source_sub_id3"),
+
+    sourceSubId4: text("source_sub_id4"),
+
+    sourceSubId5: text("source_sub_id5"),
+
+    channel: text("channel"),
+
+    /**
+     * Processing lifecycle:
+     *
+     * - pending: parsed but not evaluated
+     * - unattributed: Sub_id1 is blank or has no exact tracking-link match
+     * - awaiting_classification: tracking link matched but lacks catalog IDs
+     * - ready_for_conversion: attribution and classification are complete
+     * - rejected: malformed or unsupported source row
+     */
+    processingStatus: text("processing_status")
+      .default("pending")
+      .notNull(),
+
+    trackingLinkId: uuid("tracking_link_id"),
+
+    publisherId: uuid("publisher_id"),
+
+    rejectionReason: text("rejection_reason"),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique(
+      "shopee_csv_rows_batch_row_unique",
+    ).on(
+      table.batchId,
+      table.sourceRowNumber,
+    ),
+
+    unique(
+      "shopee_csv_rows_fingerprint_unique",
+    ).on(
+      table.rowFingerprintSha256,
+    ),
+
+    foreignKey({
+      columns: [
+        table.trackingLinkId,
+        table.publisherId,
+      ],
+      foreignColumns: [
+        trackingLinks.id,
+        trackingLinks.publisherId,
+      ],
+      name: "shopee_csv_rows_tracking_owner_fk",
+    }).onDelete("set null"),
+
+    index("shopee_csv_rows_batch_idx").on(
+      table.batchId,
+    ),
+
+    index("shopee_csv_rows_order_idx").on(
+      table.externalOrderId,
+    ),
+
+    index("shopee_csv_rows_sub_id1_idx").on(
+      table.sourceSubId1,
+    ),
+
+    index("shopee_csv_rows_status_idx").on(
+      table.processingStatus,
+    ),
+
+    check(
+      "shopee_csv_rows_source_row_check",
+      sql`${table.sourceRowNumber} >= 2`,
+    ),
+
+    check(
+      "shopee_csv_rows_fingerprint_check",
+      sql`${table.rowFingerprintSha256} ~ '^[a-f0-9]{64}$'`,
+    ),
+
+    check(
+      "shopee_csv_rows_raw_row_check",
+      sql`jsonb_typeof(${table.rawRow}) = 'object'`,
+    ),
+
+    check(
+      "shopee_csv_rows_quantity_check",
+      sql`
+        ${table.quantity} is null
+        or ${table.quantity} >= 0
+      `,
+    ),
+
+    check(
+      "shopee_csv_rows_processing_status_check",
+      sql`${table.processingStatus} in (
+        'pending',
+        'unattributed',
+        'awaiting_classification',
+        'ready_for_conversion',
+        'rejected'
+      )`,
+    ),
+
+    check(
+      "shopee_csv_rows_attribution_pair_check",
+      sql`
+        (
+          ${table.trackingLinkId} is null
+          and ${table.publisherId} is null
+        )
+        or
+        (
+          ${table.trackingLinkId} is not null
+          and ${table.publisherId} is not null
+        )
+      `,
+    ),
+
+    check(
+      "shopee_csv_rows_status_attribution_check",
+      sql`
+        (
+          ${table.processingStatus} in (
+            'awaiting_classification',
+            'ready_for_conversion'
+          )
+          and ${table.sourceSubId1} is not null
+          and ${table.trackingLinkId} is not null
+          and ${table.publisherId} is not null
+        )
+        or
+        (
+          ${table.processingStatus} in (
+            'pending',
+            'unattributed',
+            'rejected'
+          )
+          and ${table.trackingLinkId} is null
+          and ${table.publisherId} is null
+        )
+      `,
+    ),
+
+    check(
+      "shopee_csv_rows_rejection_check",
+      sql`
+        (
+          ${table.processingStatus} = 'rejected'
+          and nullif(
+            trim(${table.rejectionReason}),
+            ''
+          ) is not null
+        )
+        or
+        (
+          ${table.processingStatus} <> 'rejected'
+          and ${table.rejectionReason} is null
+        )
+      `,
+    ),
+  ],
+);
+
 // ─── Conversion ledger ──────────────────────────────────────────────────────
 
 export const conversions = pgTable(
@@ -344,7 +894,7 @@ export const conversions = pgTable(
 
     /**
      * Catalog identifiers remain text in Phase 20E because advertisers,
-     * campaigns, offers, and tracking links are not persisted yet.
+     * campaigns, offers, and legacy tracking links may still use text IDs.
      */
     advertiserId: text("advertiser_id")
       .notNull(),
@@ -355,6 +905,10 @@ export const conversions = pgTable(
     offerId: text("offer_id")
       .notNull(),
 
+    /**
+     * Remains text while legacy conversion rows still contain identifiers
+     * such as trk-001, trk-002, and trk-003.
+     */
     trackingLinkId: text("tracking_link_id")
       .notNull(),
 
@@ -432,6 +986,9 @@ export const conversions = pgTable(
   (table) => [
     /**
      * Prevent duplicate ingestion of the same network order.
+     *
+     * This constraint remains unchanged during the attribution migration.
+     * Line-level Shopee idempotency will be introduced in the CSV phase.
      */
     unique("conversions_network_external_order_unique").on(
       table.network,
@@ -620,6 +1177,211 @@ export const conversions = pgTable(
   ],
 );
 
+// ─── Affiliate catalog ──────────────────────────────────────────────────────
+
+export const advertisers = pgTable(
+  "advertisers",
+  {
+    id: text("id").primaryKey(),
+
+    name: text("name").notNull(),
+
+    /**
+     * Affiliate platform the advertiser belongs to.
+     *
+     * Tracking-link and conversion catalog identifiers are text today, so
+     * the catalog must use the same text ids and remain compatible with
+     * existing rows in tracking_links and conversions.
+     */
+    platform: text("platform").notNull(),
+
+    status: text("status")
+      .default("active")
+      .notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "advertisers_platform_check",
+      sql`${table.platform} in ('shopee', 'tiktok')`,
+    ),
+
+    check(
+      "advertisers_status_check",
+      sql`${table.status} in ('active', 'disabled')`,
+    ),
+
+    check(
+      "advertisers_id_not_blank_check",
+      sql`char_length(trim(${table.id})) > 0`,
+    ),
+
+    check(
+      "advertisers_name_not_blank_check",
+      sql`char_length(trim(${table.name})) > 0`,
+    ),
+  ],
+).enableRLS();
+
+export const campaigns = pgTable(
+  "campaigns",
+  {
+    id: text("id").primaryKey(),
+
+    advertiserId: text("advertiser_id")
+      .notNull()
+      .references(() => advertisers.id, {
+        onDelete: "restrict",
+      }),
+
+    name: text("name").notNull(),
+
+    status: text("status")
+      .default("active")
+      .notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("campaigns_advertiser_idx").on(
+      table.advertiserId,
+    ),
+
+    check(
+      "campaigns_id_not_blank_check",
+      sql`char_length(trim(${table.id})) > 0`,
+    ),
+
+    check(
+      "campaigns_name_not_blank_check",
+      sql`char_length(trim(${table.name})) > 0`,
+    ),
+
+    check(
+      "campaigns_status_check",
+      sql`${table.status} in ('active', 'paused', 'disabled')`,
+    ),
+  ],
+).enableRLS();
+
+export const offers = pgTable(
+  "offers",
+  {
+    id: text("id").primaryKey(),
+
+    campaignId: text("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, {
+        onDelete: "restrict",
+      }),
+
+    name: text("name").notNull(),
+
+    status: text("status")
+      .default("active")
+      .notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("offers_campaign_idx").on(
+      table.campaignId,
+    ),
+
+    check(
+      "offers_id_not_blank_check",
+      sql`char_length(trim(${table.id})) > 0`,
+    ),
+
+    check(
+      "offers_name_not_blank_check",
+      sql`char_length(trim(${table.name})) > 0`,
+    ),
+
+    check(
+      "offers_status_check",
+      sql`${table.status} in ('active', 'paused', 'disabled')`,
+    ),
+  ],
+).enableRLS();
+
+export const cashbackPolicies = pgTable(
+  "cashback_policies",
+  {
+    offerId: text("offer_id")
+      .primaryKey()
+      .references(() => offers.id, {
+        onDelete: "cascade",
+      }),
+
+    /**
+     * Share of the network commission that is paid out as user cashback,
+     * expressed in basis points where 10000 == 100%.
+     *
+     * The remaining share is retained as platform profit.
+     */
+    cashbackShareBps: integer("cashback_share_bps")
+      .notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    check(
+      "cashback_policies_share_bps_range_check",
+      sql`${table.cashbackShareBps} between 0 and 10000`,
+    ),
+  ],
+).enableRLS();
+
 // ─── Inferred database row types ────────────────────────────────────────────
 
 export type ProfileRow = typeof profiles.$inferSelect;
@@ -636,3 +1398,15 @@ export type NewClickRow = typeof clicks.$inferInsert;
 
 export type ConversionRow = typeof conversions.$inferSelect;
 export type NewConversionRow = typeof conversions.$inferInsert;
+
+export type AdvertiserRow = typeof advertisers.$inferSelect;
+export type NewAdvertiserRow = typeof advertisers.$inferInsert;
+
+export type CampaignRow = typeof campaigns.$inferSelect;
+export type NewCampaignRow = typeof campaigns.$inferInsert;
+
+export type OfferRow = typeof offers.$inferSelect;
+export type NewOfferRow = typeof offers.$inferInsert;
+
+export type CashbackPolicyRow = typeof cashbackPolicies.$inferSelect;
+export type NewCashbackPolicyRow = typeof cashbackPolicies.$inferInsert;

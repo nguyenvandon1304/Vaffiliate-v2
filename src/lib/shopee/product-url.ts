@@ -158,7 +158,9 @@ function extractProductIdentity(
   }
 
   return null;
-}async function requestRedirectLocation(
+}
+
+async function requestRedirectLocation(
   url: URL,
 ): Promise<URL | null> {
   let response: Response;

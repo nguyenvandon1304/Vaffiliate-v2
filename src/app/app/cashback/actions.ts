@@ -1,6 +1,19 @@
 "use server";
 
 import {
+  ShopeeAffiliateUrlError,
+} from "@/lib/cashback/shopee-affiliate-url";
+import {
+  ShopeeRedirectUrlError,
+} from "@/lib/shopee/redirect-url";
+import { createClient } from "@/lib/supabase/server";
+import {
+  CashbackAffiliatePlatformError,
+  CashbackAffiliateTrackingLinkNotFoundError,
+  provisionShopeeAffiliateUrlAsync,
+} from "@/repositories/cashback-affiliate.repository";
+
+import {
   ShopeeProductUrlError,
 } from "@/lib/shopee/product-url";
 import {
@@ -14,6 +27,7 @@ import type {
   CashbackPlatformCode,
   CreateCashbackTrackingLinkActionState,
   PreviewShopeeProductActionState,
+  ProvisionShopeeAffiliateUrlActionState,
   ShopeeProductPreviewErrorCode,
 } from "@/types/cashback";
 
@@ -283,6 +297,147 @@ export async function previewShopeeProductAction(
 
     return createPreviewFailure(
       "service_unavailable",
+    );
+  }
+}
+function createProvisionFailure(
+  message: string,
+): ProvisionShopeeAffiliateUrlActionState {
+  return {
+    success: false,
+    message,
+    trackingLinkId: null,
+    affiliateUrl: null,
+  };
+}
+
+function readProvisionErrorMessage(
+  error: unknown,
+): string {
+  if (
+    error instanceof
+      CashbackAffiliateTrackingLinkNotFoundError
+  ) {
+    return "Không tìm thấy link hoàn tiền thuộc tài khoản của bạn.";
+  }
+
+  if (
+    error instanceof
+      CashbackAffiliatePlatformError
+  ) {
+    return "Hiện chỉ hỗ trợ cấp phát link Affiliate cho Shopee.";
+  }
+
+  if (
+    error instanceof
+      ShopeeAffiliateUrlError
+  ) {
+    switch (error.code) {
+      case "invalid_network_sub_id":
+        return "Sub ID của link hoàn tiền không hợp lệ.";
+
+      case "missing_account_attribution":
+        return "Link Affiliate không chứa mã tài khoản Shopee Affiliate.";
+
+      case "account_mismatch":
+        return "Link Affiliate không thuộc tài khoản Shopee Affiliate của Vaffiliate.";
+
+      case "missing_sub_id":
+        return "Link Affiliate không chứa Sub_id1.";
+
+      case "sub_id_mismatch":
+        return "Sub_id1 trong link Affiliate không khớp với link hoàn tiền.";
+    }
+  }
+
+  if (
+    error instanceof
+      ShopeeRedirectUrlError
+  ) {
+    switch (error.code) {
+      case "invalid_url":
+        return "Link Shopee Affiliate không hợp lệ.";
+
+      case "unsupported_host":
+        return "Link Affiliate không thuộc hệ thống Shopee.";
+
+      case "redirect_failed":
+        return "Không thể xác minh link Shopee Affiliate lúc này.";
+
+      case "too_many_redirects":
+        return "Link Shopee Affiliate chuyển hướng quá nhiều lần.";
+    }
+  }
+
+  return "Không thể lưu link Shopee Affiliate lúc này. Vui lòng thử lại.";
+}
+
+export async function provisionShopeeAffiliateUrlAction(
+  _previousState: ProvisionShopeeAffiliateUrlActionState,
+  formData: FormData,
+): Promise<ProvisionShopeeAffiliateUrlActionState> {
+  const trackingLinkId =
+    readTrimmedString(
+      formData,
+      "trackingLinkId",
+    );
+
+  const affiliateUrl =
+    readTrimmedString(
+      formData,
+      "affiliateUrl",
+    );
+
+  if (!trackingLinkId) {
+    return createProvisionFailure(
+      "Thiếu mã link hoàn tiền.",
+    );
+  }
+
+  if (!affiliateUrl) {
+    return createProvisionFailure(
+      "Vui lòng nhập link Shopee Affiliate.",
+    );
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return createProvisionFailure(
+      "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+    );
+  }
+
+  try {
+    const provisioned =
+      await provisionShopeeAffiliateUrlAsync(
+        user.id,
+        trackingLinkId,
+        affiliateUrl,
+      );
+
+    return {
+      success: true,
+      message:
+        "Đã xác minh và lưu link Shopee Affiliate.",
+      trackingLinkId:
+        provisioned.trackingLinkId,
+      affiliateUrl:
+        provisioned.affiliateUrl,
+    };
+  } catch (error) {
+    console.error(
+      "Unable to provision Shopee affiliate URL",
+      error,
+    );
+
+    return createProvisionFailure(
+      readProvisionErrorMessage(error),
     );
   }
 }

@@ -69,7 +69,7 @@ export default async function CashbackPage() {
       <CashbackFilters filters={filters} />
       <CashbackHistoryTable history={supportedHistory} />
 
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+      <section>
         <div className="rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.72)] p-5 shadow-[var(--shadow-sm)]">
           <h2 className="mb-3 text-base font-semibold text-[color:var(--text)]">
             Sắp ra mắt
@@ -87,9 +87,6 @@ export default async function CashbackPage() {
           </div>
         </div>
 
-        <p className="rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.08)] bg-[rgba(255,250,246,0.7)] px-4 py-3 text-sm leading-6 text-[color:var(--text-muted)] shadow-[var(--shadow-sm)]">
-          Lưu ý: Hãy mua hàng qua link vừa tạo và hạn chế chuyển sang link khác trước khi thanh toán để đơn có cơ hội được ghi nhận chính xác.
-        </p>
       </section>
     </div>
   );
