@@ -8,7 +8,6 @@ import {
 import { db } from "@/db/client";
 import {
   shopeeCsvImportBatches,
-  shopeeCsvRows,
 } from "@/db/schema";
 
 interface AttributionSummaryRow {
