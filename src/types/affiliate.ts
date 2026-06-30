@@ -16,12 +16,24 @@ export type CommissionModel = "CPS" | "CPA" | "CPC" | "CPL";
 
 export type CampaignStatus = "draft" | "active" | "paused" | "ended";
 
+/**
+ * Canonical runtime list of conversion statuses.
+ *
+ * This tuple is the single source of truth for conversion statuses.
+ * {@link ConversionStatus} is derived from it, so the TypeScript union
+ * and the runtime set cannot drift apart: adding or removing an entry
+ * here automatically updates the union.
+ */
+export const CONVERSION_STATUSES = [
+  "pending",
+  "approved",
+  "rejected",
+  "payable",
+  "paid",
+] as const;
+
 export type ConversionStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "payable"
-  | "paid";
+  (typeof CONVERSION_STATUSES)[number];
 
 // TODO(domain): Split conversion validation status from cashback/commission
 // settlement status when the backend settlement flow is implemented.
