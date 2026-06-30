@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "db:check": "drizzle-kit check",
-    "test": "tsx --test src/lib/cashback/cashback-policy.test.ts src/repositories/affiliate-catalog.repository.test.ts",
+    "test": "tsx --test src/lib/cashback/cashback-policy.test.ts src/repositories/affiliate-catalog.repository.test.ts src/repositories/publisher-conversion.mapper.test.ts",
     "test:integration": "tsx --test scripts/affiliate-catalog-postgres.integration.test.ts"
   },
   "dependencies": {
