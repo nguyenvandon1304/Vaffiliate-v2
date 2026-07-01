@@ -7,19 +7,22 @@ import {
 } from "react";
 
 import {
-  previewShopeeProductAction,
+  previewShopeeCashbackQuoteAction,
 } from "@/app/app/cashback/actions";
 import ShopeeProductPreviewCard from "@/features/cashback/ShopeeProductPreviewCard";
 import type {
-  PreviewShopeeProductActionState,
+  PreviewShopeeProductPreviewActionState,
 } from "@/types/cashback";
 
-const initialActionState: PreviewShopeeProductActionState = {
-  success: false,
-  message: "",
-  errorCode: null,
-  preview: null,
-};
+const initialActionState: PreviewShopeeProductPreviewActionState =
+  {
+    ok: false,
+    message: "",
+    state: "resolution_failed",
+    errorCode: null,
+    product: null,
+    quote: null,
+  };
 
 export default function ShopeeCashbackPreviewForm() {
   const productUrlInputId = useId();
@@ -38,9 +41,9 @@ export default function ShopeeCashbackPreviewForm() {
   ] = useActionState(
     async (
       previousState:
-        PreviewShopeeProductActionState,
+        PreviewShopeeProductPreviewActionState,
       formData: FormData,
-    ): Promise<PreviewShopeeProductActionState> => {
+    ): Promise<PreviewShopeeProductPreviewActionState> => {
       const submittedValue =
         formData.get("productUrl");
 
@@ -49,11 +52,9 @@ export default function ShopeeCashbackPreviewForm() {
           ? submittedValue.trim()
           : "";
 
-      setLastSubmittedUrl(
-        submittedUrl,
-      );
+      setLastSubmittedUrl(submittedUrl);
 
-      return previewShopeeProductAction(
+      return previewShopeeCashbackQuoteAction(
         previousState,
         formData,
       );
@@ -67,18 +68,20 @@ export default function ShopeeCashbackPreviewForm() {
     Boolean(currentUrl) &&
     lastSubmittedUrl === currentUrl;
 
-  const visiblePreview =
+  const visibleProduct =
     resultMatchesCurrentUrl &&
-    actionState.success
-      ? actionState.preview
+    actionState.product !== null
+      ? actionState.product
       : null;
 
-  const visibleError =
+  const visibleQuote =
+    resultMatchesCurrentUrl && actionState.quote !== null
+      ? actionState.quote
+      : null;
+
+  const showResolutionError =
     resultMatchesCurrentUrl &&
-    !actionState.success &&
-    actionState.message
-      ? actionState.message
-      : "";
+    actionState.state === "resolution_failed";
 
   return (
     <div>
@@ -153,21 +156,21 @@ export default function ShopeeCashbackPreviewForm() {
             : "Kiểm tra hoàn tiền"}
         </button>
 
-        {visibleError ? (
+        {showResolutionError && actionState.message ? (
           <p
             role="alert"
             aria-live="polite"
             className="mt-3 rounded-[var(--radius-lg)] border border-[rgba(190,92,54,0.18)] bg-[rgba(190,92,54,0.08)] px-4 py-3 text-sm font-medium leading-6 text-[color:var(--warning)]"
           >
-            {visibleError}
+            {actionState.message}
           </p>
         ) : null}
       </form>
 
-      {visiblePreview ? (
+      {visibleProduct && visibleQuote ? (
         <ShopeeProductPreviewCard
-          key={visiblePreview.productUrl}
-          preview={visiblePreview}
+          key={visibleProduct.productUrl}
+          quote={visibleQuote}
         />
       ) : (
         <div className="mt-4 rounded-[var(--radius-xl)] border border-dashed border-[rgba(124,63,44,0.14)] bg-[rgba(255,250,246,0.68)] px-5 py-8 text-center">
@@ -183,10 +186,13 @@ export default function ShopeeCashbackPreviewForm() {
       )}
 
       <p className="mt-4 rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.08)] bg-[rgba(255,250,246,0.72)] px-4 py-3 text-xs leading-5 text-[color:var(--text-muted)] shadow-[var(--shadow-sm)]">
-        Hãy mua hàng qua nút “Mua ngay nhận hoàn tiền”
-        vừa tạo và hạn chế chuyển sang link khác trước
-        khi thanh toán để đơn có cơ hội được ghi nhận
-        chính xác.
+        Mua hàng nhận hoàn tiền sẽ được kích hoạt ở
+        bước tiếp theo. Trong giai đoạn hiện tại,
+        Vaffiliate hiển thị thông tin sản phẩm ngay cả
+        khi chưa xác định được mức hoàn tiền.
+        Số tiền hoàn chỉ hiển thị khi chương trình
+        hoàn tiền đang áp dụng cho sản phẩm được xác
+        định rõ ràng.
       </p>
     </div>
   );

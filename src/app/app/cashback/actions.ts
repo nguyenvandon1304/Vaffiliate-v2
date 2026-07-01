@@ -14,65 +14,27 @@ import {
 } from "@/repositories/cashback-affiliate.repository";
 
 import {
-  ShopeeProductUrlError,
-} from "@/lib/shopee/product-url";
-import {
   createCashbackTrackingLinkAsync,
 } from "@/repositories/cashback-tracking.repository";
 import {
-  getShopeeProductPreview,
-  ShopeeProductPreviewServiceError,
-} from "@/services/shopee-product-preview.service";
+  resolveShopeeProductPreview,
+} from "@/services/shopee-cashback-quote.service.server";
 import type {
   CashbackPlatformCode,
   CreateCashbackTrackingLinkActionState,
-  PreviewShopeeProductActionState,
+  PreviewShopeeProductPreviewActionState,
   ProvisionShopeeAffiliateUrlActionState,
-  ShopeeProductPreviewErrorCode,
+  ShopeeProductPreviewErrorCode2,
 } from "@/types/cashback";
+import type {
+  ShopeeProductPreviewFailure,
+} from "@/services/shopee-cashback-quote.types";
 
 const supportedPlatforms =
   new Set<CashbackPlatformCode>([
     "shopee",
     "tiktok",
   ]);
-
-const previewErrorMessages: Record<
-  ShopeeProductPreviewErrorCode,
-  string
-> = {
-  invalid_url:
-    "Link sản phẩm Shopee không hợp lệ.",
-  unsupported_host:
-    "Vaffiliate hiện chỉ hỗ trợ link sản phẩm trên Shopee Việt Nam.",
-  not_product_url:
-    "Không nhận diện được sản phẩm từ link Shopee này.",
-  redirect_failed:
-    "Không thể mở link rút gọn Shopee lúc này. Vui lòng thử lại.",
-  too_many_redirects:
-    "Link Shopee chuyển hướng quá nhiều lần.",
-  request_timeout:
-    "Dịch vụ kiểm tra sản phẩm phản hồi quá lâu. Vui lòng thử lại.",
-  service_unavailable:
-    "Dịch vụ kiểm tra sản phẩm đang tạm thời không khả dụng.",
-  product_not_found:
-    "Không lấy được thông tin sản phẩm từ Shopee.",
-  invalid_response:
-    "Dữ liệu sản phẩm Shopee trả về không hợp lệ.",
-  commission_unavailable:
-    "Chưa xác định được mức hoàn tiền cho sản phẩm này.",
-};
-
-function createPreviewFailure(
-  errorCode: ShopeeProductPreviewErrorCode,
-): PreviewShopeeProductActionState {
-  return {
-    success: false,
-    message: previewErrorMessages[errorCode],
-    errorCode,
-    preview: null,
-  };
-}
 
 function readTrimmedString(
   formData: FormData,
@@ -250,55 +212,96 @@ export async function createCashbackTrackingLinkAction(
   }
 }
 
-export async function previewShopeeProductAction(
-  _previousState: PreviewShopeeProductActionState,
+export async function previewShopeeCashbackQuoteAction(
+  _previousState: PreviewShopeeProductPreviewActionState,
   formData: FormData,
-): Promise<PreviewShopeeProductActionState> {
+): Promise<PreviewShopeeProductPreviewActionState> {
   const productUrl = readTrimmedString(
     formData,
     "productUrl",
   );
 
   if (!productUrl) {
-    return createPreviewFailure(
-      "invalid_url",
-    );
+    return createPreviewFailure({
+      message:
+        "Vui lòng dán một liên kết sản phẩm Shopee hợp lệ.",
+      reason: "invalid_input",
+    });
   }
 
   try {
-    const preview =
-      await getShopeeProductPreview(
-        productUrl,
-      );
+    const result =
+      await resolveShopeeProductPreview({ productUrl });
 
-    return {
-      success: true,
-      message:
-        "Đã lấy thông tin sản phẩm và mức hoàn tiền dự kiến.",
-      errorCode: null,
-      preview,
-    };
-  } catch (error) {
-    if (
-      error instanceof
-        ShopeeProductUrlError ||
-      error instanceof
-        ShopeeProductPreviewServiceError
-    ) {
-      return createPreviewFailure(
-        error.code,
-      );
+    if (!result.ok) {
+      return createPreviewFailure(result);
     }
 
+    const { product, quote } = result;
+
+    if (quote.status === "available") {
+      const q = quote.value;
+      return {
+        ok: true,
+        message:
+          "Đã lấy thông tin sản phẩm và mức hoàn tiền dự kiến.",
+        state: "quote_available",
+        errorCode: null,
+        product,
+        quote: {
+          status: "available",
+          product,
+          cashbackShareBps: q.cashbackShareBps,
+          estimatedCashbackVnd:
+            q.estimatedUserCashback.amount,
+          calculatedAt: q.calculatedAt,
+          isEstimate: true,
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      message: quote.message,
+      state: "quote_unavailable",
+      errorCode: quote.reason,
+      product,
+      quote: {
+        status: "unavailable",
+        product,
+        reason: quote.reason,
+        message: quote.message,
+      },
+    };
+  } catch (error) {
     console.error(
-      "Unable to preview Shopee product",
+      "Unable to preview Shopee cashback quote",
       error,
     );
-
-    return createPreviewFailure(
-      "service_unavailable",
-    );
+    return createPreviewFailure({
+      message:
+        "Không thể truy cập trang sản phẩm Shopee lúc này. Vui lòng thử lại.",
+      reason: "metadata_unavailable",
+    });
   }
+}
+
+function createPreviewFailure(
+  failure:
+    | ShopeeProductPreviewFailure
+    | {
+        message: string;
+        reason: ShopeeProductPreviewErrorCode2;
+      },
+): PreviewShopeeProductPreviewActionState {
+  return {
+    ok: false,
+    message: failure.message,
+    state: "resolution_failed",
+    errorCode: failure.reason,
+    product: null,
+    quote: null,
+  };
 }
 function createProvisionFailure(
   message: string,

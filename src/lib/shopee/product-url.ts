@@ -37,11 +37,8 @@ export class ShopeeProductUrlError extends Error {
   }
 }
 
-export interface ShopeeProductIdentity {
-  shopId: string;
-  itemId: string;
-  canonicalUrl: string;
-}
+export type { ShopeeProductIdentity } from "./product-identity";
+import type { ShopeeProductIdentity } from "./product-identity";
 
 function isShortLinkHost(hostname: string): boolean {
   return SHORT_LINK_HOSTS.has(hostname);

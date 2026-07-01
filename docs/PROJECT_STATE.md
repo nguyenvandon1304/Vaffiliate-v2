@@ -4,18 +4,17 @@
 
 Project: Vaffiliate
 
-Current phase: Phase 20G.1 - Shopee Ingestion and Attribution Foundation
+Current phase: Phase 20H.2 - Shopee Product Preview & Cashback Quote
 
-Phase status: Partially delivered; documentation synchronization in progress
+Phase status: Implementation pending review; uncommitted changes on branch
 
 Current branch:
 
-`docs/sync-project-state-after-pr17`
+`feat/phase-20h2-shopee-product-preview`
 
 Current baseline commit:
 
-`11c24dd` - merge of Pull Request #17, Shopee attribution and CSV ingestion
-foundation
+`56e79b31` - Phase 20H.1 merge commit used as the clean starting point
 
 Latest implementation merge:
 
@@ -349,6 +348,130 @@ Expected wallet and withdrawal scope:
 
 Wallet and withdrawal implementation must not begin inside Phase 20G.
 
+### Phase 20H
+
+Consumer-facing Shopee cashback surfacing pipeline. Phase 20H.1
+normalized Shopee URLs and resolved identifiers; subsequent phases build
+the preview/quote experience on top of it.
+
+### Phase 20H.2
+
+Implementation pending review on branch
+`feat/phase-20h2-shopee-product-preview` (HEAD
+`56e79b31745c72d4892a860d975bd8dc84ca1327` + uncommitted
+changes). This is uncommitted work; it has not been staged,
+committed, or pushed.
+
+Delivered scope:
+
+- Shopee URL resolution continues to flow through `resolveShopeeProductUrl`
+  from `src/lib/shopee/product-url.ts` (Phase 20H.1). No duplicate parser
+  was added.
+- Shopee product metadata domain:
+  `src/lib/shopee/product-metadata/types.ts` re-exports
+  `ShopeeProductIdentity` from `src/lib/shopee/product-identity.ts`.
+  Exactly one `ShopeeProductIdentity` interface exists (Issue 7).
+  `ShopeeProductMetadata` carries `shopId`, `itemId`, `canonicalUrl`,
+  `title`, `imageUrl`, `price: Money`, optional `shopName`, and the
+  `availability` enum. The `ShopeeProductMetadataProvider` contract
+  defines the provider interface.
+- Provider contract implementation:
+  `src/lib/shopee/product-metadata/provider.server.ts` re-exports the
+  fetch + safety controls from the unguarded implementation module
+  (`provider-impl.ts`) so the production entry point is guarded by
+  `import "server-only"` while unit tests still cover the same code.
+- Pure HTML extractor:
+  `extractShopeeProductMetadataFromHtml` in
+  `src/lib/shopee/product-metadata/extractor.ts` pulls title, image,
+  VND price, and shop name from Open Graph tags and JSON-LD Product
+  blocks. It enforces integer VND via a strict parser that validates
+  format before stripping thousands separators; rejects malformed prices,
+  negative values, scientific notation, unsafe integers. It validates
+  image URLs for HTTPS, no credentials, and non-empty hostname. JSON-LD
+  `offers.availability` drives availability: `InStock`/`LimitedAvailability`
+  → available; `OutOfStock`/`SoldOut`/`Discontinued` → unavailable;
+  missing/unknown → unknown. Open Graph pages fall back to `unknown`
+  when JSON-LD has no availability field.
+- Network safety controls in `fetchMetadataForIdentity`:
+  - HTTPS only.
+  - Exact hostname allowlist (`shopee.vn` and `www.shopee.vn`).
+  - No credentials in URL, no unexpected port.
+  - Manual redirect following; each redirect target is re-validated
+    against the allowlist.
+  - Per-request timeout.
+  - Response size cap with body cancellation when exceeded.
+  - Content-type must look like HTML; otherwise
+    `unexpected_content_type`.
+  - HTTP 404 / 410 → `product_not_found`.
+  - Other non-2xx → `non_2xx_response`.
+  - All provider responses are normalized before reaching callers;
+    raw HTML and stack traces never cross the boundary.
+- Offer selector contract (`src/services/shopee-offer-selector.ts`):
+  The selector interface accepts a product identity and returns a typed
+  `ShopeeOfferSelectionOutcome` discriminated union: `eligible`,
+  `no_active_offer`, `not_eligible`, `eligibility_unknown` (with an
+  optional `reason?: "cashback_policy_unavailable"` field).
+  The production selector is created by `createShopeeOfferSelector` in
+  `src/services/shopee-offer-selector.factory.ts` and wired through
+  `src/services/shopee-offer-selector.server.ts`. It queries the
+  canonical Drizzle-backed catalog via `listActiveShopeeOffersWithPolicyStatusAsync`
+  (which uses a LEFT JOIN on `cashback_policies` so offers without a
+  policy are still returned). The selector distinguishes three cases:
+  (1) no active offer → `no_active_offer`; (2) active offer exists but
+  has no cashback policy → `eligibility_unknown` with reason
+  `cashback_policy_unavailable`; (3) active offer with policy matches
+  the product → `eligible`. Until a product/shop/category → offer
+  mapping is introduced in the schema, unmatched products get
+  `eligibility_unknown`. No hardcoded `off-shopee-fashion` or any
+  other offer ID exists in production code. Tests can inject a fake
+  repository to exercise any outcome.
+- Cashback quote application service:
+  `resolveShopeeCashbackQuote` in
+  `src/services/shopee-cashback-quote.service.ts` orchestrates
+  URL resolution, metadata enrichment, offer selection, policy validation,
+  and allocation. It reuses `calculateCashbackAllocation` from
+  `src/lib/cashback/cashback-policy.ts` and preserves the canonical
+  invariant `estimatedUserCashback + estimatedPlatformProfit ===
+  estimatedNetworkCommission`.
+  It returns a typed `ShopeeCashbackQuoteResult` discriminated union;
+  no trusted data (price/cashback/offer/campaign id) is accepted from
+  the client.
+  Commission rate, cashback share, and product price are validated
+  before use: commission rate must be an integer in [0, 10000]; cashback
+  share must be an integer in [0, 10000]; product price must be a
+  non-negative safe integer. `product_not_found` maps from HTTP 404/410
+  in the provider. Catalog exceptions from `validateShopeeCatalogOffer`
+  are mapped to typed outcomes. It NEVER fabricates a commission rate.
+  Quote success requires the selector to return `kind = "eligible"`.
+- Server boundary: `previewShopeeCashbackQuoteAction` in
+  `src/app/app/cashback/actions.ts` wraps the service in a Server Action
+  boundary that reads the URL from `FormData`, never accepts hidden
+  fields, and maps every typed reason to a sanitized UI message.
+- UI: `/app/cashback` (updated `src/app/app/cashback/page.tsx`) and the
+  `ShopeeCashbackPreviewForm` (`src/features/cashback/ShopeeCashbackPreviewForm.tsx`)
+  render the new preview card (`ShopeeProductPreviewCard`) with product
+  image, title, shop name, price, estimated cashback, and an explicit
+  "estimate" disclaimer. The CTA stays informational: no affiliate
+  redirect, no click write, no purchase intent.
+- Next.js image config updated to include `down-vn.img.susercontent.com`
+  as a trusted CDN host for Shopee product images.
+
+Open status:
+
+- Phase 20H.2 does not declare a complete Shopee integration.
+  The metadata adapter is best-effort and depends on Shopee keeping
+  canonical product pages readable; the cashback quote is an estimate
+  computed against the catalog offer returned by the selector.
+  The production selector returns `eligibility_unknown` for products
+  with no shop/item mapping and `cashback_policy_unavailable` for
+  products whose offer lacks a cashback policy; a future phase must
+  introduce a product/shop/category → offer mapping in the catalog
+  before meaningful quotes can be computed for most products.
+- Affiliate attribution (click write, tracking link, conversion
+  ingestion) is out of scope for Phase 20H.2 and will be added in a
+  later phase. The preview CTA explicitly tells the buyer.
+- TikTok Shop remains deferred.
+
 ---
 
 ## Recent Delivered Milestones
@@ -361,7 +484,10 @@ Wallet and withdrawal implementation must not begin inside Phase 20G.
 - Phase 20G.0 architecture and data-contract documentation;
 - Phase 20G.1 foundation: Shopee affiliate URL provisioning, CSV staging,
   exact `Sub_id1` attribution, persisted Shopee catalog and cashback-policy
-  foundation, and PostgreSQL concurrency coverage.
+  foundation, and PostgreSQL concurrency coverage;
+- Phase 20H.1: Shopee URL normalization, identifier resolution, redirect
+  loop, and pure parser contracts;
+- Phase 20H.2: Shopee product preview + cashback quote pipeline (read-only).
 
 Relevant merge commits:
 
