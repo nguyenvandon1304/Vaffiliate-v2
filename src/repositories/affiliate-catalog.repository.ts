@@ -50,6 +50,21 @@ import {
 } from "@/db/schema";
 
 /**
+ * Active Shopee catalog offer with policy presence information.
+ *
+ * Unlike `ActiveShopeeCatalogOffer`, this type exposes whether the offer
+ * has a cashback policy so callers can distinguish "no active offer" from
+ * "active offer without policy".
+ */
+export interface ActiveShopeeOfferWithPolicyStatus {
+  offerId: string;
+  campaignId: string;
+  advertiserId: string;
+  advertiserPlatform: "shopee";
+  cashbackShareBps: number | null;
+}
+
+/**
  * Fully-active Shopee catalog offer returned by the public read-only lookup.
  *
  * All fields are guaranteed non-null and all eligibility rules are satisfied:
@@ -200,6 +215,135 @@ export async function getActiveShopeeOfferByOfferIdAsync(
 
   // Return the validated object directly — no field-by-field re-mapping needed.
   return entry;
+}
+
+/**
+ * Read-only listing of every fully-active Shopee offer in the catalog.
+ *
+ * Phase 20H.2 — the Shopee product preview flow needs the canonical list
+ * of active Shopee offers so the selector can apply the same eligibility
+ * rules the tracking-link classification path already enforces. The query
+ * joins the same four tables as {@link selectShopeeOfferCatalogEntry} and
+ * filters out every inactive, paused, or non-Shopee row up front.
+ *
+ * The list is unfiltered by product/shop/category. The selector is
+ * responsible for matching against the resolved identity and product
+ * metadata — and for refusing to claim eligibility when no row records
+ * an explicit product-level mapping. The current production schema does
+ * not record a shop/category/item field on `offers`, so the selector is
+ * expected to return `eligibility_unknown` for every product until a
+ * future schema change introduces that mapping.
+ *
+ * Returns an empty array when no Shopee offer is currently active. The
+ * selector interprets that empty result as `no_active_offer`.
+ */
+export async function listActiveShopeeOffersAsync(): Promise<
+  ReadonlyArray<ActiveShopeeCatalogOffer>
+> {
+  const rows = await db
+    .select({
+      offerId: offers.id,
+      campaignId: offers.campaignId,
+      advertiserId: campaigns.advertiserId,
+      advertiserPlatform: advertisers.platform,
+      cashbackShareBps: cashbackPolicies.cashbackShareBps,
+      offerStatus: offers.status,
+      campaignStatus: campaigns.status,
+      advertiserStatus: advertisers.status,
+    })
+    .from(offers)
+    .innerJoin(campaigns, eq(campaigns.id, offers.campaignId))
+    .innerJoin(advertisers, eq(advertisers.id, campaigns.advertiserId))
+    .innerJoin(
+      cashbackPolicies,
+      eq(cashbackPolicies.offerId, offers.id),
+    )
+    .where(
+      and(
+        eq(advertisers.platform, "shopee"),
+        eq(advertisers.status, "active"),
+        eq(campaigns.status, "active"),
+        eq(offers.status, "active"),
+      ),
+    );
+
+  const result: ActiveShopeeCatalogOffer[] = [];
+  for (const row of rows) {
+    if (row.cashbackShareBps === null) {
+      // Defensive: every row that passes the join has a policy by the
+      // schema design, but if a policy row was removed concurrently the
+      // INNER JOIN would already have filtered it out. We double-check
+      // here so the type narrowing is explicit.
+      continue;
+    }
+    result.push({
+      offerId: row.offerId,
+      campaignId: row.campaignId,
+      advertiserId: row.advertiserId,
+      advertiserPlatform: "shopee",
+      cashbackShareBps: row.cashbackShareBps,
+    });
+  }
+  return result;
+}
+
+/**
+ * Read-only listing of active Shopee offers with policy presence information.
+ *
+ * Unlike `listActiveShopeeOffersAsync`, this function uses a LEFT JOIN on
+ * `cashback_policies` so offers that exist but lack a policy are still
+ * returned (with `cashbackShareBps = null`). This lets the product preview
+ * selector distinguish three cases:
+ *
+ *   - no rows returned: no active Shopee offer exists → `no_active_offer`
+ *   - rows returned, matched offer has null policy → `cashback_policy_unavailable`
+ *   - rows returned, matched offer has non-null policy → `eligible`
+ *
+ * The LEFT JOIN preserves offers without a policy so the UI can show the
+ * correct error message rather than silently treating a policy-missing offer
+ * as if no offer existed at all.
+ *
+ * This function does NOT replace `listActiveShopeeOffersAsync` because the
+ * classification path requires the INNER JOIN semantics (only offers with
+ * a policy are eligible for attribution).
+ */
+export async function listActiveShopeeOffersWithPolicyStatusAsync(): Promise<
+  ReadonlyArray<ActiveShopeeOfferWithPolicyStatus>
+> {
+  const rows = await db
+    .select({
+      offerId: offers.id,
+      campaignId: offers.campaignId,
+      advertiserId: campaigns.advertiserId,
+      advertiserPlatform: advertisers.platform,
+      cashbackShareBps: cashbackPolicies.cashbackShareBps,
+      offerStatus: offers.status,
+      campaignStatus: campaigns.status,
+      advertiserStatus: advertisers.status,
+    })
+    .from(offers)
+    .innerJoin(campaigns, eq(campaigns.id, offers.campaignId))
+    .innerJoin(advertisers, eq(advertisers.id, campaigns.advertiserId))
+    .leftJoin(
+      cashbackPolicies,
+      eq(cashbackPolicies.offerId, offers.id),
+    )
+    .where(
+      and(
+        eq(advertisers.platform, "shopee"),
+        eq(advertisers.status, "active"),
+        eq(campaigns.status, "active"),
+        eq(offers.status, "active"),
+      ),
+    );
+
+  return rows.map((row) => ({
+    offerId: row.offerId,
+    campaignId: row.campaignId,
+    advertiserId: row.advertiserId,
+    advertiserPlatform: row.advertiserPlatform as "shopee",
+    cashbackShareBps: row.cashbackShareBps,
+  }));
 }
 
 export interface ClassifyShopeeTrackingLinkInput {
