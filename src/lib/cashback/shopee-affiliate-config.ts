@@ -1,5 +1,7 @@
 import "server-only";
 
+import { buildShopeeAffiliateRedirectUrl } from "./shopee-affiliate-url-builder";
+
 const shopeeAffiliateAccountIdPattern =
   /^an_[0-9]+$/;
 
@@ -25,3 +27,5 @@ export function getShopeeAffiliateAccountId(): string {
 
   return accountId;
 }
+
+export { buildShopeeAffiliateRedirectUrl };

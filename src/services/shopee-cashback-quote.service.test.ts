@@ -1274,3 +1274,241 @@ test("strict quote: metadata_incomplete still returns as failure (preview preser
     assert.equal(result.reason, "metadata_incomplete");
   }
 });
+
+// ---------------------------------------------------------------------------
+// Resolved short-link canonical URL propagation regression tests
+// ---------------------------------------------------------------------------
+
+/**
+ * Test A: resolveUrl simulates s.shopee.vn resolving to a canonical identity,
+ * metadata provider throws metadata_incomplete.
+ * Result must include canonicalUrl.
+ */
+test(
+  "resolveShopeeProductPreview: metadata_incomplete after URL resolution includes canonicalUrl",
+  async () => {
+    const svc = await loadService();
+
+    // Simulate: s.shopee.vn/shortlink resolved to canonical identity
+    const resolvedIdentity: ShopeeProductIdentity = {
+      shopId: "99999",
+      itemId: "88888",
+      canonicalUrl: "https://shopee.vn/product/99999/88888",
+    };
+
+    const result = await svc.resolveShopeeProductPreviewWithDeps(
+      { productUrl: "https://s.shopee.vn/shortlink" },
+      makeDeps({
+        resolveUrl: async () => resolvedIdentity,
+        metadataProvider: {
+          async getProduct() {
+            // Throw with the exact code the service's mapMetadataErrorToReason recognizes
+            const error = new Error(
+              "Simulated: metadata_incomplete - missing required fields",
+            ) as Error & { code: string };
+            error.code = "metadata_incomplete";
+            throw error;
+          },
+        },
+      }),
+    );
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "metadata_incomplete");
+      assert.equal(result.product, null);
+      assert.equal(
+        result.canonicalUrl,
+        "https://shopee.vn/product/99999/88888",
+        "canonicalUrl must equal resolved identity canonicalUrl",
+      );
+    }
+  },
+);
+
+/**
+ * Test A variant: provider_timeout after URL resolution includes canonicalUrl.
+ */
+test(
+  "resolveShopeeProductPreview: provider_timeout after URL resolution includes canonicalUrl",
+  async () => {
+    const svc = await loadService();
+
+    const resolvedIdentity: ShopeeProductIdentity = {
+      shopId: "11111",
+      itemId: "22222",
+      canonicalUrl: "https://shopee.vn/product/11111/22222",
+    };
+
+    const result = await svc.resolveShopeeProductPreviewWithDeps(
+      { productUrl: "https://s.shopee.vn/another" },
+      makeDeps({
+        resolveUrl: async () => resolvedIdentity,
+        metadataProvider: {
+          async getProduct() {
+            // Throw with the exact code the service's mapMetadataErrorToReason recognizes
+            const error = new Error("Request timeout") as Error & { code: string };
+            error.code = "provider_timeout";
+            throw error;
+          },
+        },
+      }),
+    );
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "provider_timeout");
+      assert.equal(result.product, null);
+      assert.equal(
+        result.canonicalUrl,
+        "https://shopee.vn/product/11111/22222",
+      );
+    }
+  },
+);
+
+/**
+ * Test A variant: metadata_unavailable after URL resolution includes canonicalUrl.
+ */
+test(
+  "resolveShopeeProductPreview: metadata_unavailable after URL resolution includes canonicalUrl",
+  async () => {
+    const svc = await loadService();
+
+    const resolvedIdentity: ShopeeProductIdentity = {
+      shopId: "33333",
+      itemId: "44444",
+      canonicalUrl: "https://shopee.vn/product/33333/44444",
+    };
+
+    const result = await svc.resolveShopeeProductPreviewWithDeps(
+      { productUrl: "https://s.shopee.vn/yetmore" },
+      makeDeps({
+        resolveUrl: async () => resolvedIdentity,
+        metadataProvider: {
+          async getProduct() {
+            const error = new Error("Service unavailable") as Error & { code: string };
+            error.code = "ECONNREFUSED";
+            throw error;
+          },
+        },
+      }),
+    );
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "metadata_unavailable");
+      assert.equal(result.product, null);
+      assert.equal(
+        result.canonicalUrl,
+        "https://shopee.vn/product/33333/44444",
+      );
+    }
+  },
+);
+
+/**
+ * Test C: URL resolver fails before producing identity.
+ * canonicalUrl must be absent.
+ */
+test(
+  "resolveShopeeProductPreview: URL resolver failure produces no canonicalUrl",
+  async () => {
+    const svc = await loadService();
+
+    const result = await svc.resolveShopeeProductPreviewWithDeps(
+      { productUrl: "https://invalid-domain.xyz/product/12345/67890" },
+      makeDeps({
+        resolveUrl: async () => {
+          const error = new Error("DNS lookup failed") as Error & { code: string };
+          error.code = "ENOTFOUND";
+          throw error;
+        },
+      }),
+    );
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "invalid_url");
+      assert.equal(result.product, null);
+      assert.equal(
+        result.canonicalUrl,
+        undefined,
+        "canonicalUrl must be absent when URL resolution fails",
+      );
+    }
+  },
+);
+
+/**
+ * Test D: buildQuoteOrFailure returns metadata_incomplete after identity exists.
+ * canonicalUrl must be present from resolved.identity.
+ */
+test(
+  "resolveShopeeProductPreview: product_resolution failure after identity includes canonicalUrl",
+  async () => {
+    const svc = await loadService();
+
+    const result = await svc.resolveShopeeProductPreviewWithDeps(
+      { productUrl: "https://shopee.vn/product/12345/67890" },
+      makeDeps({
+        metadataProvider: {
+          async getProduct() {
+            // Return metadata with unsafe price (simulates buildQuoteOrFailure
+            // detecting the issue and returning product_resolution failure)
+            return {
+              ...VALID_METADATA,
+              price: { amount: Number.MAX_SAFE_INTEGER + 1, currency: "VND" },
+            };
+          },
+        },
+      }),
+    );
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "metadata_incomplete");
+      assert.equal(result.product, null);
+      assert.equal(
+        result.canonicalUrl,
+        VALID_IDENTITY.canonicalUrl,
+        "canonicalUrl must be present from resolved identity",
+      );
+    }
+  },
+);
+
+/**
+ * Test: product_unavailable includes canonicalUrl but purchase must be blocked.
+ */
+test(
+  "resolveShopeeProductPreview: product_unavailable includes canonicalUrl",
+  async () => {
+    const svc = await loadService();
+
+    const result = await svc.resolveShopeeProductPreviewWithDeps(
+      { productUrl: "https://shopee.vn/product/12345/67890" },
+      makeDeps({
+        metadataProvider: {
+          async getProduct() {
+            return {
+              ...VALID_METADATA,
+              availability: "unavailable" as const,
+            };
+          },
+        },
+      }),
+    );
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "product_unavailable");
+      assert.equal(result.product, null);
+      // canonicalUrl IS present (identity was resolved)
+      assert.equal(
+        result.canonicalUrl,
+        VALID_IDENTITY.canonicalUrl,
+      );
+    }
+  },
+);

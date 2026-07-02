@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 
+import ShopeePurchaseTrigger from "@/features/cashback/ShopeePurchaseTrigger";
 import type {
   ShopeeProductPreviewAvailableQuote,
   ShopeeProductPreviewMetadataView,
@@ -102,8 +105,10 @@ function MetadataHeader({
 
 function AvailableQuoteBody({
   quote,
+  productUrl,
 }: {
   quote: ShopeeProductPreviewAvailableQuote;
+  productUrl: string;
 }) {
   return (
     <>
@@ -152,14 +157,10 @@ function AvailableQuoteBody({
           <p className="mt-1 text-sm font-medium leading-6 text-[color:var(--text)]">
             Mua hàng nhận hoàn tiền sẽ được kích hoạt ở bước tiếp theo.
           </p>
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            className="mt-3 w-full cursor-not-allowed rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.14)] bg-white/70 px-4 py-3 text-sm font-semibold text-[color:var(--text-muted)]"
-          >
-            Mua ngay nhận hoàn tiền (sắp ra mắt)
-          </button>
+          <ShopeePurchaseTrigger
+            productUrl={productUrl}
+            variant="prominent"
+          />
         </div>
       </div>
 
@@ -177,8 +178,10 @@ function AvailableQuoteBody({
 
 function UnavailableQuoteBody({
   quote,
+  productUrl,
 }: {
   quote: ShopeeProductPreviewUnavailableQuote;
+  productUrl: string;
 }) {
   return (
     <>
@@ -202,16 +205,13 @@ function UnavailableQuoteBody({
             Bước tiếp theo
           </p>
           <p className="mt-1 text-sm font-medium leading-6 text-[color:var(--text)]">
-            Vaffiliate sẽ kích hoạt mua hàng nhận hoàn tiền khi đủ điều kiện xác định mức hoàn cho sản phẩm.
+            Mức hoàn tiền chưa được xác định cho sản phẩm này.
+            Hoàn tiền không được đảm bảo.
           </p>
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            className="mt-3 w-full cursor-not-allowed rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.14)] bg-white/70 px-4 py-3 text-sm font-semibold text-[color:var(--text-muted)]"
-          >
-            Mua ngay nhận hoàn tiền (sắp ra mắt)
-          </button>
+          <ShopeePurchaseTrigger
+            productUrl={productUrl}
+            variant="neutral"
+          />
         </div>
       </div>
 
@@ -220,6 +220,7 @@ function UnavailableQuoteBody({
         thể xác định mức hoàn tiền. Số tiền hoàn sẽ
         chỉ hiển thị khi chương trình hoàn tiền áp
         dụng cho sản phẩm này được xác nhận rõ ràng.
+        Hoàn tiền không được đảm bảo.
       </p>
     </>
   );
@@ -235,9 +236,15 @@ export default function ShopeeProductPreviewCard({
       <MetadataHeader product={product} />
 
       {quote.status === "available" ? (
-        <AvailableQuoteBody quote={quote} />
+        <AvailableQuoteBody
+          quote={quote}
+          productUrl={product.productUrl}
+        />
       ) : (
-        <UnavailableQuoteBody quote={quote} />
+        <UnavailableQuoteBody
+          quote={quote}
+          productUrl={product.productUrl}
+        />
       )}
     </section>
   );

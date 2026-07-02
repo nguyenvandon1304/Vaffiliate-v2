@@ -9,6 +9,7 @@ import {
 import {
   previewShopeeCashbackQuoteAction,
 } from "@/app/app/cashback/actions";
+import ShopeePurchaseTrigger from "@/features/cashback/ShopeePurchaseTrigger";
 import ShopeeProductPreviewCard from "@/features/cashback/ShopeeProductPreviewCard";
 import type {
   PreviewShopeeProductPreviewActionState,
@@ -22,6 +23,7 @@ const initialActionState: PreviewShopeeProductPreviewActionState =
     errorCode: null,
     product: null,
     quote: null,
+    canonicalProductUrl: null,
   };
 
 export default function ShopeeCashbackPreviewForm() {
@@ -82,6 +84,11 @@ export default function ShopeeCashbackPreviewForm() {
   const showResolutionError =
     resultMatchesCurrentUrl &&
     actionState.state === "resolution_failed";
+
+  const showPurchaseAllowedFallback =
+    resultMatchesCurrentUrl &&
+    (actionState.state === "metadata_incomplete_purchase_allowed" ||
+      actionState.state === "metadata_unavailable_purchase_allowed");
 
   return (
     <div>
@@ -172,6 +179,25 @@ export default function ShopeeCashbackPreviewForm() {
           key={visibleProduct.productUrl}
           quote={visibleQuote}
         />
+      ) : showPurchaseAllowedFallback && actionState.canonicalProductUrl ? (
+        <div className="mt-4 overflow-hidden rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.15)] bg-[rgba(255,248,242,0.94)] shadow-[var(--shadow-sm)]">
+          <div className="px-5 py-5">
+            <p className="text-sm font-semibold text-[color:var(--text)]">
+              Chưa lấy được thông tin sản phẩm từ Shopee.
+            </p>
+
+            <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
+              Mức hoàn tiền chưa được xác định. Hoàn tiền không được đảm bảo.
+            </p>
+          </div>
+
+          <div className="border-t border-[rgba(124,63,44,0.08)] px-5 pb-5">
+            <ShopeePurchaseTrigger
+              productUrl={actionState.canonicalProductUrl}
+              variant="neutral"
+            />
+          </div>
+        </div>
       ) : (
         <div className="mt-4 rounded-[var(--radius-xl)] border border-dashed border-[rgba(124,63,44,0.14)] bg-[rgba(255,250,246,0.68)] px-5 py-8 text-center">
           <p className="text-sm font-semibold text-[color:var(--text)]">

@@ -89,6 +89,11 @@ export type ProductResolutionFailure = {
   readonly ok: false;
   readonly reason: ProductResolutionFailureCode;
   readonly message: string;
+  /**
+   * Server-resolved canonical URL, present when resolveUrl succeeded
+   * but a later step (metadata fetch) failed. Used for purchase fallback.
+   */
+  readonly canonicalUrl?: string;
 };
 
 const PRODUCT_RESOLUTION_INPUT_MESSAGES = {
@@ -173,6 +178,7 @@ async function fetchIdentityAndProduct(
       ok: false,
       reason,
       message: metadataFailureMessage(reason),
+      canonicalUrl: identity.canonicalUrl,
     };
   }
 
@@ -181,6 +187,7 @@ async function fetchIdentityAndProduct(
       ok: false,
       reason: "product_unavailable",
       message: "Sản phẩm Shopee này hiện không còn được bán.",
+      canonicalUrl: identity.canonicalUrl,
     };
   }
 
@@ -212,11 +219,14 @@ export const resolveShopeeProductPreviewWithDeps = async (
 ): Promise<ShopeeProductPreviewResult> => {
   const resolved = await fetchIdentityAndProduct(input, deps);
   if (!resolved.ok) {
+    // Forward the canonical URL from the failure result.
+    // It's present when resolveUrl succeeded but metadata fetch failed.
     return {
       ok: false,
       reason: resolved.reason,
       message: resolved.message,
       product: null,
+      canonicalUrl: resolved.canonicalUrl,
     };
   }
 
@@ -264,6 +274,7 @@ export const resolveShopeeProductPreviewWithDeps = async (
       reason: built.reason,
       message: built.message,
       product: null,
+      canonicalUrl: resolved.identity.canonicalUrl,
     };
   }
 

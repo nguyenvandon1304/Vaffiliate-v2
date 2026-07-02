@@ -180,6 +180,13 @@ export interface ShopeeProductPreviewFailure {
   readonly reason: ProductResolutionFailureCode;
   readonly message: string;
   readonly product: null;
+  /**
+   * Server-resolved canonical product URL, present when the URL was
+   * successfully resolved (e.g., short link redirected to canonical)
+   * but metadata extraction failed. This URL can be used for purchase
+   * fallback when the failure reason is a safe metadata failure.
+   */
+  readonly canonicalUrl?: string;
 }
 
 export type ShopeeProductPreviewResult =
