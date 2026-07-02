@@ -1,8 +1,25 @@
 "use server";
 
+import { and, eq, isNull } from "drizzle-orm";
+
+import {
+  buildShopeeAffiliateRedirectUrl,
+  getShopeeAffiliateAccountId,
+} from "@/lib/cashback/shopee-affiliate-config";
 import {
   ShopeeAffiliateUrlError,
+  verifyShopeeAffiliateUrl,
 } from "@/lib/cashback/shopee-affiliate-url";
+import {
+  decideExistingUrlOutcome,
+  decideNullPersistenceOutcome,
+  type VerifyFn,
+} from "@/lib/cashback/shopee-persistence-decisions";
+import {
+  createShopeePreviewFallbackDecision,
+  isShopeePreviewPurchaseAllowedFailure,
+} from "@/lib/cashback/shopee-preview-fallback";
+import { parseShopeeProductUrl } from "@/lib/shopee/product-url-parser";
 import {
   ShopeeRedirectUrlError,
 } from "@/lib/shopee/redirect-url";
@@ -16,12 +33,15 @@ import {
 import {
   createCashbackTrackingLinkAsync,
 } from "@/repositories/cashback-tracking.repository";
+import { db } from "@/db/client";
+import { trackingLinks } from "@/db/schema";
 import {
   resolveShopeeProductPreview,
 } from "@/services/shopee-cashback-quote.service.server";
 import type {
   CashbackPlatformCode,
   CreateCashbackTrackingLinkActionState,
+  InitiateShopeePurchaseActionState,
   PreviewShopeeProductPreviewActionState,
   ProvisionShopeeAffiliateUrlActionState,
   ShopeeProductPreviewErrorCode2,
@@ -234,6 +254,42 @@ export async function previewShopeeCashbackQuoteAction(
       await resolveShopeeProductPreview({ productUrl });
 
     if (!result.ok) {
+      // Check if this is a safe metadata failure that still allows purchase
+      if (
+        isShopeePreviewPurchaseAllowedFailure(result.reason)
+      ) {
+        // Use server-resolved canonical URL if available, otherwise try to derive it
+        const canonicalProductUrl =
+          result.canonicalUrl ??
+          (() => {
+            try {
+              const parsed = parseShopeeProductUrl(productUrl);
+              return parsed.canonicalUrl;
+            } catch {
+              return null;
+            }
+          })();
+
+        if (canonicalProductUrl) {
+          const decision = createShopeePreviewFallbackDecision(
+            result.reason,
+            canonicalProductUrl,
+          );
+
+          if (decision.allowed) {
+            return {
+              ok: false,
+              message: result.message,
+              state: decision.state,
+              errorCode: result.reason,
+              product: null,
+              quote: null,
+              canonicalProductUrl: decision.canonicalProductUrl,
+            };
+          }
+        }
+      }
+
       return createPreviewFailure(result);
     }
 
@@ -257,6 +313,7 @@ export async function previewShopeeCashbackQuoteAction(
           calculatedAt: q.calculatedAt,
           isEstimate: true,
         },
+        canonicalProductUrl: null,
       };
     }
 
@@ -272,6 +329,7 @@ export async function previewShopeeCashbackQuoteAction(
         reason: quote.reason,
         message: quote.message,
       },
+      canonicalProductUrl: null,
     };
   } catch (error) {
     console.error(
@@ -293,6 +351,7 @@ function createPreviewFailure(
         message: string;
         reason: ShopeeProductPreviewErrorCode2;
       },
+  canonicalProductUrl: string | null = null,
 ): PreviewShopeeProductPreviewActionState {
   return {
     ok: false,
@@ -301,6 +360,7 @@ function createPreviewFailure(
     errorCode: failure.reason,
     product: null,
     quote: null,
+    canonicalProductUrl,
   };
 }
 function createProvisionFailure(
@@ -329,6 +389,17 @@ function readProvisionErrorMessage(
       CashbackAffiliatePlatformError
   ) {
     return "Hiện chỉ hỗ trợ cấp phát link Affiliate cho Shopee.";
+  }
+
+  // Catches errors from getShopeeAffiliateAccountId() that propagate
+  // through provisionShopeeAffiliateUrlAsync when the environment
+  // variable is missing or invalid. Never exposes internal details.
+  if (
+    error instanceof Error &&
+    (error.message.includes("SHOPEE_AFFILIATE_ACCOUNT_ID") ||
+      error.message.includes("an_<digits>"))
+  ) {
+    return "Cấu hình liên kết Shopee hiện chưa sẵn sàng. Vui lòng thử lại sau.";
   }
 
   if (
@@ -443,4 +514,269 @@ export async function provisionShopeeAffiliateUrlAction(
       readProvisionErrorMessage(error),
     );
   }
+}
+
+export async function initiateShopeePurchaseAction(
+  _previousState: InitiateShopeePurchaseActionState,
+  formData: FormData,
+): Promise<InitiateShopeePurchaseActionState> {
+  const productUrl = readTrimmedString(
+    formData,
+    "productUrl",
+  );
+
+  if (!productUrl) {
+    return {
+      ok: false,
+      message: "Vui lòng dán một liên kết sản phẩm Shopee hợp lệ.",
+      shortCode: null,
+      trackingPath: null,
+      productUrl: null,
+    };
+  }
+
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  if (userError || !user) {
+    return {
+      ok: false,
+      message: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+      shortCode: null,
+      trackingPath: null,
+      productUrl: null,
+    };
+  }
+
+  const publisherId = user.id;
+
+  let canonicalUrl: string;
+
+  try {
+    const parsed = parseShopeeProductUrl(productUrl);
+    canonicalUrl = parsed.canonicalUrl;
+  } catch {
+    return {
+      ok: false,
+      message: "Link sản phẩm Shopee không hợp lệ.",
+      shortCode: null,
+      trackingPath: null,
+      productUrl: null,
+    };
+  }
+
+  let trackingLink:
+    | Awaited<ReturnType<typeof createCashbackTrackingLinkAsync>>
+    | null = null;
+
+  try {
+    trackingLink = await createCashbackTrackingLinkAsync(
+      "shopee",
+      canonicalUrl,
+    );
+  } catch (error) {
+    console.error(
+      "Unable to create cashback tracking link",
+      error,
+    );
+
+    const isAuthError =
+      error instanceof Error &&
+      error.message.includes("Authentication is required");
+
+    return {
+      ok: false,
+      message: isAuthError
+        ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+        : "Không thể tạo link hoàn tiền lúc này. Vui lòng thử lại.",
+      shortCode: null,
+      trackingPath: null,
+      productUrl: null,
+    };
+  }
+
+  let accountId: string;
+
+  try {
+    accountId = getShopeeAffiliateAccountId();
+  } catch (error) {
+    console.error(
+      "Unable to read Shopee affiliate account configuration",
+      error,
+    );
+
+    return {
+      ok: false,
+      message:
+        "Cấu hình liên kết Shopee hiện chưa sẵn sàng. Vui lòng thử lại sau.",
+      shortCode: null,
+      trackingPath: null,
+      productUrl: null,
+    };
+  }
+
+  let expectedAffiliateUrl: string;
+
+  try {
+    expectedAffiliateUrl = buildShopeeAffiliateRedirectUrl({
+      canonicalDestinationUrl: canonicalUrl,
+      accountId,
+      networkSubId: trackingLink.networkSubId,
+    });
+  } catch (error) {
+    console.error(
+      "Unable to build Shopee affiliate redirect URL",
+      error,
+    );
+
+    return {
+      ok: false,
+      message:
+        "Không thể tạo link hoàn tiền lúc này. Vui lòng thử lại.",
+      shortCode: null,
+      trackingPath: null,
+      productUrl: null,
+    };
+  }
+
+  if (trackingLink.affiliateUrl === null) {
+    try {
+      const [updated] = await db
+        .update(trackingLinks)
+        .set({
+          affiliateUrl: expectedAffiliateUrl,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(trackingLinks.id, trackingLink.id),
+            eq(trackingLinks.publisherId, publisherId),
+            eq(trackingLinks.platform, "shopee"),
+            eq(trackingLinks.networkSubId, trackingLink.networkSubId),
+            isNull(trackingLinks.affiliateUrl),
+          ),
+        )
+        .returning({ id: trackingLinks.id });
+
+      let reloadResult: { found: boolean; affiliateUrl: string | null } = { found: false, affiliateUrl: null };
+      if (!updated) {
+        const [existing] = await db
+          .select({ affiliateUrl: trackingLinks.affiliateUrl })
+          .from(trackingLinks)
+          .where(
+            and(
+              eq(trackingLinks.id, trackingLink.id),
+              eq(trackingLinks.publisherId, publisherId),
+              eq(trackingLinks.platform, "shopee"),
+              eq(trackingLinks.networkSubId, trackingLink.networkSubId),
+            ),
+          )
+          .limit(1);
+
+        reloadResult = {
+          found: existing !== undefined,
+          affiliateUrl: existing?.affiliateUrl ?? null,
+        };
+      }
+
+      const outcome = decideNullPersistenceOutcome(
+        { updated: updated !== undefined },
+        reloadResult,
+        expectedAffiliateUrl,
+        trackingLink.trackingPath,
+        trackingLink.shortCode,
+      );
+
+      if (outcome.action === "failure") {
+        return {
+          ok: false,
+          message: outcome.message,
+          shortCode: null,
+          trackingPath: null,
+          productUrl: null,
+        };
+      }
+
+      return {
+        ok: true,
+        message: "Đã tạo link hoàn tiền.",
+        shortCode: trackingLink.shortCode,
+        trackingPath: trackingLink.trackingPath,
+        productUrl: canonicalUrl,
+      };
+    } catch (error) {
+      console.error(
+        "Unable to persist Shopee affiliate URL",
+        error,
+      );
+
+      return {
+        ok: false,
+        message:
+          "Không thể lưu link hoàn tiền lúc này. Vui lòng thử lại.",
+        shortCode: null,
+        trackingPath: null,
+        productUrl: null,
+      };
+    }
+  }
+
+  const verifyFn: VerifyFn = async (
+    affiliateUrl,
+    networkSubId,
+    accountId,
+    canonicalUrl,
+  ) => {
+    try {
+      const result = await verifyShopeeAffiliateUrl(
+        affiliateUrl,
+        networkSubId,
+        accountId,
+        canonicalUrl,
+      );
+      if (!result.valid) {
+        return {
+          valid: false,
+          errorCode: result.errorCode,
+          errorMessage: result.errorMessage,
+        };
+      }
+      return { valid: true };
+    } catch {
+      return { valid: false, errorMessage: "Unable to verify affiliate URL" };
+    }
+  };
+
+  const outcome = await decideExistingUrlOutcome(
+    trackingLink.affiliateUrl,
+    expectedAffiliateUrl,
+    verifyFn,
+    trackingLink.networkSubId,
+    accountId,
+    canonicalUrl,
+    trackingLink.trackingPath,
+    trackingLink.shortCode,
+  );
+
+  if (outcome.action === "failure") {
+    return {
+      ok: false,
+      message: outcome.message,
+      shortCode: null,
+      trackingPath: null,
+      productUrl: null,
+    };
+  }
+
+  return {
+    ok: true,
+    message: "Đã tạo link hoàn tiền.",
+    shortCode: trackingLink.shortCode,
+    trackingPath: trackingLink.trackingPath,
+    productUrl: canonicalUrl,
+  };
 }

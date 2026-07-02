@@ -65,6 +65,13 @@ export interface ProvisionShopeeAffiliateUrlActionState {
   trackingLinkId: TrackingLinkId | null;
   affiliateUrl: string | null;
 }
+export interface InitiateShopeePurchaseActionState {
+  ok: boolean;
+  message: string;
+  shortCode: string | null;
+  trackingPath: string | null;
+  productUrl: string | null;
+}
 export type ShopeeProductPreviewLegacyErrorCode =
   | "invalid_url"
   | "unsupported_host"
@@ -76,6 +83,14 @@ export type ShopeeProductPreviewLegacyErrorCode =
   | "product_not_found"
   | "invalid_response"
   | "commission_unavailable";
+
+/**
+ * States where purchase is allowed but metadata is unavailable.
+ * The canonical URL is available so the user can still proceed.
+ */
+export type ShopeeProductPreviewPurchaseAllowedState =
+  | "metadata_incomplete_purchase_allowed"
+  | "metadata_unavailable_purchase_allowed";
 
 /**
  * Phase 20H.2 -- discriminated union UI state for the Shopee cashback
@@ -94,11 +109,16 @@ export type ShopeeProductPreviewLegacyErrorCode =
  *     product metadata is still rendered and the typed reason is
  *     stored in `errorCode` for tests.
  *   - `quote_available`    — metadata + quote are both fetched.
+ *   - `metadata_incomplete_purchase_allowed` — URL valid but metadata
+ *     incomplete; purchase still allowed via canonical URL.
+ *   - `metadata_unavailable_purchase_allowed` — metadata unavailable but
+ *     purchase allowed via canonical URL.
  */
 export type ShopeeProductPreviewState =
   | "resolution_failed"
   | "quote_unavailable"
-  | "quote_available";
+  | "quote_available"
+  | ShopeeProductPreviewPurchaseAllowedState;
 
 export type ShopeeProductPreviewFailureCode =
   | "invalid_input"
@@ -170,6 +190,11 @@ export interface PreviewShopeeProductPreviewActionState {
   errorCode: ShopeeProductPreviewErrorCode2 | null;
   product: ShopeeProductPreviewMetadataView | null;
   quote: ShopeeProductPreviewQuote | null;
+  /**
+   * Canonical product URL derived from parseShopeeProductUrl.
+   * Present when state indicates purchase is allowed but metadata is unavailable.
+   */
+  canonicalProductUrl: string | null;
 }
 
 /**
