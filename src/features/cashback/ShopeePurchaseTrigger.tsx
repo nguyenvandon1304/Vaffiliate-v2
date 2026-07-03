@@ -113,7 +113,11 @@ export default function ShopeePurchaseTrigger({
   return (
     <div>
       {isRedirecting ? (
-        <div className="rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,248,242,0.94)] px-5 py-4 text-center">
+        <div
+          className="rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,248,242,0.94)] px-5 py-4 text-center"
+          role="status"
+          aria-live="polite"
+        >
           <p className="text-sm font-medium text-[color:var(--text)]">
             Đang chuyển bạn sang Shopee…
           </p>
@@ -124,6 +128,7 @@ export default function ShopeePurchaseTrigger({
             type="button"
             onClick={handleInitiatePurchase}
             disabled={isPurchasing}
+            aria-busy={isPurchasing}
             className={buttonClassName}
           >
             {isPurchasing ? "Đang xử lý…" : finalButtonText}

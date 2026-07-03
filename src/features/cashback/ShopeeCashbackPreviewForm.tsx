@@ -15,6 +15,26 @@ import type {
   PreviewShopeeProductPreviewActionState,
 } from "@/types/cashback";
 
+type PreviewQuote = NonNullable<
+  PreviewShopeeProductPreviewActionState["quote"]
+>;
+
+type PreviewRenderModel =
+  | { kind: "pending" }
+  | { kind: "card"; quote: PreviewQuote }
+  | {
+      kind: "purchase_allowed_fallback";
+      canonicalProductUrl: string;
+    }
+  | { kind: "resolution_error"; message: string }
+  | { kind: "empty" };
+
+const PURCHASE_FALLBACK_LIVE_REGION_MESSAGE =
+  "Chưa lấy được đầy đủ thông tin sản phẩm. Bạn vẫn có thể tiếp tục mua hàng; mức hoàn tiền chưa được đảm bảo.";
+
+const TRUSTED_PURCHASE_HANDOFF_FOOTER_COPY =
+  "Mua hàng nhận hoàn tiền sẽ được kích hoạt ở bước tiếp theo. Trong giai đoạn hiện tại, Vaffiliate hiển thị thông tin sản phẩm ngay cả khi chưa xác định được mức hoàn tiền. Số tiền hoàn chỉ hiển thị khi chương trình hoàn tiền đang áp dụng cho sản phẩm được xác định rõ ràng.";
+
 const initialActionState: PreviewShopeeProductPreviewActionState =
   {
     ok: false,
@@ -25,6 +45,27 @@ const initialActionState: PreviewShopeeProductPreviewActionState =
     quote: null,
     canonicalProductUrl: null,
   };
+
+function ShopeeCashbackPreviewPendingPanel() {
+  return (
+    <div className="mt-4 rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.12)] bg-[rgba(255,250,246,0.78)] px-5 py-6 shadow-[var(--shadow-sm)]">
+      <div className="flex items-center gap-3">
+        <span
+          className="inline-block h-2 w-2 rounded-full bg-[color:var(--brand-strong)] motion-safe:animate-pulse"
+          aria-hidden="true"
+        />
+        <p className="text-sm font-semibold text-[color:var(--text)]">
+          Đang kiểm tra sản phẩm Shopee…
+        </p>
+      </div>
+
+      <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
+        Vaffiliate đang lấy ảnh, tên, giá và mức hoàn
+        tiền dự kiến. Vui lòng đợi trong giây lát.
+      </p>
+    </div>
+  );
+}
 
 export default function ShopeeCashbackPreviewForm() {
   const productUrlInputId = useId();
@@ -70,25 +111,65 @@ export default function ShopeeCashbackPreviewForm() {
     Boolean(currentUrl) &&
     lastSubmittedUrl === currentUrl;
 
-  const visibleProduct =
-    resultMatchesCurrentUrl &&
-    actionState.product !== null
-      ? actionState.product
-      : null;
+  const renderModel: PreviewRenderModel = (() => {
+    if (isPreviewPending) {
+      return { kind: "pending" };
+    }
 
-  const visibleQuote =
-    resultMatchesCurrentUrl && actionState.quote !== null
-      ? actionState.quote
-      : null;
+    if (
+      resultMatchesCurrentUrl &&
+      (actionState.state === "quote_available" ||
+        actionState.state === "quote_unavailable") &&
+      actionState.quote !== null
+    ) {
+      return { kind: "card", quote: actionState.quote };
+    }
 
-  const showResolutionError =
-    resultMatchesCurrentUrl &&
-    actionState.state === "resolution_failed";
+    if (
+      resultMatchesCurrentUrl &&
+      (actionState.state ===
+        "metadata_incomplete_purchase_allowed" ||
+        actionState.state ===
+          "metadata_unavailable_purchase_allowed") &&
+      typeof actionState.canonicalProductUrl ===
+        "string" &&
+      actionState.canonicalProductUrl.length > 0
+    ) {
+      return {
+        kind: "purchase_allowed_fallback",
+        canonicalProductUrl: actionState.canonicalProductUrl,
+      };
+    }
 
-  const showPurchaseAllowedFallback =
-    resultMatchesCurrentUrl &&
-    (actionState.state === "metadata_incomplete_purchase_allowed" ||
-      actionState.state === "metadata_unavailable_purchase_allowed");
+    if (
+      resultMatchesCurrentUrl &&
+      actionState.state === "resolution_failed"
+    ) {
+      return {
+        kind: "resolution_error",
+        message: actionState.message,
+      };
+    }
+
+    return { kind: "empty" };
+  })();
+
+  const previewStatusMessage: string = (() => {
+    switch (renderModel.kind) {
+      case "pending":
+        return "Đang kiểm tra sản phẩm Shopee.";
+      case "card":
+        return renderModel.quote.status === "available"
+          ? "Đã có thông tin sản phẩm và mức hoàn tiền dự kiến."
+          : "Đã có thông tin sản phẩm. Mức hoàn tiền chưa được xác định.";
+      case "purchase_allowed_fallback":
+        return PURCHASE_FALLBACK_LIVE_REGION_MESSAGE;
+      case "resolution_error":
+        return "";
+      case "empty":
+        return "";
+    }
+  })();
 
   return (
     <div>
@@ -96,26 +177,19 @@ export default function ShopeeCashbackPreviewForm() {
         action={previewAction}
         className="rounded-[var(--radius-xl)] border border-[color:var(--line)] bg-[rgba(255,252,249,0.88)] p-5 shadow-[var(--shadow-sm)]"
       >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--brand-strong)]">
-              Shopee
-            </p>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--brand-strong)]">
+            Shopee
+          </p>
 
-            <h2 className="mt-2 text-lg font-semibold text-[color:var(--text)]">
-              Kiểm tra hoàn tiền sản phẩm
-            </h2>
-          </div>
-
-          <span className="rounded-full border border-[rgba(216,138,82,0.2)] bg-[rgba(216,138,82,0.12)] px-3 py-1 text-xs font-semibold text-[color:var(--brand-strong)]">
-            Hoàn 60% hoa hồng
-          </span>
+          <h2 className="mt-2 text-lg font-semibold text-[color:var(--text)]">
+            Kiểm tra hoàn tiền sản phẩm
+          </h2>
         </div>
 
         <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
-          Dán link sản phẩm Shopee để xem ảnh,
-          giá và số tiền hoàn dự kiến trước khi
-          mua hàng.
+          Dán link sản phẩm Shopee để xem ảnh, giá
+          và số tiền hoàn dự kiến trước khi mua hàng.
         </p>
 
         <div className="mt-4">
@@ -145,8 +219,8 @@ export default function ShopeeCashbackPreviewForm() {
           />
 
           <p className="mt-2 text-xs leading-5 text-[color:var(--text-muted)]">
-            Vaffiliate hỗ trợ link sản phẩm đầy
-            đủ và link rút gọn s.shopee.vn.
+            Vaffiliate hỗ trợ link sản phẩm đầy đủ
+            và link rút gọn s.shopee.vn.
           </p>
         </div>
 
@@ -156,70 +230,95 @@ export default function ShopeeCashbackPreviewForm() {
             isPreviewPending ||
             !currentUrl
           }
+          aria-busy={isPreviewPending}
           className="mt-4 w-full rounded-[var(--radius-lg)] bg-[color:var(--brand)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isPreviewPending
             ? "Đang kiểm tra sản phẩm..."
             : "Kiểm tra hoàn tiền"}
         </button>
-
-        {showResolutionError && actionState.message ? (
-          <p
-            role="alert"
-            aria-live="polite"
-            className="mt-3 rounded-[var(--radius-lg)] border border-[rgba(190,92,54,0.18)] bg-[rgba(190,92,54,0.08)] px-4 py-3 text-sm font-medium leading-6 text-[color:var(--warning)]"
-          >
-            {actionState.message}
-          </p>
-        ) : null}
       </form>
 
-      {visibleProduct && visibleQuote ? (
-        <ShopeeProductPreviewCard
-          key={visibleProduct.productUrl}
-          quote={visibleQuote}
-        />
-      ) : showPurchaseAllowedFallback && actionState.canonicalProductUrl ? (
-        <div className="mt-4 overflow-hidden rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.15)] bg-[rgba(255,248,242,0.94)] shadow-[var(--shadow-sm)]">
-          <div className="px-5 py-5">
-            <p className="text-sm font-semibold text-[color:var(--text)]">
-              Chưa lấy được thông tin sản phẩm từ Shopee.
-            </p>
-
-            <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
-              Mức hoàn tiền chưa được xác định. Hoàn tiền không được đảm bảo.
-            </p>
-          </div>
-
-          <div className="border-t border-[rgba(124,63,44,0.08)] px-5 pb-5">
-            <ShopeePurchaseTrigger
-              productUrl={actionState.canonicalProductUrl}
-              variant="neutral"
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="mt-4 rounded-[var(--radius-xl)] border border-dashed border-[rgba(124,63,44,0.14)] bg-[rgba(255,250,246,0.68)] px-5 py-8 text-center">
-          <p className="text-sm font-semibold text-[color:var(--text)]">
-            Chưa có thông tin sản phẩm
-          </p>
-
-          <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
-            Kết quả gồm ảnh, tên, giá và tiền
-            hoàn dự kiến sẽ xuất hiện tại đây.
-          </p>
-        </div>
-      )}
-
-      <p className="mt-4 rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.08)] bg-[rgba(255,250,246,0.72)] px-4 py-3 text-xs leading-5 text-[color:var(--text-muted)] shadow-[var(--shadow-sm)]">
-        Mua hàng nhận hoàn tiền sẽ được kích hoạt ở
-        bước tiếp theo. Trong giai đoạn hiện tại,
-        Vaffiliate hiển thị thông tin sản phẩm ngay cả
-        khi chưa xác định được mức hoàn tiền.
-        Số tiền hoàn chỉ hiển thị khi chương trình
-        hoàn tiền đang áp dụng cho sản phẩm được xác
-        định rõ ràng.
+      <p
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {previewStatusMessage}
       </p>
+
+      {(() => {
+        switch (renderModel.kind) {
+          case "pending":
+            return <ShopeeCashbackPreviewPendingPanel />;
+
+          case "card":
+            return (
+              <ShopeeProductPreviewCard
+                key={
+                  renderModel.quote.product.productUrl
+                }
+                quote={renderModel.quote}
+              />
+            );
+
+          case "purchase_allowed_fallback":
+            return (
+              <div className="mt-4 overflow-hidden rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.15)] bg-[rgba(255,248,242,0.94)] shadow-[var(--shadow-sm)]">
+                <div className="px-5 py-5">
+                  <p className="text-sm font-semibold text-[color:var(--text)]">
+                    Chưa lấy được thông tin sản phẩm từ Shopee.
+                  </p>
+
+                  <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
+                    Mức hoàn tiền chưa được xác định. Hoàn tiền không được đảm bảo.
+                  </p>
+                </div>
+
+                <div className="border-t border-[rgba(124,63,44,0.08)] px-5 pb-5">
+                  <ShopeePurchaseTrigger
+                    productUrl={
+                      renderModel.canonicalProductUrl
+                    }
+                    variant="neutral"
+                  />
+                </div>
+              </div>
+            );
+
+          case "resolution_error":
+            return (
+              <div
+                role="alert"
+                aria-live="polite"
+                className="mt-4 rounded-[var(--radius-xl)] border border-[rgba(190,92,54,0.18)] bg-[rgba(190,92,54,0.08)] px-5 py-4 text-sm font-medium leading-6 text-[color:var(--warning)]"
+              >
+                {renderModel.message}
+              </div>
+            );
+
+          case "empty":
+            return (
+              <div className="mt-4 rounded-[var(--radius-xl)] border border-dashed border-[rgba(124,63,44,0.14)] bg-[rgba(255,250,246,0.68)] px-5 py-8 text-center">
+                <p className="text-sm font-semibold text-[color:var(--text)]">
+                  Chưa có thông tin sản phẩm
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
+                  Kết quả gồm ảnh, tên, giá và tiền
+                  hoàn dự kiến sẽ xuất hiện tại đây.
+                </p>
+              </div>
+            );
+        }
+      })()}
+
+      {!isPreviewPending ? (
+        <p className="mt-4 rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.08)] bg-[rgba(255,250,246,0.72)] px-4 py-3 text-xs leading-5 text-[color:var(--text-muted)] shadow-[var(--shadow-sm)]">
+          {TRUSTED_PURCHASE_HANDOFF_FOOTER_COPY}
+        </p>
+      ) : null}
     </div>
   );
 }
