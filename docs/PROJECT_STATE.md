@@ -4,21 +4,21 @@
 
 Project: Vaffiliate
 
-Current phase: Phase 20H.4 - Shopee Unikorn Product Data API Metadata Provider
+Current phase: Phase 20H.5 - Shopee Cashback Preview UI
 
-Phase status: Implementation complete and quality-gated on the feature branch; not yet merged into `main`.
+Phase status: Planned; implementation has not started. Phase 20H.4 was merged through Pull Request #23 at `bd98cb2`.
 
 Current branch:
 
-`feat/phase-20h4-shopee-product-metadata-provider`
+`docs/sync-phase-20h4-after-merge`
 
 Current baseline commit:
 
-`98731a3` - Phase 20H.3 merge commit and Phase 20H.4 baseline
+`bd98cb2` - Phase 20H.4 implementation merge commit and baseline for this post-merge documentation synchronization
 
 Latest implementation merge:
 
-`11c24dd` - Pull Request #17
+`bd98cb2` - Merge Pull Request #23, Phase 20H.4 Unikorn product metadata provider
 
 Integration branch:
 
@@ -487,15 +487,24 @@ HTML provider remains the HTML metadata provider used here.
 
 ### Phase 20H.4
 
-Implementation on branch
-`feat/phase-20h4-shopee-product-metadata-provider`. Phase 20H.4 baseline:
-`98731a3`.
+Phase 20H.4 is complete and merged through Pull Request #23.
+Implementation commit: `c281509`.
+Merge commit: `bd98cb2`.
 
-Implementation is complete and has passed final independent review and
-all quality gates. It remains unmerged. Do not list this phase as a
-merged milestone yet.
+Before merge, the Phase 20H.4 implementation commit `c281509` passed
+the full local quality gates:
 
-Current implementation scope:
+- 529 tests passed, 0 failed;
+- lint passed;
+- typecheck passed;
+- production build passed;
+- DB check passed.
+
+The CI / Quality check for Pull Request #23 also passed before merge.
+
+Local and remote feature branches for Phase 20H.4 were deleted after merge.
+
+Delivered scope:
 
 - Unikorn metadata enrichment only. Phase 20H.4 does NOT change the
   purchase handoff, click attribution, tracking-link persistence, or
@@ -605,7 +614,12 @@ Planned scope:
   foundation;
 - Phase 20H.3: buyer purchase handoff, deterministic affiliate URL,
   tracking-link create/reuse and persistence decisions, `/go/<shortCode>`,
-  click recording, and direct-URL and resolved-short-link neutral fallback.
+  click recording, and direct-URL and resolved-short-link neutral fallback;
+- Phase 20H.4: Unikorn metadata enrichment only. Unikorn metadata
+  enrichment as the primary provider with the secured HTML provider as
+  fallback; only the resolved `itemId` is sent upstream; strict
+  untrusted-response validation; third-party commission fields ignored;
+  no migration or persistent metadata cache introduced.
 
 Relevant merge commits:
 
@@ -615,27 +629,17 @@ Relevant merge commits:
 - `389ef9c` - Pull Request #12, Phase 20F;
 - `2baa327` - Pull Request #13, pre-Phase 20G delivery baseline;
 - `11c24dd` - Pull Request #17, Phase 20G.1 Shopee attribution and CSV
-  ingestion foundation.
+  ingestion foundation;
+- `6386a13` - Pull Request #21, Phase 20H.2 product preview and
+  secured HTML metadata provider;
+- `98731a3` - Pull Request #22, Phase 20H.3 buyer purchase handoff,
+  deterministic affiliate URL, and tracking-link persistence;
+- `bd98cb2` - Pull Request #23, Phase 20H.4 Unikorn product metadata
+  provider.
 
 The exact Phase 20G.0 documentation merge commit and Pull Request number
 are not separately verified in the current documentation branch and must
 not be invented here.
-
----
-
-## Current Unmerged Implementation
-
-The following phase implementation is present on the current feature
-branch and remains unmerged. It is listed separately from the delivered
-milestones above until it is merged into `main`.
-
-- Phase 20H.4: Unikorn metadata enrichment only. Third-party product data
-  API used as the primary metadata provider with the existing HTML provider
-  as fallback; canonical Shopee product URL parser reused for Unikorn
-  productLink validation; safe-integer numeric ID normalization; preserved
-  baseline `provider.server.ts` public exports. Final independent review
-  and full quality gates passed. The implementation remains outside the
-  delivered milestones until it is merged.
 
 ---
 
