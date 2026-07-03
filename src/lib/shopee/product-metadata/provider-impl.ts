@@ -272,19 +272,11 @@ export const shopeeProductMetadataProvider: ShopeeProductMetadataProvider =
     },
   };
 
-// The full URL resolver lives behind the `server-only` guard, so
-// providers always go through fetchMetadataForIdentity which already
-// accepts a ShopeeProductIdentity. This stub remains to keep the
-// legacy entry point discoverable but it deliberately throws to
-// surface any drift early.
-export async function fetchShopeeProductMetadataFromUrl(): Promise<ShopeeProductMetadata> {
-  throw new ShopeeProductMetadataError(
-    "metadata_unavailable",
-    "fetchShopeeProductMetadataFromUrl requires a resolved identity",
-  );
-}
-
-// Export under the clean name for use by the server-only
-// composition surface and the application service layer.
+// The full URL resolver lives behind the `server-only` guard in
+// provider.server.ts. When called with an explicit fetchImpl, callers go
+// through fetchShopeeProductMetadataFromUrl in provider.server.ts, which
+// resolves the URL via the secured resolveShopeeProductUrl resolver and
+// then routes through this HTML provider. fetchMetadataForIdentity
+// remains the primitive that accepts an already-resolved identity.
 export { fetchMetadataForIdentity };
 export { productionFetch };
