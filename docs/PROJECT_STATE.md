@@ -4,17 +4,17 @@
 
 Project: Vaffiliate
 
-Current phase: Phase 20H.2 - Shopee Product Preview & Cashback Quote
+Current phase: Phase 20H.4 - Shopee Unikorn Product Data API Metadata Provider
 
-Phase status: Implementation pending review; uncommitted changes on branch
+Phase status: Implementation complete and quality-gated on the feature branch; not yet merged into `main`.
 
 Current branch:
 
-`feat/phase-20h2-shopee-product-preview`
+`feat/phase-20h4-shopee-product-metadata-provider`
 
 Current baseline commit:
 
-`56e79b31` - Phase 20H.1 merge commit used as the clean starting point
+`98731a3` - Phase 20H.3 merge commit and Phase 20H.4 baseline
 
 Latest implementation merge:
 
@@ -338,29 +338,22 @@ records. Orders must not become a second financial source of truth.
 
 ### Phase 20H
 
-Expected wallet and withdrawal scope:
-
-- immutable wallet ledger entries;
-- balance projections;
-- withdrawal requests;
-- payout processing;
-- financial adjustments and clawbacks.
-
-Wallet and withdrawal implementation must not begin inside Phase 20G.
-
-### Phase 20H
-
 Consumer-facing Shopee cashback surfacing pipeline. Phase 20H.1
-normalized Shopee URLs and resolved identifiers; subsequent phases build
-the preview/quote experience on top of it.
+normalized Shopee URLs and resolved identifiers; Phase 20H.2 added the
+URL/product preview and the secured HTML metadata provider foundation;
+Phase 20H.3 added the buyer purchase handoff and tracking-link
+persistence; Phase 20H.4 enriched product metadata through the Unikorn
+API; Phase 20H.5 ships the redesigned preview UI on the existing
+infrastructure.
+
+Wallet and withdrawal implementation belongs to a later wallet phase
+and must not begin inside Phase 20G or Phase 20H.
 
 ### Phase 20H.2
 
-Implementation pending review on branch
-`feat/phase-20h2-shopee-product-preview` (HEAD
-`56e79b31745c72d4892a860d975bd8dc84ca1327` + uncommitted
-changes). This is uncommitted work; it has not been staged,
-committed, or pushed.
+Implementation merged on branch
+`feat/phase-20h2-shopee-product-preview`. Phase 20H.2 merge commit and
+Phase 20H.3 baseline: `6386a13`.
 
 Delivered scope:
 
@@ -389,8 +382,8 @@ Delivered scope:
   negative values, scientific notation, unsafe integers. It validates
   image URLs for HTTPS, no credentials, and non-empty hostname. JSON-LD
   `offers.availability` drives availability: `InStock`/`LimitedAvailability`
-  → available; `OutOfStock`/`SoldOut`/`Discontinued` → unavailable;
-  missing/unknown → unknown. Open Graph pages fall back to `unknown`
+  -> available; `OutOfStock`/`SoldOut`/`Discontinued` -> unavailable;
+  missing/unknown -> unknown. Open Graph pages fall back to `unknown`
   when JSON-LD has no availability field.
 - Network safety controls in `fetchMetadataForIdentity`:
   - HTTPS only.
@@ -402,8 +395,8 @@ Delivered scope:
   - Response size cap with body cancellation when exceeded.
   - Content-type must look like HTML; otherwise
     `unexpected_content_type`.
-  - HTTP 404 / 410 → `product_not_found`.
-  - Other non-2xx → `non_2xx_response`.
+  - HTTP 404 / 410 -> `product_not_found`.
+  - Other non-2xx -> `non_2xx_response`.
   - All provider responses are normalized before reaching callers;
     raw HTML and stack traces never cross the boundary.
 - Offer selector contract (`src/services/shopee-offer-selector.ts`):
@@ -417,10 +410,10 @@ Delivered scope:
   canonical Drizzle-backed catalog via `listActiveShopeeOffersWithPolicyStatusAsync`
   (which uses a LEFT JOIN on `cashback_policies` so offers without a
   policy are still returned). The selector distinguishes three cases:
-  (1) no active offer → `no_active_offer`; (2) active offer exists but
-  has no cashback policy → `eligibility_unknown` with reason
+  (1) no active offer -> `no_active_offer`; (2) active offer exists but
+  has no cashback policy -> `eligibility_unknown` with reason
   `cashback_policy_unavailable`; (3) active offer with policy matches
-  the product → `eligible`. Until a product/shop/category → offer
+  the product -> `eligible`. Until a product/shop/category -> offer
   mapping is introduced in the schema, unmatched products get
   `eligibility_unknown`. No hardcoded `off-shopee-fashion` or any
   other offer ID exists in production code. Tests can inject a fake
@@ -465,12 +458,133 @@ Open status:
   The production selector returns `eligibility_unknown` for products
   with no shop/item mapping and `cashback_policy_unavailable` for
   products whose offer lacks a cashback policy; a future phase must
-  introduce a product/shop/category → offer mapping in the catalog
+  introduce a product/shop/category -> offer mapping in the catalog
   before meaningful quotes can be computed for most products.
 - Affiliate attribution (click write, tracking link, conversion
-  ingestion) is out of scope for Phase 20H.2 and will be added in a
-  later phase. The preview CTA explicitly tells the buyer.
+  ingestion) was added in Phase 20H.3, not Phase 20H.2.
 - TikTok Shop remains deferred.
+
+### Phase 20H.3
+
+Phase 20H.3 started from `6386a13`.
+
+Phase 20H.3 merge commit and Phase 20H.4 baseline: `98731a3`.
+
+Delivered scope:
+
+- buyer purchase handoff (`initiateShopeePurchaseAction` and the
+  `ShopeePurchaseTrigger` UI);
+- deterministic affiliate URL through the Shopee verifier;
+- tracking-link create / reuse and persistence decisions on
+  `tracking_links.network_sub_id`;
+- `/go/<shortCode>` redirect route;
+- click recording (`clicks.click_token` row) before the merchant redirect;
+- direct-URL and resolved-short-link neutral fallback in the cashback
+  preview.
+
+Phase 20H.3 did not change the HTML metadata provider. The secured
+HTML provider remains the HTML metadata provider used here.
+
+### Phase 20H.4
+
+Implementation on branch
+`feat/phase-20h4-shopee-product-metadata-provider`. Phase 20H.4 baseline:
+`98731a3`.
+
+Implementation is complete and has passed final independent review and
+all quality gates. It remains unmerged. Do not list this phase as a
+merged milestone yet.
+
+Current implementation scope:
+
+- Unikorn metadata enrichment only. Phase 20H.4 does NOT change the
+  purchase handoff, click attribution, tracking-link persistence, or
+  `/go/<shortCode>` redirect.
+- Third-party Unikorn Product Data API
+  (`https://data.addlivetag.com/product-data/product-data.php`) is used as
+  the primary metadata provider.
+- Vaffiliate resolves direct and short Shopee URLs to a `ShopeeProductIdentity`
+  before calling the API. Only the resolved `itemId` is sent upstream. No raw
+  user URLs, short links, cookies, or internal identifiers are transmitted.
+- The Unikorn API returns title, image, price, and optional shop metadata.
+  Third-party commission fields from the API response are ignored.
+- Cashback is calculated by Vaffiliate policy and catalog, not by the
+  third-party API response.
+- The third-party API is non-official, untrusted, and used for metadata
+  enrichment only. It is not a source of commission settlement truth.
+- `dataSource` from the Unikorn response must be `api` or `db`. The
+  previous `"fallback"` literal is rejected. The HTML provider remains
+  the fallback when the Unikorn primary fails (timeout, rate-limit,
+  HTTP error, invalid JSON, invalid schema, oversized body, redirect).
+- Validation is strict and delegates productLink validation to the
+  canonical Shopee product URL parser (`parseShopeeProductUrl`) so the
+  Unikorn boundary inherits the same HTTPS / allowlisted-host /
+  no-credentials / no-port / valid-path / no-short-link / no-shope.ee /
+  no-shopee.com protections used for user input. Numeric IDs are only
+  accepted when they are safe integers (`Number.isSafeInteger`) or
+  non-empty ASCII digit strings.
+- Neutral fallback: when both providers fail, the existing typed error behavior
+  is preserved.
+- No database migration or persistent metadata cache introduced by this phase.
+- Pure client core (`unikorn-client.ts`): no `server-only`, no React/Next.js
+  imports. Exports only `createUnikornProductDataClient` which accepts a
+  resolved `ShopeeProductIdentity` and injectable fetch. The internal endpoint
+  and URL construction are not exported.
+- Server wrapper (`unikorn-client.server.ts`): contains `import "server-only"`,
+  creates the client with global `fetch`, performs response validation via
+  `parseUnikornProductDataResponse`, and exposes the validated primary
+  provider.
+- Provider chain (`provider-chain.ts`): pure dependency-injected chain factory.
+  Does not import `server-only`, `./unikorn-client`, or `./unikorn-client.server`.
+  Accepts `primaryProvider` and `fallbackProvider` as injected dependencies.
+  Handles fallback eligibility for both typed errors and raw `AbortError`.
+  Non-fallback-eligible errors (`product_not_found`, `product_unavailable`,
+  ordinary `Error`) are rethrown without calling the HTML provider.
+- Production composition: `provider.server.ts` wires `fetchUnikornProductMetadata`
+  (from `./unikorn-client.server`) as `primaryProvider` and the existing
+  HTML provider as `fallbackProvider` into the chain. The baseline public
+  exports (`shopeeProductMetadataProvider`, `fetchMetadataForIdentity`,
+  `ShopeeProductMetadataFetchLike`, `fetchShopeeProductMetadataFromUrl`)
+  are preserved. `fetchShopeeProductMetadataFromUrl` resolves the URL via
+  the secured server resolver (`resolveShopeeProductUrl` from
+  `@/lib/shopee/product-url`) so both direct canonical Shopee product
+  URLs and short links (`s.shopee.vn`) are supported through the
+  resolver's redirect handling. Hostile redirect targets are rejected by
+  the resolver. When an explicit fetchImpl is provided, the call is
+  restricted to the HTML provider with that injected fetch instead of
+  issuing an uncontrolled live Unikorn request. When fetchImpl is
+  omitted, the new Unikorn -> HTML production chain is used.
+- The `shopeeProductMetadataProvider` export with `getProduct` method
+  conforms to the existing interface expected by the quote service.
+- AbortController with explicit timer cleanup (setTimeout + clearTimeout in
+  try/finally) replaces `AbortSignal.timeout`.
+
+Production dependency path:
+
+```
+shopee-cashback-quote.service.server.ts
+  -> provider.server.ts
+  -> unikorn-client.server.ts (server-only)
+  -> unikorn-client.ts (pure core)
+```
+
+Remaining scope:
+
+- Order history is deferred until after Phase 20H.5.
+- TikTok Shop remains deferred.
+
+### Phase 20H.5
+
+Planned scope:
+
+- Shopee Cashback Preview UI on the existing `/app/cashback` route.
+- UI/UX-only changes; no backend, schema, ingestion, wallet, or payout
+  behavior changes.
+- Uses the installed taste skill for visual hierarchy, typography,
+  spacing, card composition, cashback emphasis, CTA treatment,
+  responsive layout, loading and error states, and accessibility polish.
+- Does NOT rewrite the purchase handoff, click recording, or
+  `/go/<shortCode>` redirect.
 
 ---
 
@@ -487,7 +601,11 @@ Open status:
   foundation, and PostgreSQL concurrency coverage;
 - Phase 20H.1: Shopee URL normalization, identifier resolution, redirect
   loop, and pure parser contracts;
-- Phase 20H.2: Shopee product preview + cashback quote pipeline (read-only).
+- Phase 20H.2: Shopee URL/product preview and secured HTML metadata provider
+  foundation;
+- Phase 20H.3: buyer purchase handoff, deterministic affiliate URL,
+  tracking-link create/reuse and persistence decisions, `/go/<shortCode>`,
+  click recording, and direct-URL and resolved-short-link neutral fallback.
 
 Relevant merge commits:
 
@@ -502,6 +620,22 @@ Relevant merge commits:
 The exact Phase 20G.0 documentation merge commit and Pull Request number
 are not separately verified in the current documentation branch and must
 not be invented here.
+
+---
+
+## Current Unmerged Implementation
+
+The following phase implementation is present on the current feature
+branch and remains unmerged. It is listed separately from the delivered
+milestones above until it is merged into `main`.
+
+- Phase 20H.4: Unikorn metadata enrichment only. Third-party product data
+  API used as the primary metadata provider with the existing HTML provider
+  as fallback; canonical Shopee product URL parser reused for Unikorn
+  productLink validation; safe-integer numeric ID normalization; preserved
+  baseline `provider.server.ts` public exports. Final independent review
+  and full quality gates passed. The implementation remains outside the
+  delivered milestones until it is merged.
 
 ---
 

@@ -21,18 +21,17 @@ precedence when stale documentation conflicts with the repository.
 
 Project: Vaffiliate
 
-Current phase: Phase 20G.1 - Shopee Ingestion and Attribution Foundation
+Current phase: Phase 20H.4 - Shopee Unikorn Product Data API Metadata Provider
 
-Phase status: Partially delivered; documentation synchronization in progress
+Phase status: Implementation complete and quality-gated on `feat/phase-20h4-shopee-product-metadata-provider`. It has not yet been merged into `main`.
 
 Current branch:
 
-`docs/sync-project-state-after-pr17`
+`feat/phase-20h4-shopee-product-metadata-provider`
 
 Current baseline commit:
 
-`11c24dd` - merge of Pull Request #17, Shopee attribution and CSV ingestion
-foundation
+`98731a3` - Phase 20H.3 merge commit and Phase 20H.4 baseline
 
 Latest implementation merge:
 
@@ -48,19 +47,15 @@ Latest reachable stable tag:
 
 The stable tag is historical. No Phase 20 completion tag has been created.
 
-### Expected Phase 20G.1 Documentation Worktree
+### Expected Phase 20H.4 Implementation Worktree
 
-This documentation synchronization branch may update only the following four
-documentation files:
+This implementation branch updates implementation files and documentation:
 
-- `docs/ARCHITECTURE.md`
-- `docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md`
 - `docs/PROJECT_STATE.md`
 - `docs/HANDOFF.md`
+- Implementation files in `src/lib/shopee/product-metadata/`
 
-No implementation file, migration, schema, repository, service, route,
-authentication, attribution, conversion, payout, or wallet behavior change
-belongs in this branch.
+No migration, schema, or financial behavior changes belong in this branch.
 
 ### Delivery Baseline
 
@@ -707,7 +702,23 @@ records.
 
 ### Phase 20H
 
-Expected wallet and withdrawal scope:
+Phase 20H covers consumer-facing Shopee cashback surfacing. Phase 20H.1
+normalized Shopee URLs; Phase 20H.2 added the URL/product preview and
+the secured HTML metadata provider foundation; Phase 20H.3 added the
+buyer purchase handoff, deterministic affiliate URL, tracking-link
+create/reuse and persistence, `/go/<shortCode>`, click recording, and
+the direct-URL and resolved-short-link neutral fallback; Phase 20H.4
+adds the Unikorn third-party metadata API as primary enrichment with
+the HTML provider remaining as fallback; Phase 20H.5 ships the
+redesigned preview UI on top of the existing infrastructure.
+
+Phase 20H.3 is complete and merged. Phase 20H.4 implementation is
+complete and quality-gated on the feature branch. It has not yet been
+merged into `main`. The purchase handoff, click recording, tracking-link
+persistence, and `/go/<shortCode>` redirect established by Phase 20H.3
+are not modified by Phase 20H.4 or planned Phase 20H.5.
+
+Expected wallet and withdrawal scope (later wallet phase):
 
 - immutable wallet ledger entries;
 - balance projections;
@@ -716,7 +727,8 @@ Expected wallet and withdrawal scope:
 - financial adjustments;
 - clawbacks and reversals.
 
-Wallet and withdrawal implementation must not begin inside Phase 20G.
+Wallet and withdrawal implementation must not begin inside Phase 20G or
+Phase 20H.
 
 ---
 
@@ -966,7 +978,7 @@ Before committing this documentation branch, verify:
 - [ ] `docs/HANDOFF.md` reflects the operational continuation after Pull
       Request #17 and clearly distinguishes repository foundation from
       production workflow;
-- [ ] Phase 20G.1, Phase 20G.2, and Phase 20H boundaries agree across files;
+- [ ] Phase 20H.1, Phase 20H.2, Phase 20H.3, and Phase 20H.4 boundaries agree across files;
 - [ ] conversion identity uses `network + source_conversion_key` as the
       target;
 - [ ] Orders are documented as a projection over conversions;
