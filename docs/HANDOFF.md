@@ -3,7 +3,7 @@
 ## 1. Purpose and Read Order
 
 This document provides the operational handoff for the Vaffiliate repository
-after Pull Request #17.
+after Pull Request #25.
 
 Before continuing implementation work, read these documents in order:
 
@@ -23,19 +23,20 @@ Project: Vaffiliate
 
 Current phase: Phase 20H.5 - Shopee Cashback Preview UI
 
-Phase status: Planned; implementation has not started. Phase 20H.4 was merged through Pull Request #23 at `bd98cb2`.
+Phase status: Complete and merged through Pull Request #25 at `84a6b4e`.
+This branch synchronizes authoritative documentation after Pull Request #25.
 
 Current branch:
 
-`docs/sync-phase-20h4-after-merge`
+`docs/sync-phase-20h5-after-merge`
 
 Current baseline commit:
 
-`bd98cb2` - Phase 20H.4 implementation merge commit and baseline for this post-merge documentation synchronization
+`84a6b4e` - Phase 20H.5 implementation merge commit and baseline for this post-merge documentation synchronization
 
 Latest implementation merge:
 
-`bd98cb2` - Merge Pull Request #23, Phase 20H.4 Unikorn product metadata provider
+`84a6b4e` - Merge Pull Request #25, Phase 20H.5 Shopee Cashback Preview UI
 
 Integration branch:
 
@@ -55,8 +56,9 @@ This documentation branch updates only:
 - `docs/HANDOFF.md`
 
 No source code, test, package.json, schema, migration, configuration, or
-runtime behavior change belongs in this branch. Phase 20H.5 implementation
-has not started and must not begin on this branch.
+runtime behavior change belongs in this branch. Phase 20H.5 is already
+merged through Pull Request #25 and must not be reimplemented on this
+branch or on any branch created from this one.
 
 ### Delivery Baseline
 
@@ -82,8 +84,13 @@ The PostgreSQL integration test runs with:
 NODE_OPTIONS=--conditions=react-server
 ```
 
-Pull Request #17 passed this delivery pipeline before merge. This branch
-must run the same quality gates before it is merge-ready.
+Pull Request #17 passed its delivery pipeline before merge. Pull
+Request #25 (Phase 20H.5) passed the verified H.5 quality gates listed
+in `### Phase 20H.5 - Shopee Cashback Preview UI` and the CI / Quality
+check before its own merge. This documentation branch is
+documentation-only and must not re-run the implementation quality
+gates; its own merge-readiness bar is the documentation verification
+commands listed in `## 11`.
 
 Route classifications and generated-page counts must be derived from the
 current successful Next.js build output. Do not copy historical Phase 19.5
@@ -711,15 +718,20 @@ create/reuse and persistence, `/go/<shortCode>`, click recording, and
 the direct-URL and resolved-short-link neutral fallback; Phase 20H.4
 added the Unikorn third-party metadata API as primary enrichment with
 the HTML provider remaining as fallback (merged through Pull Request #23
-at `bd98cb2`); Phase 20H.5 ships the redesigned preview UI on top of
-the existing infrastructure.
+at `bd98cb2`); Phase 20H.5 polished the existing preview UI on top of
+the existing infrastructure (merged through Pull Request #25 at
+`84a6b4e`).
 
 Phase 20H.3 is complete and merged. Phase 20H.4 is complete and merged
 through Pull Request #23 at `bd98cb2` (implementation commit `c281509`).
-The purchase handoff, click recording, tracking-link persistence, and
-`/go/<shortCode>` redirect established by Phase 20H.3 and the Unikorn
-metadata enrichment / HTML fallback provider chain established by
-Phase 20H.4 must be preserved by Phase 20H.5 and must not be rewritten.
+Phase 20H.5 is complete and merged through Pull Request #25 at `84a6b4e`
+(implementation commit `f9b0fa5`). The purchase handoff, click recording,
+tracking-link persistence, and `/go/<shortCode>` redirect established by
+Phase 20H.3, the Unikorn metadata enrichment / HTML fallback provider
+chain established by Phase 20H.4, and the metadata pipeline established
+by Phase 20H.2 must be preserved by any future phase and must not be
+rewritten. Phase 20H.5 is a UI/UX-only polish and does not change
+Phase 20H.2, Phase 20H.3, or Phase 20H.4 behavior.
 
 Expected wallet and withdrawal scope (later wallet phase):
 
@@ -881,6 +893,78 @@ Relevant merge:
 
 `bd98cb2` - Pull Request #23
 
+### Phase 20H.5 - Shopee Cashback Preview UI
+
+Phase 20H.5 polished the buyer-facing Shopee Cashback Preview UI on
+top of the existing Phase 20H.4 Unikorn -> HTML provider chain, the
+Phase 20H.3 purchase handoff, and the Phase 20H.2 metadata pipeline.
+The implementation commit is `f9b0fa5`.
+
+Delivered scope:
+
+- typed payload-carrying preview render model that distinguishes
+  pending, product-card, purchase-allowed fallback, resolution error,
+  and empty presentation;
+- pending state takes precedence over stale card, fallback, error, and
+  empty states; a new pending request hides a previous product card
+  immediately;
+- dedicated pending panel with reduced-motion support;
+- removed the static `Hoàn 60% hoa hồng` presentation; cashback
+  percentage is derived only from `quote.cashbackShareBps`;
+- recomposed the available-quote presentation into a single
+  cashback-emphasis panel that preserves the estimate and the
+  Shopee-approved commission disclaimer;
+- persistent screen-reader status messaging and `aria-busy` on the
+  preview and purchase buttons;
+- preserved purchase handoff and `/go/<shortCode>` redirect behavior;
+- exactly three UI component files were changed;
+- no backend, provider, database, action, tracking, click, route,
+  package, global-style, or schema changes.
+
+Before merge, the Phase 20H.5 implementation commit `f9b0fa5` passed
+the verified H.5 quality gates:
+
+- lint passed;
+- typecheck passed;
+- the complete current npm test script passed: 529 passed, 0 failed;
+- DB check passed;
+- production build passed: 28/28 pages generated;
+- diff check passed.
+
+Pull Request #25 CI / Quality also passed before merge.
+
+This documentation branch must not re-run the implementation quality
+gates. Its merge-readiness bar is limited to the documentation
+verification commands.
+
+Manual browser validation (passed before merge):
+
+- initial state at 375px, 768px, and desktop widths passed;
+- invalid URL / resolution-error state passed;
+- pending state passed;
+- previous product card was hidden immediately during a new pending
+  request;
+- quote-unavailable state passed on desktop and mobile;
+- keyboard order and visible focus passed;
+- reduced-motion behavior passed;
+- no horizontal overflow or mojibake was observed.
+
+Manual-state limitations (recorded honestly):
+
+- the current catalog data did not naturally produce a quote-available
+  result during manual validation;
+- the current tested URLs did not naturally produce the metadata
+  purchase-allowed fallback during manual validation;
+- backend data and source code were not modified to fabricate those
+  states.
+
+Local and remote feature branches for Phase 20H.5 were deleted after
+merge.
+
+Relevant merge:
+
+`84a6b4e` - Pull Request #25
+
 ### Stable Tag Status
 
 The latest reachable stable tag remains:
@@ -896,6 +980,20 @@ Do not invent or create a Phase 20 completion tag without explicit approval.
 ## 11. Current Verification Status
 
 Pull Request #17 passed the full delivery quality gate.
+
+Pull Request #25 (Phase 20H.5) also passed the verified H.5 quality
+gates before its own merge at `84a6b4e`:
+
+- the complete current npm test script passed: 529 passed, 0 failed;
+- lint passed;
+- typecheck passed;
+- DB check passed;
+- production build passed (28/28 pages generated);
+- diff check passed;
+- CI / Quality check passed.
+
+This documentation branch must not re-run the implementation quality
+gates.
 
 The CI pipeline defined in `.github/workflows/ci.yml` runs against
 Node.js 24, npm 11.13.0, and a PostgreSQL 16 service, in this order:
@@ -919,14 +1017,12 @@ The PostgreSQL integration test runs with:
 NODE_OPTIONS=--conditions=react-server
 ```
 
-The current documentation synchronization branch must pass the same
-quality gates before merge. The merge-readiness checklist explicitly
-includes:
-
-- unit tests (`npm test`);
-- PostgreSQL integration tests (`npm run test:integration`);
-- migration runtime validation (`npx drizzle-kit migrate`,
-  `npm run db:check`).
+The current documentation synchronization branch must pass the
+documentation verification commands listed in `## 13`. This documentation
+branch must not re-run the implementation quality gates. Before merge,
+the Phase 20H.5 implementation commit `f9b0fa5` passed the verified H.5
+quality gates listed above, and Pull Request #25 CI / Quality also
+passed before merge.
 
 `npx drizzle-kit migrate` and `npm run test:integration` both
 require a reachable PostgreSQL database. The CI pipeline starts a
@@ -946,17 +1042,19 @@ machine without PostgreSQL is not a merge blocker, provided the CI
 run for the same commit is green. A claimed local PASS for a
 command that was not run locally is forbidden.
 
-Documentation verification must also include:
+Documentation verification must include:
 
 ```text
-git diff --check
-git status --short
-git diff --name-status origin/main
-git diff --stat origin/main
+git --no-pager diff --check HEAD
+git diff --name-status
+git diff --cached --name-only
+git status --branch --short
+git rev-parse HEAD
 ```
 
-The branch diff against `origin/main` must touch exactly the four
-approved documentation files.
+The branch diff against `origin/main` must touch exactly the two
+approved documentation files (`docs/PROJECT_STATE.md` and
+`docs/HANDOFF.md`).
 
 Route classifications and generated-page counts must be copied only from the
 current successful production build output.
@@ -973,44 +1071,34 @@ That warning is not a `git diff --check` failure.
 
 ## 12. Continuation Workflow
 
-After Pull Request #23, the next implementation phase is Phase 20H.5.
-Phase 20H.4 is merged into `main` and must not be reimplemented.
+After Pull Request #25, the Phase 20H.5 Shopee Cashback Preview UI
+implementation is complete and merged into `main`. Phases 20H.2, 20H.3,
+20H.4, and 20H.5 must not be reimplemented.
 
 To continue implementation:
 
 1. Read all four authoritative documentation files.
-2. Confirm Pull Request #23 has been merged into `main`.
+2. Confirm Pull Request #25 has been merged into `main`.
 3. Start only from a clean, up-to-date `main` after this post-merge
-   documentation synchronization has been merged. The Phase 20H.4
-   implementation merge commit `bd98cb2` must be an ancestor of the
-   new Phase 20H.5 branch. Do not branch from the deleted Phase 20H.4
-   feature branch.
-4. Verify the branch and baseline commit before implementation
-   begins; do not assume a final Phase 20H.5 feature-branch HEAD or
-   baseline commit before work starts.
-5. Phase 20H.5 is UI/UX-only. Do not modify schema, migrations, ingestion,
-   wallet, payout, server-only modules, the secured HTML metadata
-   provider, the Unikorn primary metadata provider, the
-   `provider-chain.ts` composition, `resolveShopeeProductUrl`, the
-   Phase 20H.3 purchase handoff, click recording, or `/go/<shortCode>`
-   redirect.
-6. Phase 20H.5 must use the installed taste skill for visual hierarchy,
-   typography, spacing, card composition, cashback emphasis, CTA
-   treatment, responsive layout, loading and error states, and
-   accessibility polish on the Shopee Cashback Preview UI.
-7. Preserve the existing Phase 20H.2 metadata pipeline, the Phase 20H.3
-   purchase handoff, and the Phase 20H.4 Unikorn -> HTML provider
-   chain. The preview UI must render the same fields, the same provider
-   outputs, and the same cashback quote flow as Phase 20H.4 already
-   produces.
-8. Shopee remains the only active commerce scope. TikTok Shop, wallet,
-   payout, ingestion redesign, normalized conversion writes, and order
-   history remain out of scope unless a later phase explicitly starts
-   them.
-9. Define any new design assets, page structure, components, copy, and
-   accessibility audit. Do not invent new server endpoints.
-10. Produce an implementation plan.
-11. Wait for explicit approval before modifying production implementation.
+   documentation synchronization has been merged. The Phase 20H.5
+   implementation merge commit `84a6b4e` must be an ancestor of the
+   new branch. Do not branch from any deleted Phase 20H.x feature branch.
+4. Verify the branch and baseline commit before implementation begins;
+   do not assume a final baseline commit before work starts.
+5. The Shopee-only active commerce scope is preserved. TikTok Shop
+   remains deferred unless a later explicit phase starts it. Do not
+   expand into wallet, payout, ingestion redesign, or order-history
+   work without a separately approved phase.
+6. Select and document the next phase before creating any
+   implementation branch. No Phase 20H.6 (or any other next
+   implementation phase) has been explicitly selected, named, scoped,
+   or given a baseline on this branch; the authoritative documents on
+   this branch state only "Next implementation phase: not yet
+   selected."
+7. Once a next phase is selected, follow the same documentation
+   workflow: keep authoritative documentation as the single source of
+   truth, update it before implementation starts, and run the full
+   delivery pipeline before merge.
 
 Do not continue any implementation work directly on the current
 documentation branch.
@@ -1033,57 +1121,69 @@ documentation branch.
   `clicks.network_sub_id`; Pull Request #17 (`11c24dd`) renamed it
   to `clicks.click_token`. The stable per-tracking-link attribution
   anchor belongs to `tracking_links.network_sub_id`.
+- Never reimplement Phase 20H.2, Phase 20H.3, Phase 20H.4, or
+  Phase 20H.5. The metadata pipeline, the buyer purchase handoff, the
+  Unikorn -> HTML provider chain, and the Shopee Cashback Preview UI
+  polish are already merged.
 
 ---
 
 ## 13. Documentation Branch Merge Readiness
 
+This branch (`docs/sync-phase-20h5-after-merge`) is a documentation-only
+post-merge synchronization for Pull Request #25. Its merge-readiness bar
+is limited to the documentation verification commands below; the full
+CI delivery pipeline is not required on this branch.
+
 Before committing this documentation branch, verify:
 
-- [ ] only the four approved documentation files are changed;
-- [ ] `docs/ARCHITECTURE.md` reflects the partial Phase 20G.1 delivery;
-- [ ] the Phase 20G contract still represents the canonical architecture and
-      data contract, with post-PR17 annotations where the prior
-      verified-current-state content is outdated;
-- [ ] `docs/PROJECT_STATE.md` reflects the `11c24dd` baseline and the partial
-      Phase 20G.1 delivery;
-- [ ] `docs/HANDOFF.md` reflects the operational continuation after Pull
-      Request #17 and clearly distinguishes repository foundation from
-      production workflow;
-- [ ] Phase 20H.1, Phase 20H.2, Phase 20H.3, and Phase 20H.4 boundaries agree across files;
-- [ ] conversion identity uses `network + source_conversion_key` as the
-      target;
-- [ ] Orders are documented as a projection over conversions;
-- [ ] validation and settlement are separate dimensions;
-- [ ] the money invariant agrees across all documents;
+- [ ] only the two approved documentation files are changed
+      (`docs/PROJECT_STATE.md`, `docs/HANDOFF.md`);
+- [ ] `docs/PROJECT_STATE.md` reflects the Phase 20H.5 implementation
+      merged through Pull Request #25 at `84a6b4e` and the
+      Phase 20H.5 implementation commit `f9b0fa5`;
+- [ ] `docs/HANDOFF.md` reflects the operational continuation after
+      Pull Request #25 and treats Phase 20H.5 as complete and merged;
+- [ ] Phase 20H.2, Phase 20H.3, Phase 20H.4, and Phase 20H.5 boundaries
+      agree across files and distinguish metadata pipeline (H.2),
+      purchase handoff (H.3), Unikorn -> HTML provider chain (H.4), and
+      UI/UX polish (H.5);
+- [ ] no future implementation phase (including any Phase 20H.6) is
+      invented; "Next implementation phase: not yet selected." is
+      preserved unless a next phase is explicitly defined elsewhere;
+- [ ] conversion identity still uses `network + source_conversion_key`
+      as the target;
+- [ ] Orders are still documented as a projection over conversions;
+- [ ] validation and settlement are still separate dimensions;
+- [ ] the money invariant still agrees across all documents;
 - [ ] no guessed partner query parameters are authorized;
 - [ ] no blind text-to-UUID migration is authorized;
 - [ ] stale Phase 19.5 route and build counts are removed;
-- [ ] lint passes (`npm run lint`);
-- [ ] typecheck passes (`npm run typecheck`);
-- [ ] unit tests pass (`npm test`);
-- [ ] PostgreSQL integration tests pass (`npm run test:integration`),
-      either locally with an available PostgreSQL instance or
-      through a green GitHub Actions run for the exact same commit
-      when local PostgreSQL is unavailable;
-- [ ] migration runtime validation passes (`npx drizzle-kit migrate`
-      plus the Supabase compatibility bootstrap, and
-      `npm run db:check`), either locally with an available
-      PostgreSQL instance and the Supabase compatibility bootstrap,
-      or through a green GitHub Actions run for the exact same
-      commit when suitable local PostgreSQL is unavailable;
-- [ ] database checks pass (`npm run db:check`);
-- [ ] production build passes (`npm run build`);
+- [ ] no application implementation file is changed;
 - [ ] `git diff --check` passes;
-- [ ] `git status --short` shows only the four documentation files;
+- [ ] `git status --short` shows only the two documentation files;
 - [ ] the complete branch diff against `origin/main` is reviewed;
 - [ ] commit and push occur only after explicit approval.
 
-Expected Phase 20G.1 documentation set:
+Documentation verification commands (must pass before merge):
 
 ```text
-docs/ARCHITECTURE.md
-docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md
+git --no-pager diff --check HEAD
+git diff --name-status
+git diff --cached --name-only
+git status --branch --short
+git rev-parse HEAD
+```
+
+The implementation quality gates (lint, typecheck, the complete current
+npm test script, DB check, production build, CI / Quality check) are not
+part of this branch's merge-readiness bar. Pull Request #25 already
+passed the verified H.5 quality gates and the CI / Quality check before
+its own merge at `84a6b4e`; this branch must not re-run those commands.
+
+Expected Phase 20H.5 documentation set:
+
+```text
 docs/PROJECT_STATE.md
 docs/HANDOFF.md
 ```
