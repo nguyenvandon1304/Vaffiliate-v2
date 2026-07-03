@@ -110,38 +110,29 @@ function AvailableQuoteBody({
   quote: ShopeeProductPreviewAvailableQuote;
   productUrl: string;
 }) {
+  const cashbackPercent = formatPercent(
+    quote.cashbackShareBps / 100,
+  );
+
   return (
     <>
-      <div className="grid gap-3 px-5 sm:grid-cols-2">
-        <div className="rounded-[var(--radius-lg)] border border-[rgba(216,138,82,0.22)] bg-[rgba(216,138,82,0.12)] p-4">
-          <p className="text-xs font-medium text-[color:var(--brand-strong)]">
+      <div className="px-5 pt-1">
+        <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[rgba(216,138,82,0.22)] bg-[rgba(216,138,82,0.12)] px-5 py-5 shadow-[var(--shadow-sm)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--brand-strong)]">
             Hoàn tiền dự kiến
           </p>
 
-          <p className="mt-1 text-xl font-semibold text-[color:var(--brand-strong)]">
+          <p className="mt-3 text-2xl font-semibold leading-tight text-[color:var(--brand-strong)]">
             {formatVnd(quote.estimatedCashbackVnd)}
           </p>
 
-          <p className="mt-1 text-xs text-[color:var(--text-muted)]">
-            Phần hoàn {formatPercent(
-              quote.cashbackShareBps / 100,
-            )}{" "}
-            hoa hồng
-          </p>
-        </div>
-
-        <div className="rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.1)] bg-white/75 p-4">
-          <p className="text-xs font-medium text-[color:var(--text-muted)]">
-            Phần hoàn cho bạn
+          <p className="mt-2 text-sm leading-6 text-[color:var(--text)]">
+            Vaffiliate hoàn lại {cashbackPercent} khoản
+            hoa hồng đủ điều kiện theo chính sách
+            hiện tại.
           </p>
 
-          <p className="mt-1 text-lg font-semibold text-[color:var(--text)]">
-            {formatPercent(
-              quote.cashbackShareBps / 100,
-            )}
-          </p>
-
-          <p className="mt-1 text-xs text-[color:var(--text-muted)]">
+          <p className="mt-1 text-xs leading-5 text-[color:var(--text-muted)]">
             Tính đến {formatCalculatedAt(
               quote.calculatedAt,
             )}
@@ -151,10 +142,7 @@ function AvailableQuoteBody({
 
       <div className="px-5 pb-5 pt-4">
         <div className="rounded-[var(--radius-lg)] border border-dashed border-[rgba(124,63,44,0.16)] bg-[rgba(255,250,246,0.6)] px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">
-            Bước tiếp theo
-          </p>
-          <p className="mt-1 text-sm font-medium leading-6 text-[color:var(--text)]">
+          <p className="text-sm font-medium leading-6 text-[color:var(--text)]">
             Mua hàng nhận hoàn tiền sẽ được kích hoạt ở bước tiếp theo.
           </p>
           <ShopeePurchaseTrigger
@@ -201,10 +189,7 @@ function UnavailableQuoteBody({
         </div>
 
         <div className="mt-4 rounded-[var(--radius-lg)] border border-dashed border-[rgba(124,63,44,0.16)] bg-[rgba(255,250,246,0.6)] px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--text-muted)]">
-            Bước tiếp theo
-          </p>
-          <p className="mt-1 text-sm font-medium leading-6 text-[color:var(--text)]">
+          <p className="text-sm font-medium leading-6 text-[color:var(--text)]">
             Mức hoàn tiền chưa được xác định cho sản phẩm này.
             Hoàn tiền không được đảm bảo.
           </p>
