@@ -6,19 +6,20 @@ Project: Vaffiliate
 
 Current phase: Phase 20H.5 - Shopee Cashback Preview UI
 
-Phase status: Planned; implementation has not started. Phase 20H.4 was merged through Pull Request #23 at `bd98cb2`.
+Phase status: Complete and merged through Pull Request #25. This branch
+synchronizes authoritative documentation after Pull Request #25.
 
 Current branch:
 
-`docs/sync-phase-20h4-after-merge`
+`docs/sync-phase-20h5-after-merge`
 
 Current baseline commit:
 
-`bd98cb2` - Phase 20H.4 implementation merge commit and baseline for this post-merge documentation synchronization
+`84a6b4e` - Phase 20H.5 implementation merge commit and baseline for this post-merge documentation synchronization
 
 Latest implementation merge:
 
-`bd98cb2` - Merge Pull Request #23, Phase 20H.4 Unikorn product metadata provider
+`84a6b4e` - Merge Pull Request #25, Phase 20H.5 Shopee Cashback Preview UI
 
 Integration branch:
 
@@ -29,6 +30,11 @@ Latest reachable stable tag:
 `phase-19.5-complete`
 
 The stable tag is historical. No Phase 20 completion tag has been created.
+
+Pull Request #25 delivered the Shopee Cashback Preview UI polish on top
+of the existing Phase 20H.4 Unikorn -> HTML provider chain, Phase 20H.3
+purchase handoff, and Phase 20H.2 metadata pipeline. It did not modify
+schema, migrations, ingestion, wallet, payout, or any backend behavior.
 
 Pull Request #17 delivered a verified Shopee ingestion and attribution
 foundation, but it does not yet complete normalized conversion ingestion,
@@ -343,8 +349,12 @@ normalized Shopee URLs and resolved identifiers; Phase 20H.2 added the
 URL/product preview and the secured HTML metadata provider foundation;
 Phase 20H.3 added the buyer purchase handoff and tracking-link
 persistence; Phase 20H.4 enriched product metadata through the Unikorn
-API; Phase 20H.5 ships the redesigned preview UI on the existing
-infrastructure.
+API; Phase 20H.5 polished the existing preview UI with a typed render
+model and pending-first state presentation.
+
+Phase 20H.5 is complete and merged through Pull Request #25 at `84a6b4e`
+(implementation commit `f9b0fa5`). Phase 20H.5 is UI/UX-only and does not
+rewrite Phase 20H.2, Phase 20H.3, or Phase 20H.4 behavior.
 
 Wallet and withdrawal implementation belongs to a later wallet phase
 and must not begin inside Phase 20G or Phase 20H.
@@ -584,16 +594,82 @@ Remaining scope:
 
 ### Phase 20H.5
 
-Planned scope:
+Phase 20H.5 is complete and merged through Pull Request #25.
+Implementation commit: `f9b0fa5`. Merge commit: `84a6b4e`.
 
-- Shopee Cashback Preview UI on the existing `/app/cashback` route.
-- UI/UX-only changes; no backend, schema, ingestion, wallet, or payout
-  behavior changes.
-- Uses the installed taste skill for visual hierarchy, typography,
-  spacing, card composition, cashback emphasis, CTA treatment,
-  responsive layout, loading and error states, and accessibility polish.
-- Does NOT rewrite the purchase handoff, click recording, or
-  `/go/<shortCode>` redirect.
+Phase 20H.5 ships a UI/UX-only polish of the buyer-facing Shopee Cashback
+Preview UI on the existing `/app/cashback` route. It does not rewrite the
+Phase 20H.2 metadata pipeline, the Phase 20H.3 purchase handoff, click
+recording, or `/go/<shortCode>` redirect, and it does not rewrite the
+Phase 20H.4 Unikorn -> HTML provider chain.
+
+Delivered scope:
+
+- typed payload-carrying preview render model that distinguishes pending,
+  product-card, purchase-allowed fallback, resolution error, and empty
+  presentation;
+- pending state takes precedence over stale card, fallback, error, and
+  empty states; a new pending request hides a previous product card
+  immediately;
+- dedicated pending panel with reduced-motion support;
+- removed the static `Hoàn 60% hoa hồng` presentation; cashback percentage
+  is derived only from `quote.cashbackShareBps`;
+- recomposed the available-quote presentation into a single
+  cashback-emphasis panel that preserves the estimate and the
+  Shopee-approved commission disclaimer;
+- persistent screen-reader status messaging and `aria-busy` on the preview
+  and purchase buttons;
+- preserved purchase handoff and `/go/<shortCode>` redirect behavior;
+- exactly three UI component files were changed;
+- no backend, provider, database, action, tracking, click, route, package,
+  global-style, or schema changes.
+
+Automated quality gates (passed before merge):
+
+Before merge, the Phase 20H.5 implementation commit `f9b0fa5` passed
+the verified H.5 quality gates:
+
+- lint passed;
+- typecheck passed;
+- the complete current npm test script passed: 529 passed, 0 failed;
+- DB check passed;
+- production build passed: 28/28 pages generated;
+- diff check passed.
+
+Pull Request #25 CI / Quality also passed before merge.
+
+This documentation branch must not re-run the implementation quality
+gates. Its merge-readiness bar is limited to the documentation
+verification commands.
+
+Manual browser validation (passed before merge):
+
+- initial state at 375px, 768px, and desktop widths passed;
+- invalid URL / resolution-error state passed;
+- pending state passed;
+- previous product card was hidden immediately during a new pending
+  request;
+- quote-unavailable state passed on desktop and mobile;
+- keyboard order and visible focus passed;
+- reduced-motion behavior passed;
+- no horizontal overflow or mojibake was observed.
+
+Manual-state limitations (recorded honestly):
+
+- the current catalog data did not naturally produce a quote-available
+  result during manual validation;
+- the current tested URLs did not naturally produce the metadata
+  purchase-allowed fallback during manual validation;
+- backend data and source code were not modified to fabricate those
+  states.
+
+Phase 20H.5 does not change Phase 20H.2, Phase 20H.3, or Phase 20H.4
+behavior. The H.2 metadata pipeline, H.3 purchase handoff, H.4
+Unikorn -> HTML provider chain, and H.5 UI/UX polish remain four
+distinct, non-rewriting deliverables.
+
+Local and remote feature branches for Phase 20H.5 were deleted after
+merge.
 
 ---
 
@@ -619,7 +695,11 @@ Planned scope:
   enrichment as the primary provider with the secured HTML provider as
   fallback; only the resolved `itemId` is sent upstream; strict
   untrusted-response validation; third-party commission fields ignored;
-  no migration or persistent metadata cache introduced.
+  no migration or persistent metadata cache introduced;
+- Phase 20H.5: Shopee Cashback Preview UI polish. Typed render-state model;
+  pending-first stale-state protection; improved available/unavailable
+  presentation; accessibility and reduced-motion support; responsive and
+  manual validation; no backend or persistence changes.
 
 Relevant merge commits:
 
@@ -635,7 +715,9 @@ Relevant merge commits:
 - `98731a3` - Pull Request #22, Phase 20H.3 buyer purchase handoff,
   deterministic affiliate URL, and tracking-link persistence;
 - `bd98cb2` - Pull Request #23, Phase 20H.4 Unikorn product metadata
-  provider.
+  provider;
+- `84a6b4e` - Pull Request #25, Phase 20H.5 Shopee Cashback Preview UI
+  polish.
 
 The exact Phase 20G.0 documentation merge commit and Pull Request number
 are not separately verified in the current documentation branch and must
@@ -697,16 +779,16 @@ Phase 19.5 documentation.
 
 The current documentation synchronization branch updates only:
 
-- `docs/ARCHITECTURE.md`;
-- `docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md`;
 - `docs/PROJECT_STATE.md`;
 - `docs/HANDOFF.md`.
 
-The purpose of this branch is to synchronize documentation with repository
-state after Pull Request #17.
+The purpose of this branch is to synchronize authoritative documentation
+with repository state after Pull Request #25 (Phase 20H.5 Shopee Cashback
+Preview UI merge).
 
-No production schema, migration, repository, service, route, authentication,
-attribution, conversion, or financial behavior change belongs in this branch.
+This branch is documentation-only. It must not introduce source code,
+test, package, schema, migration, configuration, or runtime behavior
+changes.
 
 ---
 
@@ -714,58 +796,36 @@ attribution, conversion, or financial behavior change belongs in this branch.
 
 ### Current documentation branch work
 
-1. Finish synchronization of all four documents
-   (`docs/ARCHITECTURE.md`, `docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md`,
-   `docs/PROJECT_STATE.md`, `docs/HANDOFF.md`).
-2. Verify cross-document consistency for the partial Phase 20G.1
-   delivery, identifier boundary, attribution evidence, conversion
-   identity, validation/settlement split, money invariant, and
-   security boundaries.
+1. Finish synchronization of `docs/PROJECT_STATE.md` and
+   `docs/HANDOFF.md` to reflect the Phase 20H.5 implementation merged
+   through Pull Request #25 at `84a6b4e`.
+2. Verify cross-document consistency for the Phase 20H.5 delivered
+   scope, the preserved Phase 20H.2 / 20H.3 / 20H.4 boundaries, and the
+   quality-gate and manual-validation facts.
 3. Run `git diff --check`.
-4. Run the full quality gates in the order used by CI:
-   - bootstrap Supabase-compatible PostgreSQL roles and auth helpers
-     (`scripts/ci-bootstrap-supabase.sql`);
-   - `npx drizzle-kit migrate`;
-   - `npm run lint`;
-   - `npm run typecheck`;
-   - `npm test`;
-   - `npm run test:integration`;
-   - `npm run db:check`;
-   - `npm run build`.
-
-   `npx drizzle-kit migrate` and `npm run test:integration` both
-   require a reachable PostgreSQL database, and migration
-   validation also requires the Supabase compatibility bootstrap
-   used by CI. When suitable local PostgreSQL is unavailable,
-   both runtime migration validation and integration testing may
-   be validated by a green GitHub Actions run for the exact same
-   commit. Do not claim a local PASS for a command that was not
-   run locally.
+4. Run the documentation verification commands listed below.
 5. Review the complete diff for contradictions and unsupported history.
 6. Commit, push, and merge only after explicit approval.
 
-### Implementation work after this documentation branch is merged
+This documentation branch is documentation-only. It must not run the
+full application test suite, must not run migrations, and must not run a
+production build. The Phase 20H.5 implementation already passed every
+required quality gate before its merge commit `84a6b4e`; reproducing
+those gates on the documentation branch is not required and is out of
+scope for this branch.
 
-1. Complete the documented partial Phase 20G.1 foundation by adding
-   production orchestration for CSV import and batch attribution.
-2. Introduce a deterministic `source_conversion_key` so that the conversion
-   uniqueness boundary can move from
-   `network + external_order_id` to `network + source_conversion_key`.
-3. Implement idempotent normalized conversion ingestion that links each
-   normalized conversion back to the staged `shopee_csv_rows` row and the
-   `shopee_csv_import_batches` evidence.
-4. Add replay, partial-batch failure, and operational failure handling for
-   CSV ingestion.
-5. Split persisted `conversions` validation and settlement into separate
-   state columns and add immutable status history.
-6. Implement reversal and adjustment records without erasing historical
-   approval or payment facts.
-7. Persist a consumer Orders projection derived from canonical conversion
-   records and verify parity before removing the corresponding mock data.
-8. Begin Phase 20H work only after Phase 20G.2 has produced verified parity
-   for reconciliation and consumer Orders.
+### Next implementation phase
 
-Do not begin any of the items above on the current documentation branch.
+Next implementation phase: not yet selected.
+
+The Phase 20G.2 reconciliation and consumer-Orders work and the later
+Phase 20H wallet phase remain described in the Phase Boundaries section
+above as future scope, but no Phase 20H.6 (or any other next
+implementation phase) has been explicitly selected, named, scoped, or
+given a baseline in the authoritative documents on this branch.
+
+Do not begin any future implementation on the current documentation
+branch.
 
 Do not invent a Phase 20 completion tag.
 
