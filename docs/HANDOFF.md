@@ -21,21 +21,21 @@ precedence when stale documentation conflicts with the repository.
 
 Project: Vaffiliate
 
-Current phase: Phase 20H.4 - Shopee Unikorn Product Data API Metadata Provider
+Current phase: Phase 20H.5 - Shopee Cashback Preview UI
 
-Phase status: Implementation complete and quality-gated on `feat/phase-20h4-shopee-product-metadata-provider`. It has not yet been merged into `main`.
+Phase status: Planned; implementation has not started. Phase 20H.4 was merged through Pull Request #23 at `bd98cb2`.
 
 Current branch:
 
-`feat/phase-20h4-shopee-product-metadata-provider`
+`docs/sync-phase-20h4-after-merge`
 
 Current baseline commit:
 
-`98731a3` - Phase 20H.3 merge commit and Phase 20H.4 baseline
+`bd98cb2` - Phase 20H.4 implementation merge commit and baseline for this post-merge documentation synchronization
 
 Latest implementation merge:
 
-`11c24dd` - Pull Request #17
+`bd98cb2` - Merge Pull Request #23, Phase 20H.4 Unikorn product metadata provider
 
 Integration branch:
 
@@ -47,15 +47,16 @@ Latest reachable stable tag:
 
 The stable tag is historical. No Phase 20 completion tag has been created.
 
-### Expected Phase 20H.4 Implementation Worktree
+### Post-merge Documentation Worktree
 
-This implementation branch updates implementation files and documentation:
+This documentation branch updates only:
 
 - `docs/PROJECT_STATE.md`
 - `docs/HANDOFF.md`
-- Implementation files in `src/lib/shopee/product-metadata/`
 
-No migration, schema, or financial behavior changes belong in this branch.
+No source code, test, package.json, schema, migration, configuration, or
+runtime behavior change belongs in this branch. Phase 20H.5 implementation
+has not started and must not begin on this branch.
 
 ### Delivery Baseline
 
@@ -708,15 +709,17 @@ the secured HTML metadata provider foundation; Phase 20H.3 added the
 buyer purchase handoff, deterministic affiliate URL, tracking-link
 create/reuse and persistence, `/go/<shortCode>`, click recording, and
 the direct-URL and resolved-short-link neutral fallback; Phase 20H.4
-adds the Unikorn third-party metadata API as primary enrichment with
-the HTML provider remaining as fallback; Phase 20H.5 ships the
-redesigned preview UI on top of the existing infrastructure.
+added the Unikorn third-party metadata API as primary enrichment with
+the HTML provider remaining as fallback (merged through Pull Request #23
+at `bd98cb2`); Phase 20H.5 ships the redesigned preview UI on top of
+the existing infrastructure.
 
-Phase 20H.3 is complete and merged. Phase 20H.4 implementation is
-complete and quality-gated on the feature branch. It has not yet been
-merged into `main`. The purchase handoff, click recording, tracking-link
-persistence, and `/go/<shortCode>` redirect established by Phase 20H.3
-are not modified by Phase 20H.4 or planned Phase 20H.5.
+Phase 20H.3 is complete and merged. Phase 20H.4 is complete and merged
+through Pull Request #23 at `bd98cb2` (implementation commit `c281509`).
+The purchase handoff, click recording, tracking-link persistence, and
+`/go/<shortCode>` redirect established by Phase 20H.3 and the Unikorn
+metadata enrichment / HTML fallback provider chain established by
+Phase 20H.4 must be preserved by Phase 20H.5 and must not be rewritten.
 
 Expected wallet and withdrawal scope (later wallet phase):
 
@@ -831,6 +834,53 @@ processing status. Normalized conversion ingestion, reconciliation, wallet,
 and a production CSV administration workflow are explicitly out of scope for
 the Phase 20G.1 partial delivery.
 
+### Phase 20H.2 - Product Preview and Secured HTML Metadata Provider
+
+Phase 20H.2 delivered the Shopee URL/product preview and the secured HTML
+metadata provider foundation.
+
+Relevant merge:
+
+`6386a13` - Pull Request #21
+
+### Phase 20H.3 - Buyer Purchase Handoff and Tracking-Link Persistence
+
+Phase 20H.3 added the buyer purchase handoff, deterministic affiliate
+URL, tracking-link create/reuse and persistence, `/go/<shortCode>`,
+click recording, and the direct-URL and resolved-short-link neutral
+fallback. Phase 20H.3 did not modify the HTML metadata provider.
+
+Relevant merge:
+
+`98731a3` - Pull Request #22
+
+### Phase 20H.4 - Unikorn Product Metadata Provider
+
+Phase 20H.4 delivered Unikorn metadata enrichment as the primary
+metadata provider with the secured HTML provider as fallback. Only the
+resolved `itemId` is sent upstream; strict untrusted-response validation
+is applied; third-party commission fields are ignored; no migration or
+persistent metadata cache was introduced. The Phase 20H.4
+implementation commit is `c281509`.
+
+Before merge, the Phase 20H.4 implementation commit `c281509` passed
+the full local quality gates:
+
+- 529 tests passed, 0 failed;
+- lint passed;
+- typecheck passed;
+- production build passed;
+- DB check passed.
+
+The CI / Quality check for Pull Request #23 also passed before merge.
+
+Local and remote feature branches for Phase 20H.4 were deleted after
+merge.
+
+Relevant merge:
+
+`bd98cb2` - Pull Request #23
+
 ### Stable Tag Status
 
 The latest reachable stable tag remains:
@@ -923,25 +973,47 @@ That warning is not a `git diff --check` failure.
 
 ## 12. Continuation Workflow
 
-After Pull Request #17, the remaining Phase 20G.1 scope plus the wider 20G.2
-and 20H work must be picked up through new implementation branches and not
-through this documentation branch.
+After Pull Request #23, the next implementation phase is Phase 20H.5.
+Phase 20H.4 is merged into `main` and must not be reimplemented.
 
 To continue implementation:
 
 1. Read all four authoritative documentation files.
-2. Confirm Pull Request #17 has been merged into `main`.
-3. Create a new implementation branch from the updated `main`.
-4. Verify the branch and baseline commit (`11c24dd` until the next merge).
-5. Re-audit the current schema, migrations, RLS policies, RPCs, repositories,
-   routes, and partner requirements.
-6. Confirm the exact supported partner attribution contract.
-7. Define migration, backfill, rollback, and validation procedures.
-8. Produce an implementation plan.
-9. Wait for explicit approval before modifying production implementation.
+2. Confirm Pull Request #23 has been merged into `main`.
+3. Start only from a clean, up-to-date `main` after this post-merge
+   documentation synchronization has been merged. The Phase 20H.4
+   implementation merge commit `bd98cb2` must be an ancestor of the
+   new Phase 20H.5 branch. Do not branch from the deleted Phase 20H.4
+   feature branch.
+4. Verify the branch and baseline commit before implementation
+   begins; do not assume a final Phase 20H.5 feature-branch HEAD or
+   baseline commit before work starts.
+5. Phase 20H.5 is UI/UX-only. Do not modify schema, migrations, ingestion,
+   wallet, payout, server-only modules, the secured HTML metadata
+   provider, the Unikorn primary metadata provider, the
+   `provider-chain.ts` composition, `resolveShopeeProductUrl`, the
+   Phase 20H.3 purchase handoff, click recording, or `/go/<shortCode>`
+   redirect.
+6. Phase 20H.5 must use the installed taste skill for visual hierarchy,
+   typography, spacing, card composition, cashback emphasis, CTA
+   treatment, responsive layout, loading and error states, and
+   accessibility polish on the Shopee Cashback Preview UI.
+7. Preserve the existing Phase 20H.2 metadata pipeline, the Phase 20H.3
+   purchase handoff, and the Phase 20H.4 Unikorn -> HTML provider
+   chain. The preview UI must render the same fields, the same provider
+   outputs, and the same cashback quote flow as Phase 20H.4 already
+   produces.
+8. Shopee remains the only active commerce scope. TikTok Shop, wallet,
+   payout, ingestion redesign, normalized conversion writes, and order
+   history remain out of scope unless a later phase explicitly starts
+   them.
+9. Define any new design assets, page structure, components, copy, and
+   accessibility audit. Do not invent new server endpoints.
+10. Produce an implementation plan.
+11. Wait for explicit approval before modifying production implementation.
 
-Do not continue Phase 20G.1 implementation or any Phase 20G.2 work directly
-on the current documentation branch.
+Do not continue any implementation work directly on the current
+documentation branch.
 
 ### Operational Rules
 
