@@ -24,15 +24,17 @@ Project: Vaffiliate
 Current phase: Phase 20H.5 - Shopee Cashback Preview UI
 
 Phase status: Complete and merged through Pull Request #25 at `84a6b4e`.
-This branch synchronizes authoritative documentation after Pull Request #25.
+Pull Request #26 synchronized the post-merge documentation after Pull
+Request #25 at `e45c537`. This branch selects and documents the next
+implementation phase after Phase 20H.5; it is documentation-only.
 
 Current branch:
 
-`docs/sync-phase-20h5-after-merge`
+`docs/select-next-phase-20g2a`
 
 Current baseline commit:
 
-`84a6b4e` - Phase 20H.5 implementation merge commit and baseline for this post-merge documentation synchronization
+`e45c537` - Pull Request #26 merge, Phase 20H.5 post-merge documentation synchronization, and baseline for this next-phase selection branch
 
 Latest implementation merge:
 
@@ -708,6 +710,122 @@ Expected reconciliation and consumer-order scope:
 The consumer Orders projection must remain derived from canonical conversion
 records.
 
+### Phase 20G.2a - Shopee conversion reconciliation foundation
+
+Phase 20G.2a is the next implementation phase selected on
+`docs/select-next-phase-20g2a`, based on the Pull Request #26
+post-merge docs merge `e45c537`.
+
+Phase 20G.2a must be smaller than full Phase 20G.2. It is the first
+small slice toward Phase 20G.2.
+
+Selected phase name:
+
+Phase 20G.2a — Shopee conversion reconciliation foundation
+
+Baseline:
+
+`e45c5374bfcc188b74ef9c2a9c7de3d628a3348d`
+
+Reason for selecting Phase 20G.2a:
+
+- Phase 20H.5 is complete and merged; the Phase 20H.2 through Phase
+  20H.5 consumer-facing Shopee cashback surfacing pipeline must not be
+  reimplemented.
+- Phase 20G.1 delivered only the foundation (CSV staging, attribution,
+  Shopee catalog, classification, PostgreSQL concurrency test). The
+  Phase 20G.1 remaining scope items (production orchestration,
+  deterministic `source_conversion_key`, idempotent normalized
+  conversion writes, immutable conversion linkage to source rows and
+  import evidence, and replay / partial-batch / operational failure
+  recovery) remain future work.
+- Phase 20G.2 itself is a multi-deliverable slice (validation and
+  settlement separation, immutable status history, reversal and
+  adjustment handling, reconciliation workflows, persisted consumer
+  Orders projection, parity verification, and removal of corresponding
+  Orders mock data). It is too large for a single reviewable slice.
+- The full Phase 20G.2 future scope must therefore be split into
+  smaller slices. Phase 20G.2a is the first such slice: it prepares
+  the normalized Shopee conversion reconciliation foundation before
+  any consumer Orders, wallet, payout, TikTok Shop, or mock-cleanup
+  work.
+
+Selected scope:
+
+- inspect and preserve the existing Phase 20G architecture and data
+  contract as the canonical reference;
+- define the implementation boundary for normalized Shopee conversion
+  reconciliation;
+- introduce or complete only the minimum schema / service / repository
+  foundation required for normalized conversion reconciliation, if the
+  future implementation branch confirms gaps;
+- keep conversion identity aligned with the documented target:
+  `network + source_conversion_key`;
+- keep Orders as a derived projection over canonical conversions;
+- preserve the money invariant:
+  `network_commission = user_cashback + platform_profit`;
+- preserve the separation between validation state and settlement state;
+- preserve immutable ingestion and attribution evidence;
+- prepare for later consumer Orders parity without implementing the
+  Orders UI projection in Phase 20G.2a;
+- prepare for later status history, reversal, and adjustment work
+  without implementing all of it in Phase 20G.2a, unless the docs
+  already explicitly require a minimal foundation for the slice.
+
+Explicit non-goals:
+
+- do not implement the consumer Orders projection in Phase 20G.2a;
+- do not remove Orders mock data in Phase 20G.2a;
+- do not implement wallet ledger, wallet balances, withdrawals, payout,
+  clawbacks, or financial settlement UI;
+- do not implement TikTok Shop;
+- do not rewrite the Phase 20H.2 metadata pipeline;
+- do not rewrite the Phase 20H.3 purchase handoff, click recording,
+  tracking-link persistence, or `/go/<shortCode>` redirect;
+- do not rewrite the Phase 20H.4 Unikorn -> HTML provider chain;
+- do not rewrite the Phase 20H.5 preview UI polish;
+- do not add guessed partner query parameters;
+- do not create a universal affiliate-network abstraction;
+- do not perform blind text-to-UUID migrations;
+- do not mix destructive cleanup, data backfill, and schema migration
+  into one irreversible step.
+
+Implementation status:
+
+Not started. This documentation branch selects Phase 20G.2a as the next
+implementation phase only.
+
+Continuation workflow for the future Phase 20G.2a implementation branch:
+
+1. Merge this documentation branch (`docs/select-next-phase-20g2a`)
+   first.
+2. Start from a clean, up-to-date `main` after this docs branch is
+   merged.
+3. Verify `e45c5374bfcc188b74ef9c2a9c7de3d628a3348d` is an ancestor, and
+   after this documentation branch is merged, verify the Phase 20G.2a
+   next-phase-selection merge commit is also an ancestor of the future
+   implementation branch.
+4. Create a separate implementation branch for Phase 20G.2a. Do not
+   branch from any deleted Phase 20H.x feature branch.
+5. Re-read the four authoritative documentation files
+   (`docs/PROJECT_STATE.md`, `docs/ARCHITECTURE.md`,
+   `docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md`, `docs/HANDOFF.md`)
+   before any source change.
+6. Produce an implementation plan that keeps the slice small and
+   reviewable, and that respects the Phase 20G.2a selected scope and
+   explicit non-goals above, before changing production implementation
+   files.
+7. Wait for explicit approval before changing production implementation
+   files.
+
+The full Phase 20G.2 future scope remains future work. Phase 20G.2a
+is the first slice, not the whole Phase 20G.2.
+
+Shopee is the only active commerce scope. TikTok Shop, wallet, and
+payout remain deferred. The current consumer Orders UI remains
+mock-backed until parity is proven. Orders remain a derived projection
+over canonical conversions.
+
 ### Phase 20H
 
 Phase 20H covers consumer-facing Shopee cashback surfacing. Phase 20H.1
@@ -965,6 +1083,19 @@ Relevant merge:
 
 `84a6b4e` - Pull Request #25
 
+### Post-Phase 20H.5 Documentation Synchronization
+
+Pull Request #26 synchronized the authoritative documentation after
+the Phase 20H.5 implementation merge. The synchronization updated
+`docs/PROJECT_STATE.md` and `docs/HANDOFF.md` only; no source code,
+test, package, schema, migration, configuration, or runtime behavior
+was changed. The Pull Request #26 docs merge is the baseline for the
+current `docs/select-next-phase-20g2a` branch.
+
+Relevant merge:
+
+`e45c537` - Pull Request #26
+
 ### Stable Tag Status
 
 The latest reachable stable tag remains:
@@ -1072,36 +1203,66 @@ That warning is not a `git diff --check` failure.
 ## 12. Continuation Workflow
 
 After Pull Request #25, the Phase 20H.5 Shopee Cashback Preview UI
-implementation is complete and merged into `main`. Phases 20H.2, 20H.3,
-20H.4, and 20H.5 must not be reimplemented.
+implementation is complete and merged into `main`. Pull Request #26
+synchronized the post-merge documentation at `e45c537`. Phases 20H.2,
+20H.3, 20H.4, and 20H.5 must not be reimplemented.
+
+This documentation branch selects Phase 20G.2a as the next implementation
+phase. Implementation has not started.
 
 To continue implementation:
 
-1. Read all four authoritative documentation files.
-2. Confirm Pull Request #25 has been merged into `main`.
-3. Start only from a clean, up-to-date `main` after this post-merge
-   documentation synchronization has been merged. The Phase 20H.5
-   implementation merge commit `84a6b4e` must be an ancestor of the
-   new branch. Do not branch from any deleted Phase 20H.x feature branch.
-4. Verify the branch and baseline commit before implementation begins;
+1. Merge this documentation branch (`docs/select-next-phase-20g2a`)
+   first.
+2. Read all four authoritative documentation files
+   (`docs/PROJECT_STATE.md`, `docs/ARCHITECTURE.md`,
+   `docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md`, `docs/HANDOFF.md`)
+   before any source change.
+3. Confirm Pull Request #25 has been merged into `main`.
+4. Start only from a clean, up-to-date `main` after this next-phase
+   selection branch has been merged. The Phase 20H.5 implementation
+   merge commit `84a6b4e` and the Pull Request #26 docs merge
+   `e45c537` must both be ancestors of the new branch. Verify
+   `e45c5374bfcc188b74ef9c2a9c7de3d628a3348d` is an ancestor, and after
+   this documentation branch is merged, verify the Phase 20G.2a
+   next-phase-selection merge commit is also an ancestor of the future
+   implementation branch. Do not branch from any deleted Phase 20H.x feature
+   branch.
+5. Verify the branch and baseline commit before implementation begins;
    do not assume a final baseline commit before work starts.
-5. The Shopee-only active commerce scope is preserved. TikTok Shop
+6. The Shopee-only active commerce scope is preserved. TikTok Shop
    remains deferred unless a later explicit phase starts it. Do not
    expand into wallet, payout, ingestion redesign, or order-history
    work without a separately approved phase.
-6. Select and document the next phase before creating any
-   implementation branch. No Phase 20H.6 (or any other next
-   implementation phase) has been explicitly selected, named, scoped,
-   or given a baseline on this branch; the authoritative documents on
-   this branch state only "Next implementation phase: not yet
-   selected."
-7. Once a next phase is selected, follow the same documentation
-   workflow: keep authoritative documentation as the single source of
-   truth, update it before implementation starts, and run the full
-   delivery pipeline before merge.
+7. Create a separate implementation branch for Phase 20G.2a. The
+   implementation branch must not be this documentation branch.
+8. Produce an implementation plan for Phase 20G.2a that keeps the slice
+   small and reviewable, and that respects the Phase 20G.2a selected
+   scope and explicit non-goals documented in `### Phase 20G.2a -
+   Shopee conversion reconciliation foundation`, before changing any
+   production implementation file. Wait for explicit approval before
+   changing production implementation files.
+9. Once implementation begins, follow the same documentation workflow
+   used by every previous Phase 20H.x and Phase 20G.x implementation:
+   keep authoritative documentation as the single source of truth,
+   update it before implementation starts, and run the full delivery
+   pipeline before merge.
 
 Do not continue any implementation work directly on the current
 documentation branch.
+
+The full Phase 20G.2 future scope (validation and settlement
+separation, immutable status history, reversal and adjustment handling,
+reconciliation workflows, persisted consumer Orders projection derived
+from canonical conversions, parity verification against current Orders
+behavior, and removal of corresponding Orders mock data only after
+parity is proven) remains future work. Phase 20G.2a is the first slice,
+not the whole Phase 20G.2.
+
+Shopee is the only active commerce scope. TikTok Shop, wallet, and
+payout remain deferred. The current consumer Orders UI remains
+mock-backed until parity is proven. Orders remain a derived projection
+over canonical conversions.
 
 ### Operational Rules
 
@@ -1130,8 +1291,8 @@ documentation branch.
 
 ## 13. Documentation Branch Merge Readiness
 
-This branch (`docs/sync-phase-20h5-after-merge`) is a documentation-only
-post-merge synchronization for Pull Request #25. Its merge-readiness bar
+This branch (`docs/select-next-phase-20g2a`) is a documentation-only
+next-phase selection branch for Phase 20G.2a. Its merge-readiness bar
 is limited to the documentation verification commands below; the full
 CI delivery pipeline is not required on this branch.
 
@@ -1142,15 +1303,26 @@ Before committing this documentation branch, verify:
 - [ ] `docs/PROJECT_STATE.md` reflects the Phase 20H.5 implementation
       merged through Pull Request #25 at `84a6b4e` and the
       Phase 20H.5 implementation commit `f9b0fa5`;
+- [ ] `docs/PROJECT_STATE.md` records Pull Request #26 as the
+      Phase 20H.5 post-merge documentation synchronization merge at
+      `e45c537`;
 - [ ] `docs/HANDOFF.md` reflects the operational continuation after
       Pull Request #25 and treats Phase 20H.5 as complete and merged;
 - [ ] Phase 20H.2, Phase 20H.3, Phase 20H.4, and Phase 20H.5 boundaries
       agree across files and distinguish metadata pipeline (H.2),
       purchase handoff (H.3), Unikorn -> HTML provider chain (H.4), and
       UI/UX polish (H.5);
-- [ ] no future implementation phase (including any Phase 20H.6) is
-      invented; "Next implementation phase: not yet selected." is
-      preserved unless a next phase is explicitly defined elsewhere;
+- [ ] Phase 20G.2a is selected and documented as the next implementation
+      phase on `docs/select-next-phase-20g2a` with baseline
+      `e45c5374bfcc188b74ef9c2a9c7de3d628a3348d`;
+- [ ] implementation status for Phase 20G.2a is recorded as "Not started";
+- [ ] Phase 20G.2a's selected scope, explicit non-goals, and
+      continuation workflow are documented in `## 9. Phase Boundaries`
+      and in the Next implementation phase section of
+      `docs/PROJECT_STATE.md`;
+- [ ] no future implementation phase beyond Phase 20G.2a is invented
+      (the full Phase 20G.2 scope, a later separately approved
+      wallet/payout phase, and TikTok Shop remain future work);
 - [ ] conversion identity still uses `network + source_conversion_key`
       as the target;
 - [ ] Orders are still documented as a projection over conversions;
@@ -1181,7 +1353,7 @@ part of this branch's merge-readiness bar. Pull Request #25 already
 passed the verified H.5 quality gates and the CI / Quality check before
 its own merge at `84a6b4e`; this branch must not re-run those commands.
 
-Expected Phase 20H.5 documentation set:
+Expected next-phase-selection documentation set:
 
 ```text
 docs/PROJECT_STATE.md
