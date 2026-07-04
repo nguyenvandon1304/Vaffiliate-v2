@@ -32,9 +32,6 @@ type PreviewRenderModel =
 const PURCHASE_FALLBACK_LIVE_REGION_MESSAGE =
   "Chưa lấy được đầy đủ thông tin sản phẩm. Bạn vẫn có thể tiếp tục mua hàng; mức hoàn tiền chưa được đảm bảo.";
 
-const TRUSTED_PURCHASE_HANDOFF_FOOTER_COPY =
-  "Mua hàng nhận hoàn tiền sẽ được kích hoạt ở bước tiếp theo. Trong giai đoạn hiện tại, Vaffiliate hiển thị thông tin sản phẩm ngay cả khi chưa xác định được mức hoàn tiền. Số tiền hoàn chỉ hiển thị khi chương trình hoàn tiền đang áp dụng cho sản phẩm được xác định rõ ràng.";
-
 const initialActionState: PreviewShopeeProductPreviewActionState =
   {
     ok: false,
@@ -67,7 +64,11 @@ function ShopeeCashbackPreviewPendingPanel() {
   );
 }
 
-export default function ShopeeCashbackPreviewForm() {
+export default function ShopeeCashbackPreviewForm({
+  isAuthenticated = true,
+}: {
+  isAuthenticated?: boolean;
+}) {
   const productUrlInputId = useId();
   const [productUrl, setProductUrl] =
     useState("");
@@ -260,6 +261,7 @@ export default function ShopeeCashbackPreviewForm() {
                   renderModel.quote.product.productUrl
                 }
                 quote={renderModel.quote}
+                isAuthenticated={isAuthenticated}
               />
             );
 
@@ -282,6 +284,7 @@ export default function ShopeeCashbackPreviewForm() {
                       renderModel.canonicalProductUrl
                     }
                     variant="neutral"
+                    isAuthenticated={isAuthenticated}
                   />
                 </div>
               </div>
@@ -313,12 +316,6 @@ export default function ShopeeCashbackPreviewForm() {
             );
         }
       })()}
-
-      {!isPreviewPending ? (
-        <p className="mt-4 rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.08)] bg-[rgba(255,250,246,0.72)] px-4 py-3 text-xs leading-5 text-[color:var(--text-muted)] shadow-[var(--shadow-sm)]">
-          {TRUSTED_PURCHASE_HANDOFF_FOOTER_COPY}
-        </p>
-      ) : null}
     </div>
   );
 }

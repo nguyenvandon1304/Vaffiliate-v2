@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { startTransition, useActionState, useCallback, useEffect, useRef, useState } from "react";
 
 import { initiateShopeePurchaseAction } from "@/app/app/cashback/actions";
@@ -12,6 +13,13 @@ interface ShopeePurchaseTriggerProps {
   variant?: "prominent" | "neutral";
   /** Custom button text (optional) */
   buttonText?: string;
+  /**
+   * Whether the user has an authenticated Supabase session. When
+   * `false`, the CTA is disabled and the component renders a clear
+   * login-required block so unauthenticated visitors are not nudged
+   * into the buy action before they sign in.
+   */
+  isAuthenticated?: boolean;
   /** Callback when navigation is about to start */
   onNavigate?: () => void;
 }
@@ -32,6 +40,7 @@ export default function ShopeePurchaseTrigger({
   productUrl,
   variant = "prominent",
   buttonText,
+  isAuthenticated = true,
   onNavigate,
 }: ShopeePurchaseTriggerProps) {
   const initialState: InitiateShopeePurchaseActionState = {
@@ -122,7 +131,7 @@ export default function ShopeePurchaseTrigger({
             Đang chuyển bạn sang Shopee…
           </p>
         </div>
-      ) : (
+      ) : isAuthenticated ? (
         <>
           <button
             type="button"
@@ -143,6 +152,31 @@ export default function ShopeePurchaseTrigger({
             </p>
           ) : null}
         </>
+      ) : (
+        <div className="mt-4 space-y-2">
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className={buttonClassName}
+          >
+            {finalButtonText}
+          </button>
+
+          <p
+            role="status"
+            className="rounded-[var(--radius-md)] border border-[rgba(124,63,44,0.14)] bg-[rgba(255,250,246,0.85)] px-3 py-2 text-xs leading-5 text-[color:var(--text)]"
+          >
+            Đăng nhập để tiếp tục mua hàng nhận hoàn tiền qua Vaffiliate.{" "}
+            <Link
+              href="/login"
+              className="font-semibold text-[color:var(--brand-strong)] underline-offset-4 hover:underline"
+            >
+              Đăng nhập
+            </Link>
+            .
+          </p>
+        </div>
       )}
     </div>
   );

@@ -13,6 +13,11 @@ interface ShopeeProductPreviewCardProps {
   quote:
     | ShopeeProductPreviewAvailableQuote
     | ShopeeProductPreviewUnavailableQuote;
+  /**
+   * Whether the user has an authenticated Supabase session. Forwarded
+   * to `ShopeePurchaseTrigger` so the buy CTA is gated on login.
+   */
+  isAuthenticated?: boolean;
 }
 
 const QUOTE_UNAVAILABLE_REASON_MESSAGES: Readonly<
@@ -106,9 +111,11 @@ function MetadataHeader({
 function AvailableQuoteBody({
   quote,
   productUrl,
+  isAuthenticated,
 }: {
   quote: ShopeeProductPreviewAvailableQuote;
   productUrl: string;
+  isAuthenticated: boolean;
 }) {
   const cashbackPercent = formatPercent(
     quote.cashbackShareBps / 100,
@@ -148,6 +155,7 @@ function AvailableQuoteBody({
           <ShopeePurchaseTrigger
             productUrl={productUrl}
             variant="prominent"
+            isAuthenticated={isAuthenticated}
           />
         </div>
       </div>
@@ -167,9 +175,11 @@ function AvailableQuoteBody({
 function UnavailableQuoteBody({
   quote,
   productUrl,
+  isAuthenticated,
 }: {
   quote: ShopeeProductPreviewUnavailableQuote;
   productUrl: string;
+  isAuthenticated: boolean;
 }) {
   return (
     <>
@@ -196,6 +206,7 @@ function UnavailableQuoteBody({
           <ShopeePurchaseTrigger
             productUrl={productUrl}
             variant="neutral"
+            isAuthenticated={isAuthenticated}
           />
         </div>
       </div>
@@ -213,6 +224,7 @@ function UnavailableQuoteBody({
 
 export default function ShopeeProductPreviewCard({
   quote,
+  isAuthenticated = true,
 }: ShopeeProductPreviewCardProps) {
   const product = quote.product;
 
@@ -224,11 +236,13 @@ export default function ShopeeProductPreviewCard({
         <AvailableQuoteBody
           quote={quote}
           productUrl={product.productUrl}
+          isAuthenticated={isAuthenticated}
         />
       ) : (
         <UnavailableQuoteBody
           quote={quote}
           productUrl={product.productUrl}
+          isAuthenticated={isAuthenticated}
         />
       )}
     </section>

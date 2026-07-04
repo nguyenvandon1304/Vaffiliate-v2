@@ -55,7 +55,6 @@ import postgres from "postgres";
 import {
   deriveShopeeSourceConversionKey,
   SHOPEE_NETWORK_LABEL,
-  type ShopeeCsvSourceLine,
 } from "@/services/shopee-csv-row-id";
 
 const PUBLISHER_ID =
@@ -159,29 +158,6 @@ function requireDatabaseUrl(): string {
     );
   }
   return databaseUrl;
-}
-
-function buildSourceLine(args: {
-  externalOrderId: string;
-  rowFingerprintSha256: string;
-  totalProductCommission: string;
-  refundedAmount: string;
-  orderValue: string;
-  quantity: number;
-}): ShopeeCsvSourceLine {
-  return {
-    network: SHOPEE_NETWORK_LABEL,
-    sourceEventId: args.rowFingerprintSha256,
-    externalOrderId: args.externalOrderId,
-    checkoutId: CHECKOUT_ID,
-    itemId: ITEM_ID,
-    modelId: MODEL_ID,
-    quantity: args.quantity,
-    orderValue: args.orderValue,
-    totalProductCommission: args.totalProductCommission,
-    refundedAmount: args.refundedAmount,
-    linkedProductStatus: "linked",
-  };
 }
 
 // Cleanup helper for the two tracking link fixtures owned by this
@@ -485,6 +461,91 @@ async function bootstrapCatalog(
   `;
 }
 
+/**
+ * Read the immutable Shopee source-line fields back from the database
+ * and re-derive the deterministic source_conversion_key exactly as
+ * `reduceShopeeCsvPromotion` will see them.
+ *
+ * Why this helper exists:
+ *
+ * `shopee_csv_rows.order_value`, `total_product_commission`, and
+ * `refunded_amount` are typed `numeric(20, 5)`. PostgreSQL stores the
+ * inputs in scale 5 -- `'100000.0'` is round-tripped as
+ * `'100000.00000'`, `'0.0'` as `'0.00000'`, etc. The production
+ * reducer hashes the textual form that comes back from the SELECT,
+ * NOT the textual form the test originally wrote to the INSERT.
+ *
+ * Deriving the expected key from the in-memory `buildSourceLine(...)`
+ * inputs (e.g. `'100000.0'`) yields a DIFFERENT hash than the
+ * production reducer actually inserts. The only honest way to assert
+ * `assert.equal(actual, expected)` is to derive the expected value
+ * from the same stored fields the production reducer reads. This
+ * helper does exactly that.
+ *
+ * Production parity:
+ *
+ * - Reads only the columns the production mapper exposes.
+ * - Calls the same `deriveShopeeSourceConversionKey` pure module the
+ *   production reducer calls.
+ * - Returns the canonical 64-character lowercase hex digest that the
+ *   test must now assert against.
+ */
+async function deriveShopeeSourceConversionKeyFromStoredRow(
+  admin: postgres.Sql,
+  stagedRowId: string,
+): Promise<string> {
+  const rows = await admin<
+    {
+      row_fingerprint_sha256: string;
+      external_order_id: string;
+      checkout_id: string;
+      item_id: string;
+      model_id: string;
+      quantity: number;
+      order_value: string;
+      total_product_commission: string;
+      refunded_amount: string;
+      linked_product_status: string;
+    }[]
+  >`
+    SELECT
+      row_fingerprint_sha256,
+      external_order_id,
+      checkout_id,
+      item_id,
+      model_id,
+      quantity,
+      order_value::text AS order_value,
+      total_product_commission::text AS total_product_commission,
+      refunded_amount::text AS refunded_amount,
+      linked_product_status
+    FROM shopee_csv_rows
+    WHERE id = ${stagedRowId}::uuid
+  `;
+  if (rows.length !== 1) {
+    throw new Error(
+      "deriveShopeeSourceConversionKeyFromStoredRow: expected exactly one staged row for " +
+        stagedRowId +
+        ", got " +
+        rows.length,
+    );
+  }
+  const row = rows[0]!;
+  return deriveShopeeSourceConversionKey({
+    network: SHOPEE_NETWORK_LABEL,
+    sourceEventId: row.row_fingerprint_sha256,
+    externalOrderId: row.external_order_id,
+    checkoutId: row.checkout_id,
+    itemId: row.item_id,
+    modelId: row.model_id,
+    quantity: row.quantity,
+    orderValue: row.order_value,
+    totalProductCommission: row.total_product_commission,
+    refundedAmount: row.refunded_amount,
+    linkedProductStatus: row.linked_product_status,
+  });
+}
+
 async function bootstrapShopeeStagedRow(
   admin: postgres.Sql,
   args: {
@@ -497,6 +558,17 @@ async function bootstrapShopeeStagedRow(
     quantity: number;
     trackingLinkId: string;
     networkSubId: string;
+    /**
+     * `source_row_number` for this staged row inside the shared
+     * `BATCH_ID`. Distinct per row to satisfy
+     * `shopee_csv_rows_batch_row_unique (batch_id, source_row_number)`.
+     * Defaults to 2 -- the historic single-row position used by the
+     * primary idempotent test -- and may be overridden (e.g. by the
+     * `external_order_collision` test, which inserts two rows under
+     * the same batch and needs `source_row_number` to differ between
+     * them).
+     */
+    sourceRowNumber?: number;
   },
 ): Promise<void> {
   // `raw_row` is constrained by `shopee_csv_rows_raw_row_check` to
@@ -538,7 +610,7 @@ async function bootstrapShopeeStagedRow(
     VALUES (
       ${args.stagedRowId}::uuid,
       ${BATCH_ID}::uuid,
-      2,
+      ${args.sourceRowNumber ?? 2}::integer,
       ${args.rowFingerprintSha256}::text,
       jsonb_build_object(
         'external_order_id', ${args.externalOrderId}::text,
@@ -587,16 +659,20 @@ test(
       prepare: false,
     });
 
-    const sourceLine = buildSourceLine({
-      externalOrderId: EXTERNAL_ORDER_ID_PRIMARY,
-      rowFingerprintSha256: ROW_FINGERPRINT_A,
-      orderValue: "100000.0",
-      totalProductCommission: "5000.0",
-      refundedAmount: "0.0",
-      quantity: 1,
-    });
-    const sourceKey =
-      deriveShopeeSourceConversionKey(sourceLine);
+    // `sourceKey` is the deterministic SHA-256 the production reducer
+    // will compute -- and therefore insert into
+    // `conversions.source_conversion_key` -- when it reads the staged
+    // row back from the database. Because
+    // `shopee_csv_rows.{order_value, total_product_commission,
+    // refunded_amount}` are typed `numeric(20, 5)`, PostgreSQL stores
+    // and round-trips those columns at scale 5 (e.g. `'100000.0'`
+    // becomes `'100000.00000'`). Computing the key from the original
+    // `buildSourceLine(...)` inputs would yield a different hash than
+    // the production reducer inserts; re-reading the staged row from
+    // the DB and feeding those round-tripped values into the same
+    // `deriveShopeeSourceConversionKey` helper the reducer uses
+    // produces an honest expected value.
+    let sourceKey = "";
 
     try {
       await bootstrapCatalog(admin, {
@@ -614,6 +690,11 @@ test(
         trackingLinkId: TRACKING_LINK_ID_PRIMARY,
         networkSubId: NETWORK_SUB_ID_PRIMARY,
       });
+      sourceKey =
+        await deriveShopeeSourceConversionKeyFromStoredRow(
+          admin,
+          STAGED_ROW_ID,
+        );
 
       // Single promote: must succeed and insert exactly one row each.
       const first = await promoteShopeeCsvRowConversionAsync({
@@ -775,31 +856,26 @@ test(
       prepare: false,
     });
 
-    const sourceLineA = buildSourceLine({
-      externalOrderId: EXTERNAL_ORDER_ID_COLLISION,
-      rowFingerprintSha256: ROW_FINGERPRINT_A,
-      orderValue: "100000.0",
-      totalProductCommission: "5000.0",
-      refundedAmount: "0.0",
-      quantity: 1,
-    });
-    const sourceLineB: ShopeeCsvSourceLine = {
-      ...sourceLineA,
-      sourceEventId: ROW_FINGERPRINT_B,
-      // Distinguish the deterministic key by changing one immutable
-      // field so the line gets a different SHA-256 digest while
-      // sharing the external_order_id with row A.
-      totalProductCommission: "6000.0",
-    };
-
-    const sourceKeyA = deriveShopeeSourceConversionKey(sourceLineA);
-    const sourceKeyB = deriveShopeeSourceConversionKey(sourceLineB);
-
-    assert.notEqual(
-      sourceKeyA,
-      sourceKeyB,
-      "fixture invariant: two source lines that share external_order_id but differ on another immutable field must yield distinct keys",
-    );
+    // `sourceKeyA` and `sourceKeyB` are the deterministic SHA-256
+    // values the production reducer would compute from each staged
+    // row. We derive them via `deriveShopeeSourceConversionKeyFromStoredRow`
+    // AFTER inserting each row, because
+    // `shopee_csv_rows.{order_value, total_product_commission,
+    // refunded_amount}` are `numeric(20, 5)` and PostgreSQL
+    // round-trips them at scale 5 -- computing the keys from the
+    // original in-memory inputs would yield a different hash than
+    // the production reducer inserts.
+    //
+    // Note: this test deliberately inserts BOTH staged rows under
+    // `BATCH_ID` but at distinct `source_row_number` values so the
+    // `shopee_csv_rows_batch_row_unique (batch_id, source_row_number)`
+    // constraint is satisfied. Reusing source_row_number=2 for both
+    // is a constraint violation in the bootstrap step, NOT the
+    // promotion step -- fixing it here is unrelated to the
+    // promotion-side external_order_id collision the test exists
+    // to verify.
+    let sourceKeyA = "";
+    let sourceKeyB = "";
 
     try {
       await bootstrapCatalog(admin, {
@@ -816,6 +892,7 @@ test(
         quantity: 1,
         trackingLinkId: TRACKING_LINK_ID_COLLISION,
         networkSubId: NETWORK_SUB_ID_COLLISION,
+        sourceRowNumber: 2,
       });
       await bootstrapShopeeStagedRow(admin, {
         stagedRowId: STAGED_ROW_ID_CONFLICT,
@@ -827,7 +904,27 @@ test(
         quantity: 1,
         trackingLinkId: TRACKING_LINK_ID_COLLISION,
         networkSubId: NETWORK_SUB_ID_COLLISION,
+        // Distinct source_row_number from STAGED_ROW_ID above so
+        // `shopee_csv_rows_batch_row_unique` is satisfied for both
+        // rows under shared BATCH_ID.
+        sourceRowNumber: 3,
       });
+      sourceKeyA =
+        await deriveShopeeSourceConversionKeyFromStoredRow(
+          admin,
+          STAGED_ROW_ID,
+        );
+      sourceKeyB =
+        await deriveShopeeSourceConversionKeyFromStoredRow(
+          admin,
+          STAGED_ROW_ID_CONFLICT,
+        );
+
+      assert.notEqual(
+        sourceKeyA,
+        sourceKeyB,
+        "fixture invariant: two staged rows that share external_order_id but differ on another immutable field must yield distinct keys",
+      );
 
       const first = await promoteShopeeCsvRowConversionAsync({
         stagedRowId: STAGED_ROW_ID,
