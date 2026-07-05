@@ -6,6 +6,7 @@ import {
   CashbackTrackingLinkNotFoundError,
   recordCashbackClickAsync,
 } from "@/repositories/cashback-click.repository";
+import { recordShopeePurchaseIntentCorrelationAsync } from "@/lib/cashback/shopee-redirect-intent-correlation";
 
 const SHORT_CODE_PATTERN = /^[A-Za-z0-9_-]{10,32}$/;
 
@@ -72,13 +73,28 @@ export async function GET(
 
     const click = await recordCashbackClickAsync(supabase, shortCode, metadata);
 
+    // Phase 20H.3c: best-effort, non-blocking correlation between the
+    // persisted click audit and any recent `redirect_prepared` Shopee
+    // purchase intent for the same (publisher, shortCode). The
+    // correlation is logged only — it never blocks the redirect and
+    // never mutates the click row. Legacy `/go/<shortCode>` links
+    // without a matching intent must remain redirectable, so a `null`
+    // result is the normal case.
+    void recordShopeePurchaseIntentCorrelationAsync({
+      publisherId: user.id,
+      shortCode,
+      clickId: click.clickId,
+    });
+
     return applyPrivateRedirectHeaders(
       NextResponse.redirect(new URL(click.affiliateUrl), 302),
     );
   } catch (error) {
     if (error instanceof CashbackTrackingLinkNotFoundError) {
+      // Phase 20H.3c: never reveal whether the link is paused, disabled,
+      // missing, or owned by another user. Use neutral copy.
       return createTextErrorResponse(
-        "Không tìm thấy link hoàn tiền đang hoạt động.",
+        "Link hoàn tiền này hiện không khả dụng.",
         404,
       );
     }
@@ -86,7 +102,7 @@ export async function GET(
     console.error("Unable to process cashback redirect", error);
 
     return createTextErrorResponse(
-      "Không thể xử lý link hoàn tiền lúc này.",
+      "Không thể xử lý link hoàn tiền lúc này. Vui lòng thử lại sau.",
       500,
     );
   }
