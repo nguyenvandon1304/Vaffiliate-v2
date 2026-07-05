@@ -22,6 +22,7 @@ import "server-only";
 
 import { resolveShopeeProductUrl } from "@/lib/shopee/product-url";
 import { shopeeProductMetadataProvider } from "@/lib/shopee/product-metadata/provider.server";
+import { createShopeeUnikornCommissionProvider } from "@/lib/shopee/product-metadata/unikorn-commission-client.server";
 
 import { resolveShopeeProductPreviewWithDeps } from "./shopee-cashback-quote.service";
 import { buildProductionShopeeProductPreviewDependencies } from "./shopee-cashback-quote.service.composition";
@@ -98,6 +99,17 @@ export const productionShopeeProductPreviewDependencies = buildProductionShopeeP
       lookupFixtureCommissionRateBps: lookupDevelopmentShopeeCommissionRateBps,
     }),
     lookupFixtureCommissionRateBps: lookupDevelopmentShopeeCommissionRateBps,
+    // Phase 20H.3f (correction pass: API-first precedence) -- wire
+    // the server-only Unikorn commission client as the PRIMARY source
+    // of the network commission. The service consults this provider
+    // BEFORE the offer selector + catalog/fixture path. A successful
+    // Unikorn response short-circuits the selector path with a quote
+    // built directly on `productInfo.commission`. The provider is
+    // silent on any failure so the offer-selector + fixture path
+    // remains the authoritative fallback whenever the API is
+    // unreachable, returns invalid JSON, returns status != "success",
+    // or returns a non-positive / invalid commission value.
+    unikornCommissionProvider: createShopeeUnikornCommissionProvider(),
   },
 );
 

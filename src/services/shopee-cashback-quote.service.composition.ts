@@ -44,6 +44,22 @@ export interface BuildProductionDependenciesInputs {
   lookupFixtureCommissionRateBps?: ResolveShopeeDependencies["lookupFixtureCommissionRateBps"];
   calculateAllocation?: ResolveShopeeDependencies["calculateAllocation"];
   now?: ResolveShopeeDependencies["now"];
+  /**
+   * Phase 20H.3f (correction pass: API-first precedence) -- the
+   * Unikorn commission provider is the PRIMARY source of the
+   * network commission in the preview quote path. When this field
+   * is configured, the service consults the provider BEFORE the
+   * offer selector / catalog / fixture path. A successful response
+   * short-circuits the rest of the pipeline; a missing provider,
+   * network failure, timeout, or invalid commission value silently
+   * falls back to the offer-selector + catalog/fixture path.
+   *
+   * Production wiring supplies the server-only Unikorn commission
+   * client. Tests can omit the field to exercise the
+   * offer-selector-only path (e.g. the canonical fixture regression
+   * test) or supply a fake provider to exercise the API-first path.
+   */
+  unikornCommissionProvider?: ResolveShopeeDependencies["unikornCommissionProvider"];
 }
 
 /**
@@ -61,7 +77,10 @@ export interface BuildProductionDependenciesInputs {
  *   - `now` defaults to a fresh `Date` per call;
  *   - the optional identity-aware fixture lookup is forwarded
  *     verbatim (or omitted) so the service can hand it to the offer
- *     selector factory on lazy composition.
+ *     selector factory on lazy composition;
+ *   - the optional Unikorn commission provider is forwarded verbatim
+ *     so the production wiring can opt into API-first precedence
+ *     without losing the offer-selector + catalog/fixture fallback.
  */
 export function buildProductionShopeeProductPreviewDependencies(
   inputs: BuildProductionDependenciesInputs,
@@ -74,5 +93,6 @@ export function buildProductionShopeeProductPreviewDependencies(
     calculateAllocation:
       inputs.calculateAllocation ?? calculateCashbackAllocation,
     now: inputs.now ?? (() => new Date()),
+    unikornCommissionProvider: inputs.unikornCommissionProvider,
   };
 }

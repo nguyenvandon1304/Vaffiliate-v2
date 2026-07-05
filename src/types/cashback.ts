@@ -151,6 +151,13 @@ export type ShopeeProductPreviewErrorCode =
 /**
  * UI-facing metadata snapshot. Mirrors the canonical server
  * metadata shape but flattens image/price/availability for the UI.
+ *
+ * Phase 20H.3g -- `salesCount` is an OPTIONAL forward-compatible
+ * field. The current production metadata provider does not surface a
+ * sales count, so the field is normally `undefined` and the
+ * "Đã bán ..." badge is omitted. When the metadata layer exposes
+ * sales data, the View will render the badge automatically. Do not
+ * add new API calls solely to populate this field.
  */
 export interface ShopeeProductPreviewMetadataView {
   readonly platform: "shopee";
@@ -161,6 +168,7 @@ export interface ShopeeProductPreviewMetadataView {
   readonly priceVnd: number;
   readonly availability: "available" | "unavailable" | "unknown";
   readonly fetchedAt: string;
+  readonly salesCount?: number | null;
 }
 
 export interface ShopeeProductPreviewAvailableQuote {

@@ -110,6 +110,7 @@ export function createShopeeOfferSelector(
             campaignId: matchedOffer.campaignId,
             commissionRateBps: matchedOffer.commissionRateBps,
             cashbackShareBps: matchedOffer.cashbackShareBps,
+            commissionRateSource: "catalog",
           },
         };
       }
@@ -154,6 +155,7 @@ export function createShopeeOfferSelector(
                   campaignId: policyOffer.campaignId,
                   commissionRateBps: fixtureRateBps,
                   cashbackShareBps: policyOffer.cashbackShareBps,
+                  commissionRateSource: "fixture",
                 },
               };
             }
