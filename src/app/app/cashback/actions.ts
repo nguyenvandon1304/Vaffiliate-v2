@@ -312,6 +312,7 @@ export async function previewShopeeCashbackQuoteAction(
           status: "available",
           product,
           cashbackShareBps: q.cashbackShareBps,
+          commissionRateBps: q.estimatedCommissionRateBps ?? 0,
           estimatedCashbackVnd:
             q.estimatedUserCashback.amount,
           calculatedAt: q.calculatedAt,
@@ -410,6 +411,7 @@ async function buildShopeePurchaseIntentQuoteSnapshotFromPreview(
           cashbackShareBps: null,
           estimatedCashbackVnd: null,
           productPriceVnd: null,
+          commissionRateBps: null,
           reason: result.reason,
           message: result.message,
           capturedAt: new Date().toISOString(),
@@ -430,6 +432,8 @@ async function buildShopeePurchaseIntentQuoteSnapshotFromPreview(
           typeof product.priceVnd === "number"
             ? product.priceVnd
             : null,
+        commissionRateBps:
+          quote.value.estimatedCommissionRateBps,
         reason: null,
         message: null,
         capturedAt: new Date().toISOString(),
@@ -444,6 +448,7 @@ async function buildShopeePurchaseIntentQuoteSnapshotFromPreview(
         typeof product.priceVnd === "number"
           ? product.priceVnd
           : null,
+      commissionRateBps: null,
       reason: quote.reason,
       message: quote.message,
       capturedAt: new Date().toISOString(),

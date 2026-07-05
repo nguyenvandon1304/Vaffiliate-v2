@@ -40,6 +40,9 @@ import type {
 import type { ShopeeOfferSelector } from "./shopee-offer-selector";
 import type { ShopeeCatalogRepository } from "./shopee-offer-selector";
 import { createShopeeOfferSelector } from "./shopee-offer-selector.factory";
+import type {
+  ShopeeOfferSelectorFixtureLookup,
+} from "./shopee-offer-selector.factory";
 
 export interface ResolveShopeeInput {
   productUrl: unknown;
@@ -69,6 +72,19 @@ export interface ResolveShopeeDependencies {
    * missing `offerSelector`, the service lazily composes a selector from it.
    */
   shopeeCatalogRepository?: ShopeeCatalogRepository;
+  /**
+   * Optional identity-aware commission-rate fallback consulted by the
+   * offer selector last-resort path. Forwarded to
+   * `createShopeeOfferSelector` whenever the service lazily composes a
+   * selector from `shopeeCatalogRepository` (production wiring also
+   * surfaces it through {@link resolveShopeeProductPreview}'s own
+   * `offerSelector` field, which already accepts the option).
+   *
+   * Phase 20H.3d: production supplies
+   * `lookupDevelopmentShopeeCommissionRateBps` so the canonical
+   * fixture product produces an `available` quote end-to-end.
+   */
+  lookupFixtureCommissionRateBps?: ShopeeOfferSelectorFixtureLookup;
   /**
    * Cashback allocation function. Defaults to the canonical policy when omitted.
    */
@@ -460,6 +476,26 @@ async function buildQuoteOrFailure(
     cashbackShareBps: offer.cashbackShareBps,
   });
 
+  // Phase 20H.3d: when the product price, commission rate, and
+  // cashback share multiply out to a floor of zero user cashback, the
+  // preview must NOT show a "0 đ" figure. Such cases typically mean the
+  // commission rate is effectively zero for this product. Surface this
+  // as `commission_rate_unavailable` so the UI keeps the safe
+  // unavailable copy and the CTA still allows the buyer to proceed
+  // (Phase 20H.3a preserved fallback). The invariant
+  //   userCashback + platformProfit === networkCommission
+  // remains intact: a zero-cashback result already implies a zero-
+  // commission result, so the policy never silently withholds funds.
+  if (allocation.userCashback === 0) {
+    return {
+      ok: false,
+      category: "quote_unavailable",
+      reason: "commission_rate_unavailable",
+      message:
+        "Chưa xác định được mức hoa hồng cho sản phẩm này.",
+    };
+  }
+
   const toVnd = (amount: number): Money => ({
     amount,
     currency: "VND",
@@ -539,8 +575,16 @@ function pickOfferSelector(
   if (deps.shopeeCatalogRepository) {
     // Lazily build a selector from the canonical repository so callers that
     // only want to wire the repository still get a working selector without
-    // having to import the factory themselves.
-    return createShopeeOfferSelector(deps.shopeeCatalogRepository);
+    // having to import the factory themselves. The optional Phase 20H.3d
+    // identity-aware fixture lookup is forwarded verbatim.
+    return createShopeeOfferSelector(
+      deps.shopeeCatalogRepository,
+      deps.lookupFixtureCommissionRateBps
+        ? {
+            lookupFixtureCommissionRateBps: deps.lookupFixtureCommissionRateBps,
+          }
+        : {},
+    );
   }
   throw new Error(
     "resolveShopeeCashbackQuote: no ShopeeOfferSelector or ShopeeCatalogRepository configured",

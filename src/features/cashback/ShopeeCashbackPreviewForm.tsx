@@ -9,6 +9,7 @@ import {
 import {
   previewShopeeCashbackQuoteAction,
 } from "@/app/app/cashback/actions";
+import ShopeeProductPreviewBadge from "@/features/cashback/ShopeeProductPreviewBadge";
 import ShopeePurchaseTrigger from "@/features/cashback/ShopeePurchaseTrigger";
 import ShopeeProductPreviewCard from "@/features/cashback/ShopeeProductPreviewCard";
 import type {
@@ -182,6 +183,10 @@ export default function ShopeeCashbackPreviewForm({
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--brand-strong)]">
             Shopee
           </p>
+
+          <div className="mt-2">
+            <ShopeeProductPreviewBadge label="Hoàn lại đến 60% hoa hồng Shopee" />
+          </div>
 
           <h2 className="mt-2 text-lg font-semibold text-[color:var(--text)]">
             Kiểm tra hoàn tiền sản phẩm
