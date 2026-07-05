@@ -1,4 +1,4 @@
-﻿import test from "node:test";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { buildShopeeAffiliateRedirectUrl } from "./shopee-affiliate-url-builder";
 import { decideNullPersistenceOutcome, decideExistingUrlOutcome } from "./shopee-persistence-decisions";

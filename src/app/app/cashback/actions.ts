@@ -38,6 +38,10 @@ import { trackingLinks } from "@/db/schema";
 import {
   resolveShopeeProductPreview,
 } from "@/services/shopee-cashback-quote.service.server";
+import { recordShopeePurchaseIntentAsync } from "@/services/shopee-purchase-intent.service";
+import type {
+  ShopeePurchaseIntentQuoteSnapshot,
+} from "@/lib/cashback/shopee-purchase-persistence-helper";
 import type {
   CashbackPlatformCode,
   CreateCashbackTrackingLinkActionState,
@@ -374,6 +378,85 @@ function createProvisionFailure(
   };
 }
 
+/**
+ * Phase 20H.3b — map a server-resolved preview result onto the typed
+ * quote-snapshot shape persisted on `shopee_purchase_intents.quote_snapshot`.
+ *
+ * Returns `null` when the preview did not produce a usable quote
+ * (e.g. metadata unavailable, fallback handoff). A `null` snapshot
+ * is a legitimate state and means "we have a tracking link and an
+ * affiliate URL, but we could not compute a cashback quote at intent
+ * time" — never a guarantee.
+ *
+ * Never throws. Returns a best-effort, JSONB-safe snapshot.
+ */
+async function buildShopeePurchaseIntentQuoteSnapshotFromPreview(
+  productUrl: string,
+): Promise<ShopeePurchaseIntentQuoteSnapshot | null> {
+  try {
+    const result = await resolveShopeeProductPreview({
+      productUrl,
+    });
+
+    if (!result.ok) {
+      // Fallback handoff: metadata unavailable, but purchase is still
+      // allowed via the canonical URL. We persist a "unavailable"
+      // snapshot so audit can see what the buyer saw.
+      if (
+        isShopeePreviewPurchaseAllowedFailure(result.reason)
+      ) {
+        return {
+          status: "unavailable",
+          cashbackShareBps: null,
+          estimatedCashbackVnd: null,
+          productPriceVnd: null,
+          reason: result.reason,
+          message: result.message,
+          capturedAt: new Date().toISOString(),
+        };
+      }
+      return null;
+    }
+
+    const { product, quote } = result;
+
+    if (quote.status === "available") {
+      return {
+        status: "available",
+        cashbackShareBps: quote.value.cashbackShareBps,
+        estimatedCashbackVnd:
+          quote.value.estimatedUserCashback.amount,
+        productPriceVnd:
+          typeof product.priceVnd === "number"
+            ? product.priceVnd
+            : null,
+        reason: null,
+        message: null,
+        capturedAt: new Date().toISOString(),
+      };
+    }
+
+    return {
+      status: "unavailable",
+      cashbackShareBps: null,
+      estimatedCashbackVnd: null,
+      productPriceVnd:
+        typeof product.priceVnd === "number"
+          ? product.priceVnd
+          : null,
+      reason: quote.reason,
+      message: quote.message,
+      capturedAt: new Date().toISOString(),
+    };
+  } catch {
+    // The intent boundary must never fail because the preview resolver
+    // failed. Persist with `quoteSnapshot = null` and let the action
+    // continue. Phase 20H.3a UI already shows the buyer a clear
+    // fallback copy when no quote is available.
+    return null;
+  }
+}
+
 function readProvisionErrorMessage(
   error: unknown,
 ): string {
@@ -520,6 +603,64 @@ export async function initiateShopeePurchaseAction(
   _previousState: InitiateShopeePurchaseActionState,
   formData: FormData,
 ): Promise<InitiateShopeePurchaseActionState> {
+  // Phase 20H.3b -- durable buyer purchase-intent boundary. The action
+  // refuses to return `/go/<shortCode>` to the client unless this
+  // helper has already written a `shopee_purchase_intents` row. We
+  // call it from every success branch (after affiliate URL build /
+  // verify, before the success return). If persistence fails, we
+  // return a typed `persistence_failed` state with friendly copy and
+  // NO redirect path so the CTA cannot navigate the buyer away.
+  const recordIntentOrAbort = async (args: {
+    canonicalUrl: string;
+    shopId: string;
+    itemId: string;
+    affiliateUrl: string;
+    trackingLink: Awaited<
+      ReturnType<typeof createCashbackTrackingLinkAsync>
+    >;
+  }): Promise<InitiateShopeePurchaseActionState | null> => {
+    const quoteSnapshot =
+      await buildShopeePurchaseIntentQuoteSnapshotFromPreview(
+        args.canonicalUrl,
+      );
+
+    const persisted =
+      await recordShopeePurchaseIntentAsync(
+        {
+          publisherId,
+          trackingLinkId: args.trackingLink.id,
+          networkSubId: args.trackingLink.networkSubId,
+          shortCode: args.trackingLink.shortCode,
+          originalProductUrl: productUrl,
+          canonicalProductUrl: args.canonicalUrl,
+          shopId: args.shopId,
+          itemId: args.itemId,
+          campaignId: args.trackingLink.campaignId,
+          offerId: args.trackingLink.offerId,
+          affiliateUrl: args.affiliateUrl,
+          quoteSnapshot,
+        },
+        { status: "redirect_prepared" },
+      );
+
+    if (!persisted.ok) {
+      console.error(
+        "Unable to persist Shopee purchase intent",
+        persisted.failureReason,
+      );
+      return {
+        ok: false,
+        message:
+          "Chưa thể ghi nhận phiên mua hoàn tiền. Vui lòng thử lại để đảm bảo đơn được theo dõi.",
+        shortCode: null,
+        trackingPath: null,
+        productUrl: null,
+      };
+    }
+
+    return null;
+  };
+
   const productUrl = readTrimmedString(
     formData,
     "productUrl",
@@ -555,10 +696,14 @@ export async function initiateShopeePurchaseAction(
   const publisherId = user.id;
 
   let canonicalUrl: string;
+  let shopId: string;
+  let itemId: string;
 
   try {
     const parsed = parseShopeeProductUrl(productUrl);
     canonicalUrl = parsed.canonicalUrl;
+    shopId = parsed.shopId;
+    itemId = parsed.itemId;
   } catch {
     return {
       ok: false,
@@ -701,6 +846,18 @@ export async function initiateShopeePurchaseAction(
         };
       }
 
+      const abortState = await recordIntentOrAbort({
+        canonicalUrl,
+        shopId,
+        itemId,
+        affiliateUrl: expectedAffiliateUrl,
+        trackingLink,
+      });
+
+      if (abortState !== null) {
+        return abortState;
+      }
+
       return {
         ok: true,
         message: "Đã tạo link hoàn tiền.",
@@ -770,6 +927,18 @@ export async function initiateShopeePurchaseAction(
       trackingPath: null,
       productUrl: null,
     };
+  }
+
+  const abortState = await recordIntentOrAbort({
+    canonicalUrl,
+    shopId,
+    itemId,
+    affiliateUrl: trackingLink.affiliateUrl ?? expectedAffiliateUrl,
+    trackingLink,
+  });
+
+  if (abortState !== null) {
+    return abortState;
   }
 
   return {

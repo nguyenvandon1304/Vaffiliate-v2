@@ -141,6 +141,27 @@
       "when": 1782765177006,
       "tag": "0019_phase_20g2_shopee_catalog_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1783180281652,
+      "tag": "0020_phase_20g2a_conversion_reconciliation_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1783250687526,
+      "tag": "0021_phase_20h3b_shopee_purchase_intent_persistence",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1783252414114,
+      "tag": "0022_phase_20h3b_shopee_purchase_intent_tracking_link_publisher_fk",
+      "breakpoints": true
     }
   ]
 }

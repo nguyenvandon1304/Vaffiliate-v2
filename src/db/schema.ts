@@ -12,6 +12,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -851,6 +852,162 @@ export const shopeeCsvRows = pgTable(
     ),
   ],
 );
+// ----------------------------------------------------------------------------
+// Shopee ingestion events (Phase 20G.2a)
+//
+// Immutable event surface for Shopee CSV ingestion. Each successful promotion
+// of a staged shopee_csv_rows row creates one shopee_ingestion_events row,
+// which the canonical conversions row references through
+// ingestion_event_id. Rows are append-only; status transitions update the
+// same row in place. RLS is enabled and only the service role may write.
+// ----------------------------------------------------------------------------
+
+export const shopeeIngestionEvents = pgTable(
+  "shopee_ingestion_events",
+  {
+    id: uuid("id")
+      .defaultRandom()
+      .primaryKey(),
+
+    /**
+     * Affiliate network. Phase 20G.2a is Shopee-only; this column is left
+     * text for forward compatibility without inventing TikTok Shop rows.
+     */
+    network: text("network")
+      .notNull(),
+
+    /**
+     * Network-supplied or derived source event identifier.
+     */
+    sourceEventId: text("source_event_id")
+      .notNull(),
+
+    /**
+     * SHA-256 of the canonical immutable payload that produced the event.
+     */
+    payloadSha256: text("payload_sha256")
+      .notNull(),
+
+    receivedAt: timestamp("received_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    processingStatus: text("processing_status")
+      .default("pending")
+      .notNull(),
+
+    attemptCount: integer("attempt_count")
+      .default(1)
+      .notNull(),
+
+    processedAt: timestamp("processed_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+
+    failureCode: text("failure_code"),
+
+    failureMessage: text("failure_message"),
+
+    /**
+     * Structured reference to the staged rows / batch the event covers.
+     */
+    rawReference: jsonb("raw_reference")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    updatedAt: timestamp("updated_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique("shopee_ingestion_events_network_source_event_unique").on(
+      table.network,
+      table.sourceEventId,
+    ),
+
+    check(
+      "shopee_ingestion_events_network_not_blank_check",
+      sql`char_length(trim(${table.network})) > 0`,
+    ),
+
+    check(
+      "shopee_ingestion_events_source_event_id_not_blank_check",
+      sql`char_length(trim(${table.sourceEventId})) > 0`,
+    ),
+
+    check(
+      "shopee_ingestion_events_payload_sha256_check",
+      sql`${table.payloadSha256} ~ '^[a-f0-9]{64}$'`,
+    ),
+
+    check(
+      "shopee_ingestion_events_processing_status_check",
+      sql`${table.processingStatus} in (
+        'pending',
+        'succeeded',
+        'failed',
+        'replayed'
+      )`,
+    ),
+
+    check(
+      "shopee_ingestion_events_attempt_count_check",
+      sql`${table.attemptCount} >= 1`,
+    ),
+
+    check(
+      "shopee_ingestion_events_raw_reference_check",
+      sql`jsonb_typeof(${table.rawReference}) = 'object'`,
+    ),
+
+    check(
+      "shopee_ingestion_events_processed_at_check",
+      sql`
+        (
+          ${table.processingStatus} in ('succeeded', 'failed', 'replayed')
+          and ${table.processedAt} is not null
+        )
+        or
+        (
+          ${table.processingStatus} = 'pending'
+          and ${table.processedAt} is null
+        )
+      `,
+    ),
+
+    check(
+      "shopee_ingestion_events_failure_code_check",
+      sql`
+        (
+          ${table.processingStatus} = 'failed'
+          and nullif(trim(${table.failureCode}), '') is not null
+          and nullif(trim(${table.failureMessage}), '') is not null
+        )
+        or
+        (
+          ${table.processingStatus} <> 'failed'
+          and ${table.failureCode} is null
+          and ${table.failureMessage} is null
+        )
+      `,
+    ),
+  ],
+).enableRLS();
+
 
 // ─── Conversion ledger ──────────────────────────────────────────────────────
 
@@ -969,6 +1126,35 @@ export const conversions = pgTable(
 
     rejectedReason: text("rejected_reason"),
 
+    /**
+     * Phase 20G.2a: deterministic line-level idempotency key for Shopee
+     * CSV ingestion. Nullable so legacy rows and non-Shopee networks
+     * remain valid. The partial unique index only enforces uniqueness
+     * when the key is present.
+     */
+    sourceConversionKey: text("source_conversion_key"),
+
+    /**
+     * Phase 20G.2a: validation lifecycle for the conversion. Nullable
+     * on legacy rows. Allowed values: 'recorded', 'reconciling',
+     * 'approved', 'rejected', 'reversed'.
+     */
+    validationStatus: text("validation_status"),
+
+    /**
+     * Phase 20G.2a: settlement lifecycle for the conversion. Nullable
+     * on legacy rows. Allowed values: 'not_payable', 'payable', 'paid'.
+     */
+    settlementStatus: text("settlement_status"),
+
+    /**
+     * Phase 20G.2a: link back to the immutable shopee_ingestion_events
+     * row that produced this conversion. Nullable on legacy rows.
+     * ON DELETE RESTRICT because ingestion evidence must outlive any
+     * downstream conversion row.
+     */
+    ingestionEventId: uuid("ingestion_event_id"),
+
     createdAt: timestamp("created_at", {
       withTimezone: true,
       mode: "date",
@@ -1002,6 +1188,34 @@ export const conversions = pgTable(
       table.publisherId,
       table.occurredAt,
     ),
+
+    /**
+     * Phase 20G.2a: line-level idempotency for normalized Shopee
+     * promotion. Partial UNIQUE keeps legacy rows with NULL
+     * source_conversion_key from blocking the constraint.
+     */
+    uniqueIndex("conversions_network_source_conversion_key_unique").on(
+      table.network,
+      table.sourceConversionKey,
+    ).where(sql`${table.sourceConversionKey} is not null`),
+
+    /**
+     * Phase 20G.2a: lookup support for ingestion-event linkage.
+     */
+    index("conversions_ingestion_event_id_idx").on(
+      table.ingestionEventId,
+    ),
+
+    /**
+     * Phase 20G.2a: ingestion-event linkage. ON DELETE RESTRICT because
+     * immutable ingestion evidence must persist with the conversions it
+     * created.
+     */
+    foreignKey({
+      columns: [table.ingestionEventId],
+      foreignColumns: [shopeeIngestionEvents.id],
+      name: "conversions_ingestion_event_id_shopee_ingestion_events_id_fk",
+    }).onDelete("restrict"),
 
     check(
       "conversions_network_not_blank_check",
@@ -1173,6 +1387,46 @@ export const conversions = pgTable(
           or ${table.rejectedAt} >= ${table.occurredAt}
         )
       `,
+    ),
+
+    /**
+     * Phase 20G.2a: validation_status domain. Either NULL (legacy rows
+     * and non-Shopee networks) or one of the canonical Shopee
+     * reconciliation states.
+     */
+    check(
+      "conversions_validation_status_check",
+      sql`${table.validationStatus} is null or ${table.validationStatus} in (
+        'recorded',
+        'reconciling',
+        'approved',
+        'rejected',
+        'reversed'
+      )`,
+    ),
+
+    /**
+     * Phase 20G.2a: settlement_status domain. Either NULL (legacy rows
+     * and non-Shopee networks) or one of the canonical Shopee
+     * settlement states.
+     */
+    check(
+      "conversions_settlement_status_check",
+      sql`${table.settlementStatus} is null or ${table.settlementStatus} in (
+        'not_payable',
+        'payable',
+        'paid'
+      )`,
+    ),
+
+    /**
+     * Phase 20G.2a: source_conversion_key is set only when the
+     * conversion was promoted through a normalized Shopee event and is
+     * shaped as a SHA-256 hex digest.
+     */
+    check(
+      "conversions_source_conversion_key_shape_check",
+      sql`${table.sourceConversionKey} is null or ${table.sourceConversionKey} ~ '^[a-f0-9]{64}$'`,
     ),
   ],
 );
@@ -1382,6 +1636,215 @@ export const cashbackPolicies = pgTable(
   ],
 ).enableRLS();
 
+// ─── Shopee buyer purchase intent (Phase 20H.3b) ─────────────────────────────
+//
+// One durable first-party record of a buyer's intent to start a Shopee
+// cashback handoff. Written by `initiateShopeePurchaseAction` BEFORE the
+// action returns `/go/<shortCode>` so the redirect is always backed by
+// an audit anchor Vaffiliate owns.
+//
+// Distinct from `tracking_links` (the affiliate-link record) and `clicks`
+// (the post-redirect audit row). This table only ever stores
+// server-derived data; nothing client-trusted lives here.
+
+export const shopeePurchaseIntents = pgTable(
+  "shopee_purchase_intents",
+  {
+    id: uuid("id")
+      .defaultRandom()
+      .primaryKey(),
+
+    publisherId: uuid("publisher_id")
+      .notNull()
+      .references(() => profiles.userId, {
+        onDelete: "cascade",
+      }),
+
+    trackingLinkId: uuid("tracking_link_id")
+      .notNull()
+      .references(() => trackingLinks.id, {
+        onDelete: "restrict",
+      }),
+
+    networkSubId: text("network_sub_id").notNull(),
+    shortCode: text("short_code").notNull(),
+
+    originalProductUrl: text("original_product_url").notNull(),
+    canonicalProductUrl: text("canonical_product_url").notNull(),
+    shopId: text("shop_id").notNull(),
+    itemId: text("item_id").notNull(),
+
+    campaignId: text("campaign_id"),
+    offerId: text("offer_id"),
+
+    affiliateUrl: text("affiliate_url").notNull(),
+
+    /**
+     * JSONB snapshot of the server-derived quote at intent time. Stored
+     * as opaque JSONB; never treated as a guarantee. Nullable when the
+     * user reached the CTA without a quote (e.g. metadata fallback).
+     */
+    quoteSnapshot: jsonb("quote_snapshot"),
+
+    /**
+     * Lifecycle of the handoff attempt:
+     *
+     *  - `created`            -- intent row inserted, redirect not yet
+     *                            prepared (reserved for future flows)
+     *  - `redirect_prepared`  -- intent row inserted AND /go/<shortCode>
+     *                            path handed back to the client
+     *  - `redirect_failed`    -- affiliate URL could not be built or
+     *                            verified; no redirect path returned
+     *  - `persistence_failed` -- intent row could not be inserted; no
+     *                            redirect path returned
+     */
+    status: text("status").notNull(),
+
+    failureReason: text("failure_reason"),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    redirectPreparedAt: timestamp("redirect_prepared_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+  },
+  (table) => [
+    // Composite ownership FK: an intent row may only pair a publisher
+    // with one of their own tracking links. `tracking_links` already
+    // declares the composite unique key `tracking_links_id_publisher_unique`
+    // on (id, publisher_id), so this FK references that key and the DB
+    // rejects any insert where (tracking_link_id, publisher_id) does not
+    // match a real tracking_links row. Mirrors the
+    // `clicks_tracking_link_publisher_fk` pattern so Phase 20G.2a
+    // reconciliation can trust the (publisher, tracking_link) pair.
+    foreignKey({
+      columns: [
+        table.trackingLinkId,
+        table.publisherId,
+      ],
+      foreignColumns: [
+        trackingLinks.id,
+        trackingLinks.publisherId,
+      ],
+      name: "shopee_purchase_intents_tracking_link_publisher_fk",
+    }).onDelete("cascade"),
+
+    index("shopee_purchase_intents_publisher_created_idx").on(
+      table.publisherId,
+      table.createdAt,
+    ),
+
+    index("shopee_purchase_intents_tracking_link_idx").on(
+      table.trackingLinkId,
+    ),
+
+    index("shopee_purchase_intents_status_created_idx").on(
+      table.status,
+      table.createdAt,
+    ),
+
+    check(
+      "shopee_purchase_intents_status_check",
+      sql`${table.status} in (
+        'created',
+        'redirect_prepared',
+        'redirect_failed',
+        'persistence_failed'
+      )`,
+    ),
+
+    check(
+      "shopee_purchase_intents_network_sub_id_check",
+      sql`${table.networkSubId} ~ '^vaflnk[a-f0-9]{24}$'`,
+    ),
+
+    check(
+      "shopee_purchase_intents_short_code_check",
+      sql`${table.shortCode} ~ '^[A-Za-z0-9_-]{10,32}$'`,
+    ),
+
+    check(
+      "shopee_purchase_intents_canonical_product_url_check",
+      sql`${table.canonicalProductUrl} ~ '^https://shopee\.vn/product/[0-9]+/[0-9]+/?$'`,
+    ),
+
+    check(
+      "shopee_purchase_intents_affiliate_url_check",
+      sql`${table.affiliateUrl} ~ '^https://'`,
+    ),
+
+    check(
+      "shopee_purchase_intents_shop_id_check",
+      sql`${table.shopId} ~ '^[0-9]+$'`,
+    ),
+
+    check(
+      "shopee_purchase_intents_item_id_check",
+      sql`${table.itemId} ~ '^[0-9]+$'`,
+    ),
+
+    check(
+      "shopee_purchase_intents_classification_pair_check",
+      sql`
+        (
+          ${table.campaignId} is null
+          and ${table.offerId} is null
+        )
+        or
+        (
+          ${table.campaignId} is not null
+          and ${table.offerId} is not null
+        )
+      `,
+    ),
+
+    check(
+      "shopee_purchase_intents_redirect_prepared_at_check",
+      sql`
+        (
+          ${table.status} = 'redirect_prepared'
+          and ${table.redirectPreparedAt} is not null
+        )
+        or
+        (
+          ${table.status} <> 'redirect_prepared'
+          and ${table.redirectPreparedAt} is null
+        )
+      `,
+    ),
+
+    check(
+      "shopee_purchase_intents_failure_reason_check",
+      sql`
+        (
+          ${table.status} in ('redirect_failed', 'persistence_failed')
+          and ${table.failureReason} is not null
+          and char_length(trim(${table.failureReason})) > 0
+        )
+        or
+        (
+          ${table.status} in ('created', 'redirect_prepared')
+          and ${table.failureReason} is null
+        )
+      `,
+    ),
+
+    check(
+      "shopee_purchase_intents_quote_snapshot_object_check",
+      sql`
+        ${table.quoteSnapshot} is null
+        or jsonb_typeof(${table.quoteSnapshot}) = 'object'
+      `,
+    ),
+  ],
+).enableRLS();
+
 // ─── Inferred database row types ────────────────────────────────────────────
 
 export type ProfileRow = typeof profiles.$inferSelect;
@@ -1393,11 +1856,21 @@ export type NewPayoutAccountRow = typeof payoutAccounts.$inferInsert;
 export type TrackingLinkRow = typeof trackingLinks.$inferSelect;
 export type NewTrackingLinkRow = typeof trackingLinks.$inferInsert;
 
+export type ShopeePurchaseIntentRow =
+  typeof shopeePurchaseIntents.$inferSelect;
+export type NewShopeePurchaseIntentRow =
+  typeof shopeePurchaseIntents.$inferInsert;
+
 export type ClickRow = typeof clicks.$inferSelect;
 export type NewClickRow = typeof clicks.$inferInsert;
 
 export type ConversionRow = typeof conversions.$inferSelect;
 export type NewConversionRow = typeof conversions.$inferInsert;
+
+export type ShopeeIngestionEventRow =
+  typeof shopeeIngestionEvents.$inferSelect;
+export type NewShopeeIngestionEventRow =
+  typeof shopeeIngestionEvents.$inferInsert;
 
 export type AdvertiserRow = typeof advertisers.$inferSelect;
 export type NewAdvertiserRow = typeof advertisers.$inferInsert;

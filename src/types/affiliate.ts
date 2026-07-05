@@ -38,6 +38,38 @@ export type ConversionStatus =
 // TODO(domain): Split conversion validation status from cashback/commission
 // settlement status when the backend settlement flow is implemented.
 
+/**
+ * Phase 20G.2a additive foundation.
+ *
+ * The canonical validation lifecycle values from
+ * `docs/PHASE_20G0_ARCHITECTURE_DATA_CONTRACT.md` section 7.1.
+ *
+ * These are additive types only. The legacy combined `ConversionStatus`
+ * tuple above remains unchanged. Persisted rows MAY carry either the
+ * legacy `status` value or these new validation/settlement statuses on
+ * the new nullable columns. Future slices in Phase 20G.2 will provide
+ * a migration plan for legacy rows.
+ */
+export const VALIDATION_STATUSES = [
+  "recorded",
+  "reconciling",
+  "approved",
+  "rejected",
+  "reversed",
+] as const;
+
+export type ValidationStatus =
+  (typeof VALIDATION_STATUSES)[number];
+
+export const SETTLEMENT_STATUSES = [
+  "not_payable",
+  "payable",
+  "paid",
+] as const;
+
+export type SettlementStatus =
+  (typeof SETTLEMENT_STATUSES)[number];
+
 export type CurrencyCode = "VND";
 
 export interface Money {
@@ -84,7 +116,7 @@ export interface TrackingLink {
   createdAt: string;
 
   // TODO(migration): All consumers should migrate to trackingUrl.
-  // Legacy field — mirrors trackingUrl for backward compatibility.
+  // Legacy field - mirrors trackingUrl for backward compatibility.
   url?: string;
 }
 
@@ -107,6 +139,38 @@ export interface Conversion {
   paidAt?: string;
   rejectedAt?: string;
   rejectedReason?: string;
+
+  /**
+   * Phase 20G.2a additive foundation.
+   *
+   * Deterministic identity derived from immutable Shopee source fields.
+   * Optional because legacy rows have NULL until a future migration
+   * phase backfills the column.
+   */
+  sourceConversionKey?: string;
+
+  /**
+   * Phase 20G.2a additive foundation.
+   *
+   * Optional split-status. Legacy rows return `status` only.
+   */
+  validationStatus?: ValidationStatus;
+
+  /**
+   * Phase 20G.2a additive foundation.
+   *
+   * Optional split-status. Legacy rows return `status` only.
+   */
+  settlementStatus?: SettlementStatus;
+
+  /**
+   * Phase 20G.2a additive foundation.
+   *
+   * Immutable ingestion-event identifier this conversion links back to.
+   * Legacy rows have NULL until a future migration phase backfills the
+   * column.
+   */
+  ingestionEventId?: string;
 
   // TODO(migration): Migrate UI to orderAmount.
   // Legacy field kept for backward compatibility.

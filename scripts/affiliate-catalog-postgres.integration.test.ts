@@ -1,3 +1,37 @@
+/**
+ * Environment note: this test holds a `FOR UPDATE` row lock on
+ * `tracking_links.id = TRACKING_LINK_ID` from a parent transaction
+ * (blocker connection), then spawns two child worker processes that
+ * attempt to update the same row concurrently. The workers must
+ * serialize through the lock so exactly one classifies and the
+ * other receives a `tracking_link_locked` skip result.
+ *
+ * Two observability layers are checked:
+ *
+ * 1. (Always, hard assertion) Behavioral: the two workers' final
+ *    `ClassificationResult` outputs must be one classified / one
+ *    skipped, both for the same `TRACKING_LINK_ID`. After they
+ *    finish, exactly one `tracking_links` row must remain with the
+ *    expected `campaign_id` / `offer_id`. This is the production
+ *    assertion and is unchanged across environments.
+ *
+ * 2. (Best-effort, environment-adaptive) Lock-wait introspection:
+ *    `waitForBothWorkersToBlock` waits until it can see both
+ *    workers blocked on a Lock wait event in `pg_stat_activity`.
+ *    On a DIRECT Postgres connection (CI), the worker connections
+ *    surface their client `application_name` (WORKER_A / WORKER_B)
+ *    and `wait_event_type = 'Lock'`. On the Supabase Supavisor
+ *    pooler, the pooler rewrites the worker `application_name` to
+ *    `Supavisor` and the strict per-name check would fail; instead
+ *    we count distinct backend sessions whose
+ *    `wait_event_type = 'Lock'` and whose PID is not the parent's
+ *    own. The snapshot from `pg_stat_activity` is also recorded
+ *    so the test output makes the observed state clear. The
+ *    introspection is gated on the connection host so the test
+ *    never silently weakens the production serialization
+ *    assertion; it only changes how it observes the lock-wait
+ *    state.
+ */
 import assert from "node:assert/strict";
 import {
   spawn,
@@ -192,38 +226,79 @@ function startWorker(
   };
 }
 
+function isSupabasePoolerHost(
+  databaseUrl: string,
+): boolean {
+  try {
+    const url = new URL(databaseUrl);
+    const host = url.hostname.toLowerCase();
+    return (
+      host === "pooler.supabase.com"
+      || host.endsWith(".pooler.supabase.com")
+      || host.includes("supavisor")
+    );
+  } catch {
+    return false;
+  }
+}
+
+interface PgStatActivityRow {
+  application_name: string | null;
+  wait_event_type: string | null;
+  pid: number | null;
+}
+
 async function waitForBothWorkersToBlock(
   admin: ReturnType<typeof postgres>,
+  args: {
+    databaseUrl: string;
+    parentBackendPid: number;
+  },
 ): Promise<void> {
-  const deadline =
-    Date.now() + 10_000;
+  const deadline = Date.now() + 10_000;
+  const poolerMode = isSupabasePoolerHost(args.databaseUrl);
 
+  // Direct Postgres: each worker connection surfaces its own client
+  // `application_name` (WORKER_A / WORKER_B). Supabase Supavisor
+  // pooler rewrites the client `application_name` to `Supavisor` and
+  // exposes the worker's actual backend PID + `wait_event_type`. We
+  // pivot the introspection between the two shapes but the
+  // production assertion (the behavioral one further down) is
+  // unchanged across environments.
   while (Date.now() < deadline) {
-    const rows = await admin`
+    const rows = await admin<PgStatActivityRow[]>`
       SELECT
         application_name,
-        wait_event_type
+        wait_event_type,
+        pid
       FROM pg_stat_activity
-      WHERE application_name IN (
-        ${WORKER_A},
-        ${WORKER_B}
-      )
+      WHERE datname = current_database()
+        AND pid <> ${args.parentBackendPid}::int
+        AND backend_type = 'client backend'
     `;
 
-    const waitStates = new Map(
-      rows.map((row) => [
-        String(row.application_name),
-        row.wait_event_type === null
-          ? null
-          : String(row.wait_event_type),
-      ]),
-    );
-
-    if (
-      waitStates.get(WORKER_A) === "Lock"
-      && waitStates.get(WORKER_B) === "Lock"
-    ) {
-      return;
+    if (poolerMode) {
+      const lockWaiters = rows.filter(
+        (row) => row.wait_event_type === "Lock",
+      );
+      if (lockWaiters.length >= 2) {
+        return;
+      }
+    } else {
+      const waitStates = new Map(
+        rows.map((row) => [
+          String(row.application_name ?? ""),
+          row.wait_event_type === null
+            ? null
+            : String(row.wait_event_type),
+        ]),
+      );
+      if (
+        waitStates.get(WORKER_A) === "Lock"
+        && waitStates.get(WORKER_B) === "Lock"
+      ) {
+        return;
+      }
     }
 
     await new Promise((resolve) => {
@@ -231,8 +306,28 @@ async function waitForBothWorkersToBlock(
     });
   }
 
+  const finalSnap = await admin<PgStatActivityRow[]>`
+    SELECT
+      application_name,
+      wait_event_type,
+      pid
+    FROM pg_stat_activity
+    WHERE datname = current_database()
+      AND pid <> ${args.parentBackendPid}::int
+      AND backend_type = 'client backend'
+  `;
   throw new Error(
-    "Both classification workers did not reach PostgreSQL lock waits",
+    "Both classification workers did not reach PostgreSQL lock waits within 10s. " +
+      "poolerMode=" + poolerMode + ", parentBackendPid=" + args.parentBackendPid + ". " +
+      "Final pg_stat_activity snapshot (excluding parent backend): " +
+      JSON.stringify(finalSnap) +
+      ". NOTE: this lock-wait introspection is only reliable on a direct " +
+      "Postgres connection. On Supabase's Supavisor session / transaction " +
+      "pooler, the pooler rewrites client `application_name` to `Supavisor` " +
+      "but does surface `wait_event_type` and `pid` -- the helper above " +
+      "uses that surface for the count-based signal. If this error fires " +
+      "on the pooler, capture the snapshot and investigate the blocker / " +
+      "worker wiring rather than treating it as a silent pass.",
   );
 }
 
@@ -460,6 +555,20 @@ test(
             1,
           );
 
+          // Capture the blocker's backend PID so the lock-wait
+          // introspection can exclude the parent from
+          // `pg_stat_activity` while it counts waiter backends.
+          const parentPidRows = await transaction<
+            { pid: number }[]
+          >`
+            SELECT pg_backend_pid() AS pid
+          `;
+          const parentBackendPid = parentPidRows[0]?.pid;
+          assert.ok(
+            typeof parentBackendPid === "number",
+            "blocker connection must report a numeric pg_backend_pid()",
+          );
+
           workers.push(
             startWorker(
               databaseUrl,
@@ -473,6 +582,10 @@ test(
 
           await waitForBothWorkersToBlock(
             admin,
+            {
+              databaseUrl,
+              parentBackendPid,
+            },
           );
         },
       );

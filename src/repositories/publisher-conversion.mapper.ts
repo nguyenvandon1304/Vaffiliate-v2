@@ -23,9 +23,13 @@
 
 import {
   CONVERSION_STATUSES,
+  SETTLEMENT_STATUSES,
+  VALIDATION_STATUSES,
   type Conversion,
   type ConversionStatus,
   type Money,
+  type SettlementStatus,
+  type ValidationStatus,
 } from "@/types/affiliate";
 
 /**
@@ -62,10 +66,34 @@ export interface ConversionDatabaseRow {
   paid_at: unknown;
   rejected_at: unknown;
   rejected_reason: unknown;
+  /**
+   * Phase 20G.2a additive foundation.
+   */
+  source_conversion_key: unknown;
+  /**
+   * Phase 20G.2a additive foundation.
+   */
+  validation_status: unknown;
+  /**
+   * Phase 20G.2a additive foundation.
+   */
+  settlement_status: unknown;
+  /**
+   * Phase 20G.2a additive foundation.
+   */
+  ingestion_event_id: unknown;
 }
 
 const conversionStatusSet: ReadonlySet<string> = new Set(
   CONVERSION_STATUSES,
+);
+
+const validationStatusSet: ReadonlySet<string> = new Set(
+  VALIDATION_STATUSES,
+);
+
+const settlementStatusSet: ReadonlySet<string> = new Set(
+  SETTLEMENT_STATUSES,
 );
 
 const REQUIRED_IDENTIFIER_FIELDS = [
@@ -143,6 +171,68 @@ export class InvalidConversionRejectedReasonError extends Error {
       "Invalid conversion rejected_reason: expected null or a string.",
     );
     this.name = "InvalidConversionRejectedReasonError";
+    this.value = value;
+  }
+}
+
+/**
+ * Phase 20G.2a additive foundation.
+ */
+export class InvalidConversionValidationStatusError extends Error {
+  readonly value: unknown;
+
+  constructor(value: unknown) {
+    super(
+      "Invalid conversion validation_status: " +
+        JSON.stringify(value),
+    );
+    this.name = "InvalidConversionValidationStatusError";
+    this.value = value;
+  }
+}
+
+/**
+ * Phase 20G.2a additive foundation.
+ */
+export class InvalidConversionSettlementStatusError extends Error {
+  readonly value: unknown;
+
+  constructor(value: unknown) {
+    super(
+      "Invalid conversion settlement_status: " +
+        JSON.stringify(value),
+    );
+    this.name = "InvalidConversionSettlementStatusError";
+    this.value = value;
+  }
+}
+
+/**
+ * Phase 20G.2a additive foundation.
+ */
+export class InvalidConversionSourceKeyError extends Error {
+  readonly value: unknown;
+
+  constructor(value: unknown) {
+    super(
+      "Invalid conversion source_conversion_key: expected null or a 64-char lowercase hex SHA-256 digest.",
+    );
+    this.name = "InvalidConversionSourceKeyError";
+    this.value = value;
+  }
+}
+
+/**
+ * Phase 20G.2a additive foundation.
+ */
+export class InvalidConversionIngestionEventIdError extends Error {
+  readonly value: unknown;
+
+  constructor(value: unknown) {
+    super(
+      "Invalid conversion ingestion_event_id: expected null or a canonical UUID string.",
+    );
+    this.name = "InvalidConversionIngestionEventIdError";
     this.value = value;
   }
 }
@@ -340,6 +430,127 @@ function buildMoney(amount: number): Money {
 }
 
 /**
+ * Type guard that confirms a runtime string belongs to the canonical
+ * validation lifecycle without an unchecked cast.
+ */
+function isValidationStatus(
+  value: unknown,
+): value is ValidationStatus {
+  return typeof value === "string" && validationStatusSet.has(value);
+}
+
+/**
+ * Type guard that confirms a runtime string belongs to the canonical
+ * settlement lifecycle without an unchecked cast.
+ */
+function isSettlementStatus(
+  value: unknown,
+): value is SettlementStatus {
+  return typeof value === "string" && settlementStatusSet.has(value);
+}
+
+/**
+ * Validate and return the validation status, accepting `null` for legacy
+ * rows. Throws `InvalidConversionValidationStatusError` for non-null
+ * values that are not in the canonical lifecycle.
+ */
+function parseOptionalValidationStatus(
+  value: unknown,
+): ValidationStatus | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (!isValidationStatus(value)) {
+    throw new InvalidConversionValidationStatusError(value);
+  }
+
+  return value;
+}
+
+/**
+ * Validate and return the settlement status, accepting `null` for legacy
+ * rows. Throws `InvalidConversionSettlementStatusError` for non-null
+ * values that are not in the canonical lifecycle.
+ */
+function parseOptionalSettlementStatus(
+  value: unknown,
+): SettlementStatus | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (!isSettlementStatus(value)) {
+    throw new InvalidConversionSettlementStatusError(value);
+  }
+
+  return value;
+}
+
+/**
+ * Shape contract for `source_conversion_key`: deterministic SHA-256 hex
+ * digest, lowercase, exactly 64 characters.
+ */
+const SOURCE_CONVERSION_KEY_PATTERN = /^[a-f0-9]{64}$/;
+
+/**
+ * Shape contract for `ingestion_event_id`: canonical 8-4-4-4-12 UUID.
+ */
+const INGESTION_EVENT_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/**
+ * Validate the optional `source_conversion_key` column. Accepts `null`
+ * for legacy rows and a 64-char lowercase hex SHA-256 digest otherwise.
+ */
+function parseOptionalSourceConversionKey(
+  value: unknown,
+): string | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new InvalidConversionSourceKeyError(value);
+  }
+
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0 || !SOURCE_CONVERSION_KEY_PATTERN.test(trimmed)) {
+    throw new InvalidConversionSourceKeyError(value);
+  }
+
+  return trimmed;
+}
+
+/**
+ * Validate the optional `ingestion_event_id` column. Accepts `null` for
+ * legacy rows and a canonical UUID string otherwise.
+ */
+function parseOptionalIngestionEventId(
+  value: unknown,
+): string | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw new InvalidConversionIngestionEventIdError(value);
+  }
+
+  const trimmed = value.trim();
+
+  if (
+    trimmed.length === 0 ||
+    !INGESTION_EVENT_ID_PATTERN.test(trimmed)
+  ) {
+    throw new InvalidConversionIngestionEventIdError(value);
+  }
+
+  return trimmed;
+}
+
+/**
  * Map a raw conversions row coming back from Supabase into the domain
  * Conversion shape. Throws on any database value that violates the
  * canonical conversion contract rather than silently coercing it.
@@ -349,7 +560,7 @@ export function mapConversionRow(row: ConversionDatabaseRow): Conversion {
     assertRequiredIdentifier(row[fieldName], fieldName);
   }
 
-  return {
+  const mapped: Conversion = {
     id: row.id as Conversion["id"],
     orderId: row.external_order_id as Conversion["orderId"],
     publisherId: row.publisher_id as Conversion["publisherId"],
@@ -395,4 +606,34 @@ export function mapConversionRow(row: ConversionDatabaseRow): Conversion {
     ),
     rejectedReason: parseConversionRejectedReason(row.rejected_reason),
   };
+
+  const sourceKey = parseOptionalSourceConversionKey(
+    row.source_conversion_key,
+  );
+  if (sourceKey !== undefined) {
+    mapped.sourceConversionKey = sourceKey;
+  }
+
+  const validation = parseOptionalValidationStatus(
+    row.validation_status,
+  );
+  if (validation !== undefined) {
+    mapped.validationStatus = validation;
+  }
+
+  const settlement = parseOptionalSettlementStatus(
+    row.settlement_status,
+  );
+  if (settlement !== undefined) {
+    mapped.settlementStatus = settlement;
+  }
+
+  const ingestionEventId = parseOptionalIngestionEventId(
+    row.ingestion_event_id,
+  );
+  if (ingestionEventId !== undefined) {
+    mapped.ingestionEventId = ingestionEventId;
+  }
+
+  return mapped;
 }

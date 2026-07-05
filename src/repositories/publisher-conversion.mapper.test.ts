@@ -18,10 +18,14 @@ import { CONVERSION_STATUSES } from "@/types/affiliate";
 
 import {
   InvalidConversionIdentifierError,
+  InvalidConversionIngestionEventIdError,
   InvalidConversionMoneyError,
   InvalidConversionRejectedReasonError,
+  InvalidConversionSettlementStatusError,
+  InvalidConversionSourceKeyError,
   InvalidConversionStatusError,
   InvalidConversionTimestampError,
+  InvalidConversionValidationStatusError,
   mapConversionRow,
   parseConversionMoneyAmount,
   parseConversionRejectedReason,
@@ -54,6 +58,10 @@ function buildBaseRow(
     paid_at: null,
     rejected_at: null,
     rejected_reason: null,
+    source_conversion_key: null,
+    validation_status: null,
+    settlement_status: null,
+    ingestion_event_id: null,
     ...overrides,
   };
 }
@@ -686,4 +694,251 @@ test("InvalidConversionTimestampError does not treat null occurred_at as an iden
     assert.ok(!(err instanceof InvalidConversionIdentifierError));
     assert.ok(err instanceof InvalidConversionTimestampError);
   }
+});
+
+// ---------------------------------------------------------------------------
+// Phase 20G.2a additive foundation: optional split-status + ingestion mapping
+// ---------------------------------------------------------------------------
+
+test("mapConversionRow returns a base Conversion when all new optional columns are null (legacy shape)", () => {
+  const mapped = mapConversionRow(buildBaseRow());
+  assert.equal(mapped.status, "pending");
+  assert.equal(mapped.sourceConversionKey, undefined);
+  assert.equal(mapped.validationStatus, undefined);
+  assert.equal(mapped.settlementStatus, undefined);
+  assert.equal(mapped.ingestionEventId, undefined);
+});
+
+test("mapConversionRow maps the additive source_conversion_key when present", () => {
+  const mapped = mapConversionRow(
+    buildBaseRow({
+      source_conversion_key:
+        "1111111111111111111111111111111111111111111111111111111111111111",
+    }),
+  );
+  assert.equal(
+    mapped.sourceConversionKey,
+    "1111111111111111111111111111111111111111111111111111111111111111",
+  );
+});
+
+test("mapConversionRow maps the additive validation_status when present", () => {
+  const mapped = mapConversionRow(
+    buildBaseRow({ validation_status: "recorded" }),
+  );
+  assert.equal(mapped.validationStatus, "recorded");
+});
+
+test("mapConversionRow maps the additive settlement_status when present", () => {
+  const mapped = mapConversionRow(
+    buildBaseRow({ settlement_status: "not_payable" }),
+  );
+  assert.equal(mapped.settlementStatus, "not_payable");
+});
+
+test("mapConversionRow maps the additive ingestion_event_id when present", () => {
+  const mapped = mapConversionRow(
+    buildBaseRow({
+      ingestion_event_id:
+        "11111111-1111-4111-8111-111111111111",
+    }),
+  );
+  assert.equal(
+    mapped.ingestionEventId,
+    "11111111-1111-4111-8111-111111111111",
+  );
+});
+
+test("mapConversionRow trims surrounding whitespace on source_conversion_key", () => {
+  const mapped = mapConversionRow(
+    buildBaseRow({
+      source_conversion_key:
+        "  1111111111111111111111111111111111111111111111111111111111111111  ",
+    }),
+  );
+  assert.equal(
+    mapped.sourceConversionKey,
+    "1111111111111111111111111111111111111111111111111111111111111111",
+  );
+});
+
+test("mapConversionRow rejects an empty source_conversion_key", () => {
+  assert.throws(
+    () =>
+      mapConversionRow(
+        buildBaseRow({ source_conversion_key: "" }),
+      ),
+    InvalidConversionSourceKeyError,
+  );
+  assert.throws(
+    () =>
+      mapConversionRow(
+        buildBaseRow({ source_conversion_key: "   " }),
+      ),
+    InvalidConversionSourceKeyError,
+  );
+});
+
+test("mapConversionRow rejects a non-string source_conversion_key", () => {
+  assert.throws(
+    () =>
+      mapConversionRow(
+        buildBaseRow({
+          source_conversion_key: 42 as unknown,
+        }),
+      ),
+    InvalidConversionSourceKeyError,
+  );
+});
+
+test("mapConversionRow rejects a malformed non-empty source_conversion_key", () => {
+  // Each entry is non-empty, trimmed, but not a 64-char lowercase hex digest.
+  const malformed = [
+    "abc",
+    "NOT_HEX",
+    "111",
+    "111111111111111111111111111111111111111111111111111111111111111G",
+    "111111111111111111111111111111111111111111111111111111111111111", // 63 chars
+    "11111111111111111111111111111111111111111111111111111111111111111", // 65 chars
+    "11111111111111111111111111111111111111111111111111111111111111FF",
+  ];
+  for (const value of malformed) {
+    assert.throws(
+      () =>
+        mapConversionRow(
+          buildBaseRow({ source_conversion_key: value }),
+        ),
+      InvalidConversionSourceKeyError,
+    );
+  }
+});
+
+test("mapConversionRow rejects an unknown validation_status", () => {
+  assert.throws(
+    () =>
+      mapConversionRow(
+        buildBaseRow({ validation_status: "bogus" }),
+      ),
+    InvalidConversionValidationStatusError,
+  );
+});
+
+test("mapConversionRow rejects a non-string validation_status", () => {
+  assert.throws(
+    () =>
+      mapConversionRow(
+        buildBaseRow({ validation_status: 1 as unknown }),
+      ),
+    InvalidConversionValidationStatusError,
+  );
+});
+
+test("mapConversionRow rejects an unknown settlement_status", () => {
+  assert.throws(
+    () =>
+      mapConversionRow(
+        buildBaseRow({ settlement_status: "bogus" }),
+      ),
+    InvalidConversionSettlementStatusError,
+  );
+});
+
+test("mapConversionRow rejects a non-string settlement_status", () => {
+  assert.throws(
+    () =>
+      mapConversionRow(
+        buildBaseRow({ settlement_status: 1 as unknown }),
+      ),
+    InvalidConversionSettlementStatusError,
+  );
+});
+
+test("mapConversionRow accepts every canonical validation_status", () => {
+  for (const validationStatus of [
+    "recorded",
+    "reconciling",
+    "approved",
+    "rejected",
+    "reversed",
+  ] as const) {
+    const mapped = mapConversionRow(
+      buildBaseRow({ validation_status: validationStatus }),
+    );
+    assert.equal(mapped.validationStatus, validationStatus);
+  }
+});
+
+test("mapConversionRow accepts every canonical settlement_status", () => {
+  for (const settlementStatus of [
+    "not_payable",
+    "payable",
+    "paid",
+  ] as const) {
+    const mapped = mapConversionRow(
+      buildBaseRow({ settlement_status: settlementStatus }),
+    );
+    assert.equal(mapped.settlementStatus, settlementStatus);
+  }
+});
+
+test("mapConversionRow rejects an empty ingestion_event_id", () => {
+  assert.throws(
+    () =>
+      mapConversionRow(
+        buildBaseRow({ ingestion_event_id: "" }),
+      ),
+    InvalidConversionIngestionEventIdError,
+  );
+  assert.throws(
+    () =>
+      mapConversionRow(
+        buildBaseRow({ ingestion_event_id: "   " }),
+      ),
+    InvalidConversionIngestionEventIdError,
+  );
+});
+
+test("mapConversionRow rejects a non-string ingestion_event_id", () => {
+  assert.throws(
+    () =>
+      mapConversionRow(
+        buildBaseRow({
+          ingestion_event_id: 42 as unknown,
+        }),
+      ),
+    InvalidConversionIngestionEventIdError,
+  );
+});
+
+test("mapConversionRow rejects a malformed non-empty ingestion_event_id", () => {
+  const malformed = [
+    "not-a-uuid",
+    "11111111-1111-1111-1111-11111111111Z",
+    "11111111111111111111111111111111",
+    "11111111-1111-1111-1111",
+    "G1111111-1111-1111-1111-111111111111",
+    "11111111-1111-1111-1111-1111111111111",
+  ];
+  for (const value of malformed) {
+    assert.throws(
+      () =>
+        mapConversionRow(
+          buildBaseRow({ ingestion_event_id: value }),
+        ),
+      InvalidConversionIngestionEventIdError,
+    );
+  }
+});
+
+test("mapConversionRow trims surrounding whitespace on ingestion_event_id", () => {
+  const mapped = mapConversionRow(
+    buildBaseRow({
+      ingestion_event_id:
+        "  11111111-1111-4111-8111-111111111111  ",
+    }),
+  );
+  assert.equal(
+    mapped.ingestionEventId,
+    "11111111-1111-4111-8111-111111111111",
+  );
 });
