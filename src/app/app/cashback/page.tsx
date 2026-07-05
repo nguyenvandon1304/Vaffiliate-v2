@@ -1,6 +1,7 @@
 import AppShell from "@/components/layout/AppShell";
 import AppSection from "@/components/layout/AppSection";
 import PageHeader from "@/components/layout/PageHeader";
+import ShopeeCashbackEntrySteps from "@/features/cashback/ShopeeCashbackEntrySteps";
 import ShopeeCashbackPreviewForm from "@/features/cashback/ShopeeCashbackPreviewForm";
 import ShopeeCashbackTrustInstructions from "@/features/cashback/ShopeeCashbackTrustInstructions";
 import CashbackFilters from "@/features/cashback/CashbackFilters";
@@ -22,10 +23,15 @@ const supportedPlatforms: CashbackPlatformName[] = ["Shopee", "TikTok Shop"];
 // preview workflow until those phases ship their own entry pages.
 const entrySupportedPlatforms: CashbackPlatformName[] = ["Shopee"];
 
-const ENTRY_HERO_EYEBROW = "Mua sắm hoàn tiền Shopee";
-const ENTRY_HERO_TITLE = "Dán link Shopee để kiểm tra hoàn tiền";
+// Phase 20H.3e -- polished hero copy. The framing intentionally says
+// "hoa hong Shopee" rather than "gia tri san pham" so the buyer does
+// not read the 60% figure as a guarantee that Vaffiliate refunds 60%
+// of the product price. The hard math is in
+// `ShopeeCashbackPreviewForm` and `ShopeeCashbackTrustInstructions`.
+const ENTRY_HERO_EYEBROW = "Mua s\u1eafm ho\u00e0n ti\u1ec1n Shopee";
+const ENTRY_HERO_TITLE = "Ho\u00e0n l\u1ea1i \u0111\u1ebfn 60% hoa h\u1ed3ng Shopee";
 const ENTRY_HERO_DESCRIPTION =
-  "Dán link sản phẩm Shopee gốc, Vaffiliate lấy ảnh, tên, giá và mức hoàn tiền dự kiến. Mua hàng qua link hoàn tiền của Vaffiliate để nhận hoàn tiền sau khi đơn hàng được Shopee đối soát và ghi nhận.";
+  "D\u00e1n link s\u1ea3n ph\u1ea9m Shopee g\u1ed1c \u2014 Vaffiliate l\u1ea5y \u1ea3nh, t\u00ean, gi\u00e1 v\u00e0 m\u1ee9c ho\u00e0n ti\u1ec1n d\u1ef1 ki\u1ebfn theo hoa h\u1ed3ng Shopee. Mua qua link ho\u00e0n ti\u1ec1n c\u1ee7a Vaffiliate \u0111\u1ec3 nh\u1eadn ho\u00e0n ti\u1ec1n khi Shopee \u0111\u1ed1i so\u00e1t xong.";
 
 function parseAmount(amount: string): number {
   return Number(amount.replace(/[^\d]/g, ""));
@@ -62,20 +68,23 @@ export default async function CashbackPage() {
     .reduce((sum, item) => sum + parseAmount(item.amount), 0);
 
   const stats: CashbackStat[] = [
-    { label: "Tiền hoàn khả dụng", value: formatVnd(available) },
-    { label: "Tiền hoàn Shopee", value: formatVnd(shopeeTotal) },
-    { label: "Tiền hoàn TikTok Shop", value: formatVnd(tiktokTotal) },
+    { label: "Ti\u1ec1n ho\u00e0n kh\u1ea3 d\u1ee5ng", value: formatVnd(available) },
+    { label: "Ti\u1ec1n ho\u00e0n Shopee", value: formatVnd(shopeeTotal) },
+    { label: "Ti\u1ec1n ho\u00e0n TikTok Shop", value: formatVnd(tiktokTotal) },
   ];
 
   const platformsInUse = supportedPlatforms.filter((platform) =>
     supportedHistory.some((item) => item.platform === platform)
   );
 
-  const filters = ["Tất cả", ...platformsInUse];
+  const filters = ["T\u1ea5t c\u1ea3", ...platformsInUse];
 
   const desktopContent = (
     <div className="space-y-6">
-      <section className="surface-card overflow-hidden bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-6">
+      <section
+        data-testid="shopee-cashback-entry-hero"
+        className="surface-card overflow-hidden bg-[linear-gradient(180deg,rgba(255,252,249,0.92),rgba(248,238,231,0.96))] p-6"
+      >
         <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--brand-strong)]">
           {ENTRY_HERO_EYEBROW}
         </p>
@@ -101,6 +110,8 @@ export default async function CashbackPage() {
       </section>
 
       <CashbackStats stats={stats} />
+
+      <ShopeeCashbackEntrySteps />
 
       <ShopeeCashbackPreviewForm isAuthenticated={isAuthenticated} />
 
@@ -147,6 +158,10 @@ export default async function CashbackPage() {
 
       <AppSection>
         <CashbackStats stats={stats} />
+      </AppSection>
+
+      <AppSection>
+        <ShopeeCashbackEntrySteps />
       </AppSection>
 
       <AppSection>
