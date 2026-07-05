@@ -1,5 +1,7 @@
 import "server-only";
 
+import { and, desc, eq, gte } from "drizzle-orm";
+
 import { db } from "@/db/client";
 import { shopeePurchaseIntents } from "@/db/schema";
 
@@ -44,6 +46,21 @@ export class ShopeePurchaseIntentInsertError extends Error {
     );
     this.name = "ShopeePurchaseIntentInsertError";
   }
+}
+
+/**
+ * Best-effort, non-blocking correlation result returned by
+ * `findRecentRedirectPreparedIntentAsync`. The route uses this only for
+ * debug logging — it never blocks the redirect on the lookup.
+ */
+export interface CorrelatedShopeePurchaseIntent {
+  id: string;
+  publisherId: string;
+  trackingLinkId: string;
+  networkSubId: string;
+  shortCode: string;
+  createdAt: Date;
+  redirectPreparedAt: Date;
 }
 
 export interface PersistedShopeePurchaseIntent {
@@ -169,3 +186,84 @@ export async function persistShopeePurchaseIntentAsync(
  * and persist in one call.
  */
 export { buildShopeePurchaseIntentPayload };
+
+/**
+ * Default correlation window for /go/<shortCode> -> purchase-intent
+ * matching. Thirty minutes is long enough to cover typical handoff
+ * latency (server action -> buyer click) without polluting the match
+ * with stale intents. Kept as a constant so it can be overridden in
+ * tests.
+ */
+export const DEFAULT_INTENT_CORRELATION_WINDOW_MS = 30 * 60 * 1000;
+
+/**
+ * Best-effort lookup of the most recent `redirect_prepared` Shopee
+ * purchase intent for `(publisherId, shortCode)` inside the correlation
+ * window. Used by Phase 20H.3c to log a debug-only correlation between
+ * the persisted click audit and the persisted intent — it does NOT
+ * block the redirect and it does NOT mutate any row.
+ *
+ * Contract:
+ *  - Returns `null` when no intent matches OR when the lookup itself
+ *    fails. Never throws. Legacy `/go/<shortCode>` links without a
+ *    matching intent must remain redirectable.
+ *  - The returned row is the freshest match by `createdAt desc`.
+ *  - The lookup reads only; it never writes.
+ *  - The route is expected to log the result, not surface it.
+ */
+export async function findRecentRedirectPreparedIntentAsync({
+  publisherId,
+  shortCode,
+  windowMs = DEFAULT_INTENT_CORRELATION_WINDOW_MS,
+  now = new Date(),
+}: {
+  publisherId: string;
+  shortCode: string;
+  windowMs?: number;
+  now?: Date;
+}): Promise<CorrelatedShopeePurchaseIntent | null> {
+  try {
+    if (!publisherId || !shortCode) return null;
+    if (!Number.isFinite(windowMs) || windowMs <= 0) return null;
+
+    const lowerBound = new Date(now.getTime() - windowMs);
+
+    const [matched] = await db
+      .select({
+        id: shopeePurchaseIntents.id,
+        publisherId: shopeePurchaseIntents.publisherId,
+        trackingLinkId: shopeePurchaseIntents.trackingLinkId,
+        networkSubId: shopeePurchaseIntents.networkSubId,
+        shortCode: shopeePurchaseIntents.shortCode,
+        createdAt: shopeePurchaseIntents.createdAt,
+        redirectPreparedAt: shopeePurchaseIntents.redirectPreparedAt,
+      })
+      .from(shopeePurchaseIntents)
+      .where(
+        and(
+          eq(shopeePurchaseIntents.publisherId, publisherId),
+          eq(shopeePurchaseIntents.shortCode, shortCode),
+          eq(shopeePurchaseIntents.status, "redirect_prepared"),
+          gte(shopeePurchaseIntents.createdAt, lowerBound),
+        ),
+      )
+      .orderBy(desc(shopeePurchaseIntents.createdAt))
+      .limit(1);
+
+    if (!matched) return null;
+    if (!matched.redirectPreparedAt) return null;
+
+    return {
+      id: matched.id,
+      publisherId: matched.publisherId,
+      trackingLinkId: matched.trackingLinkId,
+      networkSubId: matched.networkSubId,
+      shortCode: matched.shortCode,
+      createdAt: matched.createdAt,
+      redirectPreparedAt: matched.redirectPreparedAt,
+    };
+  } catch {
+    // Best-effort: never let the correlation lookup break a redirect.
+    return null;
+  }
+}
