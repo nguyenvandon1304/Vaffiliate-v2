@@ -1636,6 +1636,215 @@ export const cashbackPolicies = pgTable(
   ],
 ).enableRLS();
 
+// ─── Shopee buyer purchase intent (Phase 20H.3b) ─────────────────────────────
+//
+// One durable first-party record of a buyer's intent to start a Shopee
+// cashback handoff. Written by `initiateShopeePurchaseAction` BEFORE the
+// action returns `/go/<shortCode>` so the redirect is always backed by
+// an audit anchor Vaffiliate owns.
+//
+// Distinct from `tracking_links` (the affiliate-link record) and `clicks`
+// (the post-redirect audit row). This table only ever stores
+// server-derived data; nothing client-trusted lives here.
+
+export const shopeePurchaseIntents = pgTable(
+  "shopee_purchase_intents",
+  {
+    id: uuid("id")
+      .defaultRandom()
+      .primaryKey(),
+
+    publisherId: uuid("publisher_id")
+      .notNull()
+      .references(() => profiles.userId, {
+        onDelete: "cascade",
+      }),
+
+    trackingLinkId: uuid("tracking_link_id")
+      .notNull()
+      .references(() => trackingLinks.id, {
+        onDelete: "restrict",
+      }),
+
+    networkSubId: text("network_sub_id").notNull(),
+    shortCode: text("short_code").notNull(),
+
+    originalProductUrl: text("original_product_url").notNull(),
+    canonicalProductUrl: text("canonical_product_url").notNull(),
+    shopId: text("shop_id").notNull(),
+    itemId: text("item_id").notNull(),
+
+    campaignId: text("campaign_id"),
+    offerId: text("offer_id"),
+
+    affiliateUrl: text("affiliate_url").notNull(),
+
+    /**
+     * JSONB snapshot of the server-derived quote at intent time. Stored
+     * as opaque JSONB; never treated as a guarantee. Nullable when the
+     * user reached the CTA without a quote (e.g. metadata fallback).
+     */
+    quoteSnapshot: jsonb("quote_snapshot"),
+
+    /**
+     * Lifecycle of the handoff attempt:
+     *
+     *  - `created`            -- intent row inserted, redirect not yet
+     *                            prepared (reserved for future flows)
+     *  - `redirect_prepared`  -- intent row inserted AND /go/<shortCode>
+     *                            path handed back to the client
+     *  - `redirect_failed`    -- affiliate URL could not be built or
+     *                            verified; no redirect path returned
+     *  - `persistence_failed` -- intent row could not be inserted; no
+     *                            redirect path returned
+     */
+    status: text("status").notNull(),
+
+    failureReason: text("failure_reason"),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+
+    redirectPreparedAt: timestamp("redirect_prepared_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+  },
+  (table) => [
+    // Composite ownership FK: an intent row may only pair a publisher
+    // with one of their own tracking links. `tracking_links` already
+    // declares the composite unique key `tracking_links_id_publisher_unique`
+    // on (id, publisher_id), so this FK references that key and the DB
+    // rejects any insert where (tracking_link_id, publisher_id) does not
+    // match a real tracking_links row. Mirrors the
+    // `clicks_tracking_link_publisher_fk` pattern so Phase 20G.2a
+    // reconciliation can trust the (publisher, tracking_link) pair.
+    foreignKey({
+      columns: [
+        table.trackingLinkId,
+        table.publisherId,
+      ],
+      foreignColumns: [
+        trackingLinks.id,
+        trackingLinks.publisherId,
+      ],
+      name: "shopee_purchase_intents_tracking_link_publisher_fk",
+    }).onDelete("cascade"),
+
+    index("shopee_purchase_intents_publisher_created_idx").on(
+      table.publisherId,
+      table.createdAt,
+    ),
+
+    index("shopee_purchase_intents_tracking_link_idx").on(
+      table.trackingLinkId,
+    ),
+
+    index("shopee_purchase_intents_status_created_idx").on(
+      table.status,
+      table.createdAt,
+    ),
+
+    check(
+      "shopee_purchase_intents_status_check",
+      sql`${table.status} in (
+        'created',
+        'redirect_prepared',
+        'redirect_failed',
+        'persistence_failed'
+      )`,
+    ),
+
+    check(
+      "shopee_purchase_intents_network_sub_id_check",
+      sql`${table.networkSubId} ~ '^vaflnk[a-f0-9]{24}$'`,
+    ),
+
+    check(
+      "shopee_purchase_intents_short_code_check",
+      sql`${table.shortCode} ~ '^[A-Za-z0-9_-]{10,32}$'`,
+    ),
+
+    check(
+      "shopee_purchase_intents_canonical_product_url_check",
+      sql`${table.canonicalProductUrl} ~ '^https://shopee\.vn/product/[0-9]+/[0-9]+/?$'`,
+    ),
+
+    check(
+      "shopee_purchase_intents_affiliate_url_check",
+      sql`${table.affiliateUrl} ~ '^https://'`,
+    ),
+
+    check(
+      "shopee_purchase_intents_shop_id_check",
+      sql`${table.shopId} ~ '^[0-9]+$'`,
+    ),
+
+    check(
+      "shopee_purchase_intents_item_id_check",
+      sql`${table.itemId} ~ '^[0-9]+$'`,
+    ),
+
+    check(
+      "shopee_purchase_intents_classification_pair_check",
+      sql`
+        (
+          ${table.campaignId} is null
+          and ${table.offerId} is null
+        )
+        or
+        (
+          ${table.campaignId} is not null
+          and ${table.offerId} is not null
+        )
+      `,
+    ),
+
+    check(
+      "shopee_purchase_intents_redirect_prepared_at_check",
+      sql`
+        (
+          ${table.status} = 'redirect_prepared'
+          and ${table.redirectPreparedAt} is not null
+        )
+        or
+        (
+          ${table.status} <> 'redirect_prepared'
+          and ${table.redirectPreparedAt} is null
+        )
+      `,
+    ),
+
+    check(
+      "shopee_purchase_intents_failure_reason_check",
+      sql`
+        (
+          ${table.status} in ('redirect_failed', 'persistence_failed')
+          and ${table.failureReason} is not null
+          and char_length(trim(${table.failureReason})) > 0
+        )
+        or
+        (
+          ${table.status} in ('created', 'redirect_prepared')
+          and ${table.failureReason} is null
+        )
+      `,
+    ),
+
+    check(
+      "shopee_purchase_intents_quote_snapshot_object_check",
+      sql`
+        ${table.quoteSnapshot} is null
+        or jsonb_typeof(${table.quoteSnapshot}) = 'object'
+      `,
+    ),
+  ],
+).enableRLS();
+
 // ─── Inferred database row types ────────────────────────────────────────────
 
 export type ProfileRow = typeof profiles.$inferSelect;
@@ -1646,6 +1855,11 @@ export type NewPayoutAccountRow = typeof payoutAccounts.$inferInsert;
 
 export type TrackingLinkRow = typeof trackingLinks.$inferSelect;
 export type NewTrackingLinkRow = typeof trackingLinks.$inferInsert;
+
+export type ShopeePurchaseIntentRow =
+  typeof shopeePurchaseIntents.$inferSelect;
+export type NewShopeePurchaseIntentRow =
+  typeof shopeePurchaseIntents.$inferInsert;
 
 export type ClickRow = typeof clicks.$inferSelect;
 export type NewClickRow = typeof clicks.$inferInsert;

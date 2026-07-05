@@ -48,7 +48,7 @@
  * - `platform_profit    = 2000`
  */
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after } from "node:test";
 
 import postgres from "postgres";
 
@@ -832,7 +832,7 @@ test(
       try {
         await cleanupShopeeFixtures(admin);
       } finally {
-        await admin.end({ timeout: 1 });
+        await admin.end({ timeout: 5 });
       }
     }
   },
@@ -1001,8 +1001,71 @@ test(
       try {
         await cleanupShopeeFixtures(admin);
       } finally {
-        await admin.end({ timeout: 1 });
+        await admin.end({ timeout: 5 });
       }
     }
   },
 );
+
+/**
+ * Lifecycle: the dynamic `await import("@/repositories/shopee-conversion-promoter.repository")`
+ * inside the subtests above transitively loads `src/db/client.ts`, which
+ * lazily opens a singleton `postgres` client at module-load time and
+ * stashes it on `globalThis.__vaffiliatePostgresClient` so HMR / repeated
+ * imports in dev do not pile up connections. That client is never
+ * closed by the production code path -- production callers run
+ * continuously -- so without this `after()` hook the `node --test`
+ * runner would exit non-zero because an idle postgres socket keeps
+ * the event loop alive.
+ *
+ * The hook drains the singleton pool with a generous timeout and
+ * surfaces unexpected failures as a concise one-line `console.warn`
+ * so a future operator sees something went wrong, but tolerates the
+ * two known already-closed shapes (`Cannot use a pool after calling
+ * end` from a double-close, plain `Error` with `Illegal invocation`
+ * from a destroyed handle) without masking a passing suite.
+ *
+ * Known acceptable failures:
+ *   - `Cannot use a pool after calling end on the pool` (double-close)
+ *   - `Illegal invocation` (handle destroyed before close)
+ *
+ * Anything else is logged and re-thrown so the test runner exits
+ * non-zero instead of silently swallowing a real regression.
+ */
+after(async () => {
+  const candidate = (
+    globalThis as unknown as {
+      __vaffiliatePostgresClient?: {
+        end: (options?: { timeout?: number }) => Promise<void>;
+      };
+    }
+  ).__vaffiliatePostgresClient;
+
+  if (!candidate) {
+    return;
+  }
+
+  try {
+    await candidate.end({ timeout: 5 });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : String(error);
+
+    const isAlreadyClosed =
+      message.includes("Cannot use a pool after calling end") ||
+      message.includes("Illegal invocation");
+
+    if (isAlreadyClosed) {
+      // Tolerated: the singleton was already closed or its handle
+      // was destroyed before this hook ran. Nothing to do.
+      return;
+    }
+
+    console.warn(
+      `[shopee-conversion-promoter after()] unexpected error draining singleton postgres client: ${message}`,
+    );
+    // Re-throw so the test runner exits non-zero on truly
+    // unexpected failures, instead of silently masking them.
+    throw error;
+  }
+});

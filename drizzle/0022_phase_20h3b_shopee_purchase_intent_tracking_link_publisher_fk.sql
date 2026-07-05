@@ -1,0 +1,1 @@
+ALTER TABLE "shopee_purchase_intents" ADD CONSTRAINT "shopee_purchase_intents_tracking_link_publisher_fk" FOREIGN KEY ("tracking_link_id","publisher_id") REFERENCES "public"."tracking_links"("id","publisher_id") ON DELETE cascade ON UPDATE no action;
