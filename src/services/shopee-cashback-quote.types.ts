@@ -60,6 +60,31 @@ export interface ShopeeCashbackQuote {
   readonly estimatedCommissionRateBps: number | null;
 
   /**
+   * Phase 20H.3f (correction pass: API-first precedence) -- the
+   * source that supplied the network commission figure used to
+   * compute this quote.
+   *
+   *   - `"unikorn_api"` (the AUTHORITATIVE primary source) -- the
+   *     Unikorn Shopee Product Data API returned a validated
+   *     `productInfo.commission > 0`. `estimatedCommissionRateBps`
+   *     is `null` because the cashback is NOT derived from price ×
+   *     rate; the service builds the quote directly on
+   *     `commissionVnd`. The offer-selector + catalog/fixture path
+   *     is skipped entirely.
+   *   - `"shopee_affiliate"` -- the canonical catalog row with an
+   *     explicit `commissionRateBps` was used (Unikorn unavailable
+   *     for this product); `estimatedCommissionRateBps` is non-null
+   *     and the value was applied to the order amount.
+   *   - `"fixture"`              -- the dev/test commission rate
+   *                                 fixture supplied the rate (Unikorn
+   *                                 unavailable); same field
+   *                                 semantics as `"shopee_affiliate"`.
+   *
+   * This field is audit-only and is never rendered to the buyer.
+   */
+  readonly commissionSource: "shopee_affiliate" | "fixture" | "unikorn_api";
+
+  /**
    * Always `true`. The discriminator field documents that the
    * numbers are estimates -- actual settlement happens later in the
    * conversion pipeline.

@@ -8,18 +8,10 @@ import type {
   ShopeeProductPreviewMetadataView,
   ShopeeProductPreviewUnavailableQuote,
 } from "@/types/cashback";
-
-const FIXTURE_PRODUCT: ShopeeProductPreviewMetadataView = {
-  platform: "shopee",
-  productUrl:
-    "https://shopee.vn/product/1408027998/44812498433",
-  productName: "Sample Shopee product",
-  shopName: "Sample shop",
-  imageUrl: "https://placehold.co/600x600/png",
-  priceVnd: 161_500,
-  availability: "available",
-  fetchedAt: "2026-07-05T00:00:00.000Z",
-};
+import {
+  FIXTURE_AVAILABLE,
+  FIXTURE_PRODUCT,
+} from "./ShopeeProductPreviewCard.fixtures";
 
 const STUB_CTA: ReactNode = (
   <button type="button">Mua ngay nhận hoàn tiền</button>
@@ -28,17 +20,20 @@ const STUB_CTA: ReactNode = (
 function makeUnavailable(
   reason: ShopeeProductPreviewUnavailableQuote["reason"],
   message: string,
+  product: ShopeeProductPreviewMetadataView = FIXTURE_PRODUCT,
 ): ShopeeProductPreviewUnavailableQuote {
   return {
     status: "unavailable",
-    product: FIXTURE_PRODUCT,
+    product,
     reason,
     message,
   };
 }
 
+// ─── Phase 20H.3g: unavailable card body ──────────────────────────────
+
 test(
-  "Phase 20H.3d unavailable-quote card does NOT render the amount block",
+  "Phase 20H.3g unavailable-quote card does NOT render the cashback amount",
   () => {
     const html = renderToStaticMarkup(
       <ShopeeProductPreviewCardView
@@ -55,7 +50,7 @@ test(
 );
 
 test(
-  "Phase 20H.3d unavailable-quote card does NOT mention 60% anywhere",
+  "Phase 20H.3g unavailable-quote card does NOT mention 60% anywhere",
   () => {
     const html = renderToStaticMarkup(
       <ShopeeProductPreviewCardView
@@ -72,7 +67,7 @@ test(
 );
 
 test(
-  "Phase 20H.3d unavailable-quote card preserves the cashback-not-guaranteed copy",
+  "Phase 20H.3g unavailable-quote card preserves the cashback-not-guaranteed copy",
   () => {
     const html = renderToStaticMarkup(
       <ShopeeProductPreviewCardView
@@ -88,7 +83,46 @@ test(
 );
 
 test(
-  "Phase 20H.3d unavailable-quote card does NOT leak internal identifiers",
+  "Phase 20H.3g unavailable-quote card still renders the price row when product price exists",
+  () => {
+    const html = renderToStaticMarkup(
+      <ShopeeProductPreviewCardView
+        quote={makeUnavailable(
+          "no_active_offer",
+          "Hiện chưa có chương trình hoàn tiền Shopee đang hoạt động.",
+        )}
+        ctaSlot={STUB_CTA}
+      />,
+    );
+    // The product metadata must remain scannable so the buyer can
+    // compare the recognized price to other offers.
+    assert.match(html, /Giá tham khảo từ Shopee/);
+    assert.match(html, /161\.500\s*đ/);
+  },
+);
+
+test(
+  "Phase 20H.3g unavailable-quote card renders the safe unavailable copy alongside the price row",
+  () => {
+    const html = renderToStaticMarkup(
+      <ShopeeProductPreviewCardView
+        quote={makeUnavailable(
+          "eligibility_unknown",
+          "Đã nhận diện sản phẩm nhưng chưa thể xác định mức hoàn tiền.",
+        )}
+        ctaSlot={STUB_CTA}
+      />,
+    );
+    assert.match(html, /Đã nhận diện sản phẩm/);
+    assert.match(html, /Hoàn tiền không được đảm bảo/);
+    assert.match(html, /Giá tham khảo từ Shopee/);
+  },
+);
+
+// ─── Phase 20H.3g invariants: no leak, no literal u-escapes ────────────
+
+test(
+  "Phase 20H.3g unavailable-quote card does NOT leak internal identifiers",
   () => {
     const html = renderToStaticMarkup(
       <ShopeeProductPreviewCardView
@@ -119,7 +153,26 @@ test(
 );
 
 test(
-  "Phase 20H.3d unavailable-quote card still renders the product metadata + CTA",
+  "Phase 20H.3g unavailable-quote card does NOT render literal backslash-u escapes",
+  () => {
+    const html = renderToStaticMarkup(
+      <ShopeeProductPreviewCardView
+        quote={makeUnavailable(
+          "no_active_offer",
+          "Hiện chưa có chương trình hoàn tiền Shopee đang hoạt động.",
+        )}
+        ctaSlot={STUB_CTA}
+      />,
+    );
+    assert.ok(
+      !html.includes("\\u"),
+      `unavailable-quote card must not render literal backslash-u escapes; got: ${html.slice(0, 400)}`,
+    );
+  },
+);
+
+test(
+  "Phase 20H.3g unavailable-quote card still renders the product metadata + CTA",
   () => {
     const html = renderToStaticMarkup(
       <ShopeeProductPreviewCardView
@@ -136,5 +189,63 @@ test(
     assert.match(html, /Sample shop/);
     // The CTA is still rendered.
     assert.match(html, /Mua ngay nhận hoàn tiền/);
+  },
+);
+
+// ─── Phase 20H.3g missing-price safety ────────────────────────────────
+
+test(
+  "Phase 20H.3g unavailable-quote card omits the price row when price is missing/invalid",
+  () => {
+    const html = renderToStaticMarkup(
+      <ShopeeProductPreviewCardView
+        quote={makeUnavailable(
+          "no_active_offer",
+          "Hiện chưa có chương trình hoàn tiền Shopee đang hoạt động.",
+          {
+            ...FIXTURE_PRODUCT,
+            priceVnd: 0 as unknown as number,
+          },
+        )}
+        ctaSlot={STUB_CTA}
+      />,
+    );
+    // Price row must be absent -- the spec forbids "0 đ" as the
+    // formatted price value. We assert against the full token "0 đ"
+    // surrounded by HTML markup so we don't accidentally match the
+    // tail of an unrelated amount (e.g. "1.000.000 đ").
+    assert.ok(!html.includes("Giá tham khảo từ Shopee"));
+    assert.ok(
+      !/>\s*0\s*đ\s*</.test(html),
+      "formatted price must never render as '0 đ'",
+    );
+    assert.match(html, /Hoàn tiền không được đảm bảo/);
+    assert.match(html, /Mua ngay nhận hoàn tiền/);
+  },
+);
+
+test(
+  "Phase 20H.3g available-quote card never renders '0 đ', 'undefined', or 'NaN'",
+  () => {
+    // Defensive: even with malformed input the formatter must omit
+    // the price row and never leak unsafe strings into the markup.
+    const html = renderToStaticMarkup(
+      <ShopeeProductPreviewCardView
+        quote={{
+          ...FIXTURE_AVAILABLE,
+          product: {
+            ...FIXTURE_PRODUCT,
+            priceVnd: 0 as unknown as number,
+          },
+        }}
+        ctaSlot={STUB_CTA}
+      />,
+    );
+    assert.ok(
+      !/>\s*0\s*đ\s*</.test(html),
+      "formatted price must never render as '0 đ'",
+    );
+    assert.ok(!html.includes("undefined"));
+    assert.ok(!html.includes("NaN"));
   },
 );

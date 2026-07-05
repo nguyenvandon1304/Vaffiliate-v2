@@ -205,6 +205,161 @@ test(
       quote.estimatedNetworkCommission.amount,
       "cashback allocation invariant must hold",
     );
+
+    // Phase 20H.3f (correction pass: API-first precedence) -- the
+    // composition helper MUST accept the Unikorn provider as a
+    // production wiring slot so the dependency bundle can opt into
+    // API-first precedence. We pass `undefined` here to preserve the
+    // pre-API-first fixture-fallback behaviour that yields the
+    // canonical 19,380 đ figure.
+    assert.equal(
+      quote.commissionSource,
+      "fixture",
+      "without an injected Unikorn provider the fixture path is authoritative",
+    );
+  },
+);
+
+test(
+  "Phase 20H.3f (correction pass) production composition wires the Unikorn provider slot and API-first precedence wins over the fixture path",
+  async () => {
+    const svc = await loadService();
+
+    // The production dependency helper MUST forward any injected
+    // Unikorn provider onto the resolved dependency bundle so the
+    // service can short-circuit the fixture path. We assert this by
+    // composing a bundle with a Unikorn provider that returns a
+    // commission value INCOMPATIBLE with the fixture's 20% rate;
+    // the API-first precedence must override the fixture result.
+    const UNIKORN_COMMISSION = 21_996;
+    const EXPECTED_BUYER_CASHBACK = 13_197;
+    const EXPECTED_PLATFORM_PROFIT = 8_799;
+
+    let unikornCalls = 0;
+    const unikornProvider: import("@/lib/shopee/product-metadata/unikorn-commission-client").ShopeeUnikornCommissionProvider =
+      async () => {
+        unikornCalls += 1;
+        return { commissionVnd: UNIKORN_COMMISSION };
+      };
+
+    const deps = buildProductionShopeeProductPreviewDependencies({
+      resolveUrl: async () => makeResolvedIdentity(),
+      metadataProvider: {
+        async getProduct() {
+          return makeResolvedProduct(CANONICAL_PRICE_VND);
+        },
+      },
+      offerSelector: createShopeeOfferSelector(
+        makeProductionShapeRepo(CANONICAL_CASHBACK_SHARE_BPS),
+        { lookupFixtureCommissionRateBps: lookupDevelopmentShopeeCommissionRateBps },
+      ),
+      lookupFixtureCommissionRateBps: lookupDevelopmentShopeeCommissionRateBps,
+      unikornCommissionProvider: unikornProvider,
+      now: () => new Date("2026-07-06T00:00:00.000Z"),
+    });
+
+    // The dependency bundle MUST surface the Unikorn provider --
+    // this proves the production wiring slot is plumbed end-to-end.
+    assert.equal(
+      typeof deps.unikornCommissionProvider,
+      "function",
+      "production composition helper must expose unikornCommissionProvider",
+    );
+
+    const result = await svc.resolveShopeeProductPreviewWithDeps(
+      { productUrl: FIXTURE_URL },
+      deps,
+    );
+
+    assert.equal(result.ok, true);
+    if (!result.ok) throw new Error("unreachable");
+    assert.equal(result.quote.status, "available");
+    if (result.quote.status !== "available") throw new Error("unreachable");
+
+    const quote = result.quote.value;
+
+    // API-first precedence: the Unikorn commission MUST override the
+    // fixture's 20% rate (which would have yielded 19,380 đ for the
+    // canonical product). The fixture path MUST NOT have been used.
+    assert.equal(unikornCalls, 1);
+    assert.equal(quote.commissionSource, "unikorn_api");
+    assert.equal(quote.estimatedCommissionRateBps, null);
+    assert.equal(quote.estimatedNetworkCommission.amount, UNIKORN_COMMISSION);
+    assert.equal(quote.estimatedUserCashback.amount, EXPECTED_BUYER_CASHBACK);
+    assert.equal(
+      quote.estimatedPlatformProfit.amount,
+      EXPECTED_PLATFORM_PROFIT,
+    );
+    // Invariant: 13,197 + 8,799 === 21,996
+    assert.equal(
+      quote.estimatedUserCashback.amount +
+        quote.estimatedPlatformProfit.amount,
+      quote.estimatedNetworkCommission.amount,
+    );
+  },
+);
+
+test(
+  "Phase 20H.3f (correction pass) Unikorn provider throwing falls through to the canonical fixture (19,380 đ)",
+  async () => {
+    const svc = await loadService();
+
+    // Phase 20H.3f contract: when the Unikorn provider is wired but
+    // fails (transient outage, timeout, non-2xx), the service MUST
+    // fall back to the offer-selector + fixture path so the canonical
+    // product still produces the documented 19,380 đ figure.
+    const failingProvider: import("@/lib/shopee/product-metadata/unikorn-commission-client").ShopeeUnikornCommissionProvider =
+      async () => {
+        throw new Error("ECONNRESET -- simulated Unikorn network failure");
+      };
+
+    const deps = buildProductionShopeeProductPreviewDependencies({
+      resolveUrl: async () => makeResolvedIdentity(),
+      metadataProvider: {
+        async getProduct() {
+          return makeResolvedProduct(CANONICAL_PRICE_VND);
+        },
+      },
+      offerSelector: createShopeeOfferSelector(
+        makeProductionShapeRepo(CANONICAL_CASHBACK_SHARE_BPS),
+        { lookupFixtureCommissionRateBps: lookupDevelopmentShopeeCommissionRateBps },
+      ),
+      lookupFixtureCommissionRateBps: lookupDevelopmentShopeeCommissionRateBps,
+      unikornCommissionProvider: failingProvider,
+      now: () => new Date("2026-07-06T00:00:00.000Z"),
+    });
+
+    const result = await svc.resolveShopeeProductPreviewWithDeps(
+      { productUrl: FIXTURE_URL },
+      deps,
+    );
+
+    assert.equal(result.ok, true);
+    if (!result.ok) throw new Error("unreachable");
+    assert.equal(result.quote.status, "available");
+    if (result.quote.status !== "available") throw new Error("unreachable");
+
+    const quote = result.quote.value;
+
+    // The fixture path's 20% rate must be applied, yielding the
+    // documented 19,380 đ buyer cashback for the canonical product.
+    assert.equal(quote.commissionSource, "fixture");
+    assert.equal(
+      quote.estimatedCommissionRateBps,
+      CANONICAL_COMMISSION_RATE_BPS,
+    );
+    assert.equal(
+      quote.estimatedUserCashback.amount,
+      CANONICAL_USER_CASHBACK_VND,
+    );
+    assert.equal(
+      quote.estimatedNetworkCommission.amount,
+      CANONICAL_NETWORK_COMMISSION_VND,
+    );
+    assert.equal(
+      quote.estimatedPlatformProfit.amount,
+      CANONICAL_PLATFORM_PROFIT_VND,
+    );
   },
 );
 

@@ -30,6 +30,9 @@ import type { Money } from "@/types/affiliate";
 import type { CampaignId, OfferId } from "@/types/ids";
 import type { ShopeeProductMetadataProvider } from "@/lib/shopee/product-metadata/types";
 import type {
+  ShopeeUnikornCommissionProvider,
+} from "@/lib/shopee/product-metadata/unikorn-commission-client";
+import type {
   ProductResolutionFailureCode,
   QuoteUnavailableReason,
   ShopeeCashbackQuote,
@@ -93,6 +96,32 @@ export interface ResolveShopeeDependencies {
    * Clock. Defaults to `() => new Date()` when omitted.
    */
   now?: () => Date;
+  /**
+   * Phase 20H.3f -- Unikorn Shopee Product Data API commission
+   * provider. The service consults the provider FIRST as the
+   * authoritative commission source whenever it is configured on the
+   * dependency bundle.
+   *
+   * Precedence order in the preview quote path:
+   *
+   *   1. Unikorn commission provider (`unikornCommissionProvider`)
+   *      when configured. A successful response (validated
+   *      `commissionVnd > 0`) produces an `available` quote directly
+   *      with `commissionSource = "unikorn_api"`, regardless of
+   *      whether the offer selector returns eligible.
+   *   2. The offer selector + catalog/fixture path, which is consulted
+   *      only when Unikorn is absent, fails, times out, or returns an
+   *      invalid commission value.
+   *
+   * The provider is never trusted with cashback math: it only
+   * supplies the validated `productInfo.commission` value, which the
+   * service feeds through the canonical cashback policy.
+   *
+   * Production wires the server-only Unikorn commission client.
+   * Tests may omit this field to exercise the offer-selector-only
+   * path (e.g. the canonical fixture regression test).
+   */
+  unikornCommissionProvider?: ShopeeUnikornCommissionProvider;
 }
 
 export interface ResolveShopeeContext {
@@ -226,6 +255,7 @@ export const resolveShopeeCashbackQuoteWithDeps = async (
     calculateAllocation:
       deps.calculateAllocation ?? calculateCashbackAllocation,
     offerSelector: pickOfferSelector(deps),
+    unikornCommissionProvider: deps.unikornCommissionProvider,
   });
 };
 
@@ -256,6 +286,7 @@ export const resolveShopeeProductPreviewWithDeps = async (
     calculateAllocation:
       deps.calculateAllocation ?? calculateCashbackAllocation,
     offerSelector: pickOfferSelector(deps),
+    unikornCommissionProvider: deps.unikornCommissionProvider,
     // Only the preview path catches selector/catalog exceptions and maps them
     // to eligibility_unknown. The strict quote path keeps its throw semantics.
     onSelectorError: (error: unknown) => {
@@ -312,6 +343,17 @@ interface BuildQuoteArgs {
   calculateAllocation: typeof calculateCashbackAllocation;
   offerSelector: ShopeeOfferSelector;
   /**
+   * Phase 20H.3f (API-first precedence) -- the Unikorn commission
+   * provider is consulted FIRST by the preview quote path whenever
+   * it is configured. A successful response short-circuits the rest
+   * of the quote pipeline; a missing provider, network failure,
+   * validation failure, or invalid commission value silently falls
+   * back to the offer-selector + catalog/fixture path. See
+   * {@link ResolveShopeeDependencies.unikornCommissionProvider} for
+   * the production wiring contract.
+   */
+  unikornCommissionProvider?: ShopeeUnikornCommissionProvider;
+  /**
    * Optional error handler for selector/catalog exceptions. When provided,
    * exceptions from `selectOffer` are caught and routed here instead of
    * propagating. This is used by the product-preview path to convert
@@ -345,6 +387,37 @@ type BuildQuoteResult =
 async function buildQuoteOrFailure(
   args: BuildQuoteArgs,
 ): Promise<BuildQuoteResult> {
+  // Phase 20H.3f (API-first precedence) -- try the Unikorn commission
+  // provider FIRST whenever it is configured. A successful response
+  // short-circuits the rest of the quote pipeline:
+  //
+  //   - if the provider returns a validated commissionVnd > 0, return
+  //     an `available` quote built directly on that value (NOT price ×
+  //     commissionRateBps), with `commissionSource = "unikorn_api"`;
+  //   - if the provider is absent, throws, times out, returns invalid
+  //     JSON, returns status != "success", is missing productInfo, is
+  //     missing commission, or returns commission <= 0 / negative /
+  //     fractional / non-safe-integer, the call returns `null` and we
+  //     fall through to the offer-selector + catalog/fixture path;
+  //   - the offer-selector path remains the authoritative source
+  //     whenever Unikorn cannot deliver a valid commission. The
+  //     selector can still return `eligible` (catalog/fixture), in
+  //     which case the existing math (`price × commissionRateBps`) is
+  //     preserved and `commissionSource` is set to `"shopee_affiliate"`
+  //     or `"fixture"` based on the offer selector's audit hint.
+  const unikornQuote = await tryUnikornCommission(
+    args.identity,
+    args.unikornCommissionProvider,
+  );
+  if (unikornQuote) {
+    return buildUnikornCommissionQuote(
+      unikornQuote,
+      args.product,
+      args.now,
+      args.calculateAllocation,
+    );
+  }
+
   let selection: import("./shopee-offer-selector").ShopeeOfferSelectionOutcome;
   try {
     selection = await args.offerSelector.selectOffer({
@@ -413,6 +486,14 @@ async function buildQuoteOrFailure(
   }
 
   const offer = selection.offer;
+
+  // Phase 20H.3f -- the offer selector advertises the source of the
+  // commission rate it used (`"catalog"` vs the dev/test `"fixture"`
+  // fallback). We surface that on the quote as an audit-only field so
+  // downstream reports can tell fixture-only quotes apart from real
+  // catalog rows without changing the math.
+  const commissionSource: ShopeeCashbackQuote["commissionSource"] =
+    offer.commissionRateSource === "fixture" ? "fixture" : "shopee_affiliate";
 
   const commissionRateBps = ((): number | null => {
     if (offer.commissionRateBps === null) {
@@ -511,6 +592,7 @@ async function buildQuoteOrFailure(
     estimatedPlatformProfit: toVnd(allocation.platformProfit),
     estimatedCommissionRateBps: commissionRateBps,
     cashbackShareBps: offer.cashbackShareBps,
+    commissionSource,
     isEstimate: true,
     calculatedAt: args.now().toISOString(),
   };
@@ -537,6 +619,190 @@ function validateCashbackShareBps(
     };
   }
   return null;
+}
+
+/**
+ * Phase 20H.3f (API-first precedence) -- consult the Unikorn
+ * commission provider as the PRIMARY source for the network
+ * commission.
+ *
+ * Returns the normalized quote on success. Returns `null` for ANY
+ * failure so the caller can fall through to the offer-selector +
+ * catalog/fixture path. The exhaustive failure list (silent here)
+ * includes:
+ *
+ *   - the provider is absent on the dependency bundle;
+ *   - the resolved identity has no `itemId` or `canonicalUrl` to
+ *     send to the API;
+ *   - the provider throws (network failure, timeout, non-2xx,
+ *     invalid JSON, content-type rejection, body too large, redirect);
+ *   - the normalized response is missing `productInfo.commission`,
+ *     has status != "success", or has an invalid commission
+ *     (zero, negative, fractional, non-safe-integer).
+ *
+ * No raw API error reaches the buyer UI: every failure is reduced
+ * to `null` here and the caller falls back to the offer-selector
+ * outcome.
+ */
+async function tryUnikornCommission(
+  identity: ShopeeProductIdentity,
+  provider: ShopeeUnikornCommissionProvider | undefined,
+): Promise<
+  import("@/lib/shopee/product-metadata/unikorn-commission-client").ShopeeUnikornCommissionQuote | null
+> {
+  if (!provider) {
+    return null;
+  }
+
+  const itemId =
+    typeof identity.itemId === "string" && identity.itemId.trim().length > 0
+      ? identity.itemId.trim()
+      : undefined;
+  const canonicalUrl =
+    typeof identity.canonicalUrl === "string" &&
+    identity.canonicalUrl.trim().length > 0
+      ? identity.canonicalUrl.trim()
+      : undefined;
+
+  if (!itemId && !canonicalUrl) {
+    return null;
+  }
+
+  try {
+    const quote = await provider({ itemId, canonicalUrl });
+    // Spec rule: zero commission is treated as "unavailable" so the
+    // UI keeps the safe copy rather than fabricating a 0đ figure.
+    if (!quote || quote.commissionVnd <= 0) {
+      return null;
+    }
+    // Defensive guard -- the pure client normalizes the response
+    // but the service treats the network commission as a Money-shaped
+    // integer, so reject anything that is not a non-negative safe
+    // integer. The exception is swallowed so the selector path
+    // remains the silent fallback.
+    if (
+      !Number.isFinite(quote.commissionVnd) ||
+      !Number.isInteger(quote.commissionVnd) ||
+      !Number.isSafeInteger(quote.commissionVnd)
+    ) {
+      return null;
+    }
+    return quote;
+  } catch {
+    // Phase 20H.3f contract: any provider failure is silent here.
+    // The offer-selector outcome is the authoritative fallback; the
+    // buyer only sees the safe unavailable copy surfaced by that
+    // branch.
+    return null;
+  }
+}
+
+/**
+ * Phase 20H.3f (API-first precedence) -- build a quote from a Unikorn
+ * commission value. This branch is the AUTHORITATIVE quote when the
+ * provider returns a valid commission, regardless of whether the
+ * offer selector would have returned eligible.
+ *
+ * Unlike the catalog path, this branch:
+ *
+ *   - uses `networkCommissionVnd = quote.commissionVnd` directly
+ *     (NOT price × commissionRateBps);
+ *   - records `commissionSource: "unikorn_api"` so audit logs know
+ *     the commission figure came from the third-party API;
+ *   - uses the canonical preview-only default `cashbackShareBps =
+ *     6000` (60%) because no cashback policy is associated with the
+ *     API-sourced commission. The constant is exported as the
+ *     preview-only default, so this remains a deliberate, named
+ *     choice;
+ *   - requires `cashbackShareBps` to be in `[0, 10000]`. When the
+ *     default falls outside that range we treat it as a policy
+ *     failure so the quote becomes unavailable rather than silently
+ *     fabricating;
+ *   - requires the resolved product metadata to have a usable price
+ *     so the quote shape (`estimatedOrderAmount`) stays consistent
+ *     with the catalog path.
+ */
+function buildUnikornCommissionQuote(
+  quote: import("@/lib/shopee/product-metadata/unikorn-commission-client").ShopeeUnikornCommissionQuote,
+  product: import("@/lib/shopee/product-metadata/types").ShopeeProductMetadata,
+  now: () => Date,
+  calculateAllocation: typeof calculateCashbackAllocation,
+): BuildQuoteResult {
+  const networkCommission = quote.commissionVnd;
+
+  // Sanity-validate the provider value even though the normalization
+  // layer should already enforce this. Defensive because the
+  // service treats the network commission as a Money-shaped integer.
+  if (
+    !Number.isFinite(networkCommission) ||
+    !Number.isInteger(networkCommission) ||
+    !Number.isSafeInteger(networkCommission) ||
+    networkCommission < 0
+  ) {
+    return {
+      ok: false,
+      category: "quote_unavailable",
+      reason: "commission_rate_unavailable",
+      message:
+        "Chưa xác định được mức hoa hồng cho sản phẩm này.",
+    };
+  }
+
+  // The 60/40 split always uses the canonical preview default on
+  // the Unikorn path because no cashback policy is associated with
+  // the API-sourced commission. The constant is exported as the
+  // preview-only default, so this remains a deliberate, named choice.
+  const cashbackShareBps: number = 6_000;
+
+  const policyFailure = validateCashbackShareBps(cashbackShareBps);
+  if (policyFailure !== null) {
+    return policyFailure;
+  }
+
+  const allocation = calculateAllocation({
+    networkCommission,
+    cashbackShareBps,
+  });
+
+  // Spec rule: when the policy's floor produces zero buyer cashback
+  // (i.e. commission too small to share at 60%), the UI keeps the
+  // safe unavailable copy rather than rendering 0 đ.
+  if (allocation.userCashback === 0) {
+    return {
+      ok: false,
+      category: "quote_unavailable",
+      reason: "commission_rate_unavailable",
+      message:
+        "Chưa xác định được mức hoa hồng cho sản phẩm này.",
+    };
+  }
+
+  const toVnd = (amount: number): Money => ({
+    amount,
+    currency: "VND",
+  });
+
+  const cashbackQuote: ShopeeCashbackQuote = {
+    product,
+    // Phase 20H.3f -- Unikorn-backed quotes don't have a catalog
+    // campaign/offer identity, so we surface neutral placeholder IDs
+    // that are NEVER rendered to the buyer UI. These values exist
+    // only because the type contract requires them and the existing
+    // downstream code paths expect a CampaignId/OfferId pair.
+    campaignId: "campaign:unikorn" as CampaignId,
+    offerId: "offer:unikorn" as OfferId,
+    estimatedOrderAmount: toVnd(product.price.amount),
+    estimatedNetworkCommission: toVnd(networkCommission),
+    estimatedUserCashback: toVnd(allocation.userCashback),
+    estimatedPlatformProfit: toVnd(allocation.platformProfit),
+    estimatedCommissionRateBps: null,
+    cashbackShareBps,
+    commissionSource: "unikorn_api",
+    isEstimate: true,
+    calculatedAt: now().toISOString(),
+  };
+
+  return { ok: true, quote: cashbackQuote };
 }
 
 function metadataFailureMessage(

@@ -36,6 +36,15 @@ export interface ShopeeOfferSelectorOffer {
    * Populated by the selector when returning `eligible`.
    */
   readonly hasPolicy?: boolean;
+  /**
+   * Phase 20H.3f -- audit-only provenance tag for `commissionRateBps`.
+   * `"catalog"` when the value came from a persisted affiliate catalog
+   * row. `"fixture"` when the value was synthesised by the identity-
+   * aware dev/test fixture lookup. Never rendered to buyers; the
+   * service copies it onto the quote as `commissionSource` for the
+   * same audit purpose.
+   */
+  readonly commissionRateSource?: "catalog" | "fixture";
 }
 
 export type ShopeeOfferSelectionOutcome =

@@ -3,39 +3,19 @@ import assert from "node:assert/strict";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import ShopeeProductPreviewCardView from "./ShopeeProductPreviewCardView";
-import type {
-  ShopeeProductPreviewAvailableQuote,
-  ShopeeProductPreviewMetadataView,
-} from "@/types/cashback";
-
-const FIXTURE_PRODUCT: ShopeeProductPreviewMetadataView = {
-  platform: "shopee",
-  productUrl:
-    "https://shopee.vn/product/1408027998/44812498433",
-  productName: "Sample Shopee product",
-  shopName: "Sample shop",
-  imageUrl: "https://placehold.co/600x600/png",
-  priceVnd: 161_500,
-  availability: "available",
-  fetchedAt: "2026-07-05T00:00:00.000Z",
-};
-
-const FIXTURE_AVAILABLE: ShopeeProductPreviewAvailableQuote = {
-  status: "available",
-  product: FIXTURE_PRODUCT,
-  cashbackShareBps: 6000,
-  commissionRateBps: 2000,
-  estimatedCashbackVnd: 19_380,
-  calculatedAt: "2026-07-05T00:00:00.000Z",
-  isEstimate: true,
-};
+import {
+  FIXTURE_AVAILABLE,
+  FIXTURE_PRODUCT,
+} from "./ShopeeProductPreviewCard.fixtures";
 
 const STUB_CTA = (
   <button type="button">Mua ngay nhận hoàn tiền</button>
 );
 
+// ─── Phase 20H.3g hierarchy: price row + cashback box + note + CTA ──────
+
 test(
-  "Phase 20H.3d available-quote card renders the canonical amount",
+  "Phase 20H.3g available-quote card renders the price row label 'Giá tham khảo từ Shopee'",
   () => {
     const html = renderToStaticMarkup(
       <ShopeeProductPreviewCardView
@@ -43,12 +23,25 @@ test(
         ctaSlot={STUB_CTA}
       />,
     );
-    assert.match(html, /19\.380\s*đ/);
+    assert.match(html, /Giá tham khảo từ Shopee/);
   },
 );
 
 test(
-  "Phase 20H.3d available-quote card renders the 'Hoàn tiền dự kiến' label",
+  "Phase 20H.3g available-quote card renders the formatted product price",
+  () => {
+    const html = renderToStaticMarkup(
+      <ShopeeProductPreviewCardView
+        quote={FIXTURE_AVAILABLE}
+        ctaSlot={STUB_CTA}
+      />,
+    );
+    assert.match(html, /161\.500\s*đ/);
+  },
+);
+
+test(
+  "Phase 20H.3g available-quote card renders the cashback label",
   () => {
     const html = renderToStaticMarkup(
       <ShopeeProductPreviewCardView
@@ -61,7 +54,20 @@ test(
 );
 
 test(
-  "Phase 20H.3d available-quote card renders the dynamic share copy from cashbackShareBps",
+  "Phase 20H.3g available-quote card renders the canonical cashback amount",
+  () => {
+    const html = renderToStaticMarkup(
+      <ShopeeProductPreviewCardView
+        quote={FIXTURE_AVAILABLE}
+        ctaSlot={STUB_CTA}
+      />,
+    );
+    assert.match(html, /19\.380\s*đ/);
+  },
+);
+
+test(
+  "Phase 20H.3g available-quote card renders the dynamic share copy from cashbackShareBps",
   () => {
     const html = renderToStaticMarkup(
       <ShopeeProductPreviewCardView
@@ -74,7 +80,7 @@ test(
 );
 
 test(
-  "Phase 20H.3d available-quote card reflects a different cashbackShareBps (45%)",
+  "Phase 20H.3g available-quote card reflects a different cashbackShareBps (45%)",
   () => {
     const html = renderToStaticMarkup(
       <ShopeeProductPreviewCardView
@@ -91,7 +97,7 @@ test(
 );
 
 test(
-  "Phase 20H.3d available-quote card shows the reconciliation note",
+  "Phase 20H.3g available-quote card shows the reconciliation note",
   () => {
     const html = renderToStaticMarkup(
       <ShopeeProductPreviewCardView
@@ -107,7 +113,7 @@ test(
 );
 
 test(
-  "Phase 20H.3d available-quote card does NOT imply 60% of the full product price",
+  "Phase 20H.3g available-quote card does NOT imply 60% of the full product price",
   () => {
     const html = renderToStaticMarkup(
       <ShopeeProductPreviewCardView
@@ -126,7 +132,7 @@ test(
 );
 
 test(
-  "Phase 20H.3d available-quote card keeps the CTA label",
+  "Phase 20H.3g available-quote card keeps the CTA label",
   () => {
     const html = renderToStaticMarkup(
       <ShopeeProductPreviewCardView
@@ -138,8 +144,10 @@ test(
   },
 );
 
+// ─── Phase 20H.3g ordering: price appears before cashback in the DOM ─────
+
 test(
-  "Phase 20H.3d available-quote card does NOT leak internal identifiers",
+  "Phase 20H.3g available-quote card renders the price row BEFORE the cashback label",
   () => {
     const html = renderToStaticMarkup(
       <ShopeeProductPreviewCardView
@@ -147,7 +155,78 @@ test(
         ctaSlot={STUB_CTA}
       />,
     );
-    // Internal identifiers must never appear in buyer-facing markup.
+    const priceIndex = html.indexOf("Giá tham khảo từ Shopee");
+    const cashbackIndex = html.indexOf("Hoàn tiền dự kiến");
+    assert.ok(
+      priceIndex >= 0 && cashbackIndex > priceIndex,
+      `price label must appear before cashback label; price=${priceIndex}, cashback=${cashbackIndex}`,
+    );
+  },
+);
+
+test(
+  "Phase 20H.3g available-quote card keeps the CTA AFTER the cashback block",
+  () => {
+    const html = renderToStaticMarkup(
+      <ShopeeProductPreviewCardView
+        quote={FIXTURE_AVAILABLE}
+        ctaSlot={STUB_CTA}
+      />,
+    );
+    const cashbackIndex = html.indexOf("Hoàn tiền dự kiến");
+    const ctaIndex = html.indexOf("Mua ngay nhận hoàn tiền");
+    assert.ok(
+      cashbackIndex >= 0 && ctaIndex > cashbackIndex,
+      `CTA must appear after the cashback block; cashback=${cashbackIndex}, cta=${ctaIndex}`,
+    );
+  },
+);
+
+// ─── Phase 20H.3g sold-badge: omitted when salesCount is unavailable ───
+
+test(
+  "Phase 20H.3g available-quote card omits the sold badge when salesCount is not provided",
+  () => {
+    const html = renderToStaticMarkup(
+      <ShopeeProductPreviewCardView
+        quote={FIXTURE_AVAILABLE}
+        ctaSlot={STUB_CTA}
+      />,
+    );
+    assert.ok(
+      !html.includes("Đã bán"),
+      "sold badge must not render when salesCount is unavailable",
+    );
+  },
+);
+
+test(
+  "Phase 20H.3g available-quote card renders the sold badge when salesCount is provided",
+  () => {
+    const html = renderToStaticMarkup(
+      <ShopeeProductPreviewCardView
+        quote={{
+          ...FIXTURE_AVAILABLE,
+          product: { ...FIXTURE_PRODUCT, salesCount: 1234 },
+        }}
+        ctaSlot={STUB_CTA}
+      />,
+    );
+    assert.match(html, /Đã bán 1\.234/);
+  },
+);
+
+// ─── Phase 20H.3g invariants: no leak, no literal u-escapes ────────────
+
+test(
+  "Phase 20H.3g available-quote card does NOT leak internal identifiers",
+  () => {
+    const html = renderToStaticMarkup(
+      <ShopeeProductPreviewCardView
+        quote={FIXTURE_AVAILABLE}
+        ctaSlot={STUB_CTA}
+      />,
+    );
     for (const forbidden of [
       "affiliateUrl",
       "networkSubId",
@@ -163,5 +242,21 @@ test(
         `available-quote card must not leak '${forbidden}'`,
       );
     }
+  },
+);
+
+test(
+  "Phase 20H.3g available-quote card does NOT render literal backslash-u escapes",
+  () => {
+    const html = renderToStaticMarkup(
+      <ShopeeProductPreviewCardView
+        quote={FIXTURE_AVAILABLE}
+        ctaSlot={STUB_CTA}
+      />,
+    );
+    assert.ok(
+      !html.includes("\\u"),
+      `available-quote card must not render literal backslash-u escapes; got: ${html.slice(0, 400)}`,
+    );
   },
 );
