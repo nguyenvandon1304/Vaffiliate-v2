@@ -82,12 +82,26 @@ export interface ShopeePurchaseIntentPayload {
  * serializable. The fields mirror the typed preview result so a
  * future audit query can answer "at intent time, what did the
  * preview show the buyer?" without re-fetching Shopee.
+ *
+ * Phase 20H.3d adds `commissionRateBps` as an additive nullable
+ * field so audit can reconstruct why the buyer saw the estimate
+ * they saw. Older rows with no `commissionRateBps` are tolerated
+ * by the JSONB-tolerant repository and validator; new persistence
+ * always writes a non-null `commissionRateBps` whenever
+ * `status === "available"`.
  */
 export interface ShopeePurchaseIntentQuoteSnapshot {
   status: "available" | "unavailable";
   cashbackShareBps: number | null;
   estimatedCashbackVnd: number | null;
   productPriceVnd: number | null;
+  /**
+   * Phase 20H.3d: Shopee commission rate captured at intent time.
+   * Always present for newly written `available` snapshots. May be
+   * `null` for `unavailable` snapshots or for historical rows
+   * persisted before this field existed.
+   */
+  commissionRateBps?: number | null;
   reason: string | null;
   message: string | null;
   capturedAt: string;
@@ -170,6 +184,19 @@ export function validateShopeePurchaseIntentPayload(
     if (q.capturedAt.trim().length === 0) {
       errors.push("quoteSnapshot.capturedAt must be a non-empty ISO string");
     }
+    if (q.commissionRateBps !== undefined && q.commissionRateBps !== null) {
+      if (
+        typeof q.commissionRateBps !== "number" ||
+        !Number.isInteger(q.commissionRateBps) ||
+        !Number.isSafeInteger(q.commissionRateBps) ||
+        q.commissionRateBps < 0 ||
+        q.commissionRateBps > 10_000
+      ) {
+        errors.push(
+          "quoteSnapshot.commissionRateBps must be null or an integer in [0, 10000]",
+        );
+      }
+    }
   }
 
   return { ok: errors.length === 0, errors };
@@ -235,12 +262,18 @@ export type ShopeePurchaseIntentPersistenceOutcome =
  * the preview did not produce a usable quote (e.g. the user reached
  * the CTA without a quote -- still allowed). The repository stores
  * `null` for `quote_snapshot` in that case.
+ *
+ * Phase 20H.3d adds `commissionRateBps`. The argument is optional
+ * for backward compatibility with callers that have not been
+ * updated yet; if absent, the snapshot stores `null`. The
+ * validator still tolerates both null and absent values.
  */
 export function buildShopeePurchaseIntentQuoteSnapshot(args: {
   status: "available" | "unavailable";
   cashbackShareBps: number | null;
   estimatedCashbackVnd: number | null;
   productPriceVnd: number | null;
+  commissionRateBps?: number | null;
   reason: string | null;
   message: string | null;
   capturedAt: string;
@@ -250,6 +283,10 @@ export function buildShopeePurchaseIntentQuoteSnapshot(args: {
     cashbackShareBps: args.cashbackShareBps,
     estimatedCashbackVnd: args.estimatedCashbackVnd,
     productPriceVnd: args.productPriceVnd,
+    commissionRateBps:
+      typeof args.commissionRateBps === "number"
+        ? args.commissionRateBps
+        : null,
     reason: args.reason,
     message: args.message,
     capturedAt: args.capturedAt.trim(),

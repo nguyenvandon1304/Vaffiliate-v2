@@ -167,6 +167,15 @@ export interface ShopeeProductPreviewAvailableQuote {
   readonly status: "available";
   readonly product: ShopeeProductPreviewMetadataView;
   readonly cashbackShareBps: number;
+  /**
+   * Phase 20H.3d: Shopee commission rate captured for this quote, in
+   * basis points where `10_000 == 100%`. Additive field; the UI uses
+   * it to render a formula explanation and the trust instructions
+   * bullet. Always a finite non-negative integer; the action layer
+   * coerces `null` (a defensive value that never appears on a real
+   * available quote) to `0` before passing it to the UI.
+   */
+  readonly commissionRateBps: number;
   readonly estimatedCashbackVnd: number;
   readonly calculatedAt: string;
   readonly isEstimate: true;

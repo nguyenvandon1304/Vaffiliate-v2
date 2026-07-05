@@ -2,7 +2,7 @@
  * Trust / reliability instructions shown to the buyer alongside the
  * Shopee cashback entry flow (Phase 20H.3a).
  *
- * Five concrete rules that the buyer must follow so Vaffiliate can
+ * Six concrete rules that the buyer must follow so Vaffiliate can
  * match the eventual Shopee conversion back to their tracking link:
  *
  *   1. Start the purchase from the Vaffiliate-generated redirect and
@@ -13,6 +13,8 @@
  *      before clicking the Vaffiliate link.
  *   4. Conversions take time to be recorded by Shopee.
  *   5. Cashback is only credited after Shopee reconciles the order.
+ *   6. Phase 20H.3d: the displayed cashback estimate is computed from
+ *      the Shopee commission, not the full product price.
  *
  * Visual treatment: a soft, scannable ordered list. Numerals are
  * hand-drawn glyphs sized for low-attention scan; copy stays natural
@@ -25,6 +27,7 @@ const SHOPEE_TRUST_INSTRUCTIONS: readonly string[] = Object.freeze([
   "Không dùng sản phẩm đã có sẵn trong giỏ nếu có thể.",
   "Đơn cần thời gian để ghi nhận.",
   "Hoàn tiền phụ thuộc dữ liệu đối soát từ Shopee.",
+  "Số tiền hoàn dự kiến được tính từ hoa hồng Shopee, không phải từ toàn bộ giá trị sản phẩm.",
 ]);
 
 const SHOPEE_TRUST_INSTRUCTION_TITLE =

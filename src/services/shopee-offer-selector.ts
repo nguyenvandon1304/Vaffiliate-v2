@@ -125,3 +125,17 @@ export interface ShopeeOfferSelector {
     input: ShopeeOfferSelectorInput,
   ): Promise<ShopeeOfferSelectionOutcome>;
 }
+
+/**
+ * Pure lookup seam for an out-of-band commission rate source supplied
+ * to {@link createShopeeOfferSelector}. The contract module declares
+ * the shape so the dependency-injection surface stays in one place;
+ * the factory re-uses the same type.
+ *
+ * The hook MUST be deterministic, side-effect free, and MUST return
+ * `null` for any (shopId, itemId) pair the source cannot resolve.
+ */
+export type ShopeeOfferSelectorFixtureLookup = (params: {
+  readonly shopId: string;
+  readonly itemId: string;
+}) => number | null;

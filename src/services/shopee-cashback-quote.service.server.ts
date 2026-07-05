@@ -25,6 +25,7 @@ import { shopeeProductMetadataProvider } from "@/lib/shopee/product-metadata/pro
 
 import { resolveShopeeProductPreviewWithDeps } from "./shopee-cashback-quote.service";
 import { buildProductionShopeeProductPreviewDependencies } from "./shopee-cashback-quote.service.composition";
+import { lookupDevelopmentShopeeCommissionRateBps } from "./shopee-commission-rate-fixture";
 import { createShopeeOfferSelector } from "./shopee-offer-selector.factory";
 import { createShopeeCatalogRepository } from "./shopee-catalog-repository.factory";
 
@@ -68,18 +69,35 @@ export type {
  * Production dependency bundle consumed by the pure service.
  *
  * `offerSelector` is built once at module load from the canonical
- * Drizzle-backed Shopee catalog repository. The selector itself rejects
- * any attempt to claim eligibility without explicit product/shop/category
- * evidence — it returns `eligibility_unknown` for every product until the
- * catalog schema records a mapping. The service therefore never falls
- * back to a fabricated offer.
+ * Drizzle-backed Shopee catalog repository. The selector itself
+ * rejects any attempt to claim eligibility without explicit
+ * product/shop/category evidence -- it returns `eligibility_unknown`
+ * for every product until the catalog schema records a mapping. To
+ * make the Phase 20H.3d canonical fixture product
+ * (shopee.vn/product/1408027998/44812498433) produce an `available`
+ * quote end-to-end, the selector is constructed with the dev/test
+ * commission-rate fixture as its identity-aware last-resort fallback:
+ * the catalog has exactly one policy-bearing offer today, so the
+ * fallback resolves that single offer as eligible whenever the fixture
+ * yields a non-null rate for the resolved product. The same lookup
+ * is also surfaced on the dependency bundle so callers that lazy-build
+ * a selector from `shopeeCatalogRepository` receive the same seam.
+ *
+ * The service therefore never falls back to a fabricated offer: it
+ * still requires an active Shopee offer with a cashback policy to
+ * exist in the canonical catalog, and it still requires the fixture
+ * to return a real rate for the product identity it parsed from the
+ * URL.
  */
 export const productionShopeeProductPreviewDependencies = buildProductionShopeeProductPreviewDependencies(
   {
     resolveUrl: async (input: unknown) =>
       await resolveShopeeProductUrl(String(input)),
     metadataProvider: shopeeProductMetadataProvider,
-    offerSelector: createShopeeOfferSelector(createShopeeCatalogRepository()),
+    offerSelector: createShopeeOfferSelector(createShopeeCatalogRepository(), {
+      lookupFixtureCommissionRateBps: lookupDevelopmentShopeeCommissionRateBps,
+    }),
+    lookupFixtureCommissionRateBps: lookupDevelopmentShopeeCommissionRateBps,
   },
 );
 

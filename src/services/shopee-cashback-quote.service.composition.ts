@@ -4,16 +4,23 @@
  * This factory is intentionally server-only-free: it accepts every
  * dependency as a parameter so the unit test can wire fakes and assert
  * that the resulting object is structurally complete. The server-only
- * wrapper ({@link ./shopee-cashback-quote.service.server) supplies the real
- * production dependencies.
+ * wrapper ({@link ./shopee-cashback-quote.service.server) supplies the
+ * real production dependencies.
  *
  * The composition is intentionally a plain object literal so:
  *
  *   - tests can import it and assert that no field is missing;
- *   - production callers never need to know the shape - they only call
- *     {@link resolveShopeeProductPreview} from the server-only wrapper;
- *   - a future phase can swap one field (e.g. a different clock) without
- *     touching the rest of the dependency graph.
+ *   - production callers never need to know the shape - they only
+ *     call {@link resolveShopeeProductPreview} from the server-only
+ *     wrapper;
+ *   - a future phase can swap one field (e.g. a different clock)
+ *     without touching the rest of the dependency graph.
+ *
+ * Phase 20H.3d -- `lookupFixtureCommissionRateBps` is an OPTIONAL
+ * identity-aware commission-rate source plumbed through to the offer
+ * selector factory. Production callers pass
+ * `lookupDevelopmentShopeeCommissionRateBps`; tests omit the field
+ * to exercise the existing strict selector behaviour.
  */
 import {
   calculateCashbackAllocation,
@@ -21,14 +28,20 @@ import {
 import type { ShopeeProductMetadataProvider } from "@/lib/shopee/product-metadata/types";
 
 import type { ResolveShopeeDependencies } from "./shopee-cashback-quote.service";
-import type {
-  ShopeeOfferSelector,
-} from "./shopee-offer-selector";
+import type { ShopeeOfferSelector } from "./shopee-offer-selector";
 
 export interface BuildProductionDependenciesInputs {
   resolveUrl: ResolveShopeeDependencies["resolveUrl"];
   metadataProvider: ShopeeProductMetadataProvider;
   offerSelector: ShopeeOfferSelector;
+  /**
+   * Optional identity-aware fixture lookup consulted by the offer
+   * selector as a last-resort fallback when no catalog row matches
+   * the resolved (shopId, itemId) and the catalog contains exactly
+   * one policy-bearing offer. Production wiring supplies the
+   * dev/test commission rate fixture; tests leave this unset.
+   */
+  lookupFixtureCommissionRateBps?: ResolveShopeeDependencies["lookupFixtureCommissionRateBps"];
   calculateAllocation?: ResolveShopeeDependencies["calculateAllocation"];
   now?: ResolveShopeeDependencies["now"];
 }
@@ -37,15 +50,18 @@ export interface BuildProductionDependenciesInputs {
  * Builds the dependency object consumed by
  * `resolveShopeeProductPreviewWithDeps`.
  *
- * The function takes the canonical production dependencies as parameters
- * so unit tests can exercise the same composition logic with fake
- * dependencies - without importing any server-only module.
+ * The function takes the canonical production dependencies as
+ * parameters so unit tests can exercise the same composition logic
+ * with fake dependencies - without importing any server-only module.
  *
  * The composition guarantees:
  *
  *   - every required dependency is wired;
  *   - the canonical cashback allocation function is the default;
- *   - `now` defaults to a fresh `Date` per call.
+ *   - `now` defaults to a fresh `Date` per call;
+ *   - the optional identity-aware fixture lookup is forwarded
+ *     verbatim (or omitted) so the service can hand it to the offer
+ *     selector factory on lazy composition.
  */
 export function buildProductionShopeeProductPreviewDependencies(
   inputs: BuildProductionDependenciesInputs,
@@ -54,6 +70,7 @@ export function buildProductionShopeeProductPreviewDependencies(
     resolveUrl: inputs.resolveUrl,
     metadataProvider: inputs.metadataProvider,
     offerSelector: inputs.offerSelector,
+    lookupFixtureCommissionRateBps: inputs.lookupFixtureCommissionRateBps,
     calculateAllocation:
       inputs.calculateAllocation ?? calculateCashbackAllocation,
     now: inputs.now ?? (() => new Date()),

@@ -557,6 +557,90 @@ test("large but safe VND amounts produce a valid quote", async () => {
 
 // ─── no hardcoded offer ────────────────────────────────────────────────────────
 
+test(
+  "Phase 20H.3d canonical product price 161500 * commission 2000 bps yields user cashback 19380 (Vietnamese-dong decimal format)",
+  async () => {
+    const svc = await loadService();
+    const result = await svc.resolveShopeeCashbackQuoteWithDeps(
+      { productUrl: "https://shopee.vn/product/1408027998/44812498433" },
+      makeDeps({
+        metadataProvider: {
+          async getProduct() {
+            return {
+              ...VALID_METADATA,
+              shopId: "1408027998",
+              itemId: "44812498433",
+              price: { amount: 161_500, currency: "VND" },
+            };
+          },
+        },
+        offerSelector: makeFakeSelector({
+          kind: "eligible",
+          offer: {
+            offerId: "off-20h3d",
+            campaignId: "cmp-20h3d",
+            commissionRateBps: 2000,
+            cashbackShareBps: 6000,
+            hasPolicy: true,
+          },
+        }),
+      }),
+    );
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.quote.estimatedOrderAmount.amount, 161_500);
+      assert.equal(result.quote.estimatedNetworkCommission.amount, 32_300);
+      assert.equal(result.quote.estimatedUserCashback.amount, 19_380);
+      assert.equal(result.quote.estimatedPlatformProfit.amount, 12_920);
+      assert.equal(
+        result.quote.estimatedUserCashback.amount +
+          result.quote.estimatedPlatformProfit.amount,
+        result.quote.estimatedNetworkCommission.amount,
+      );
+      assert.equal(result.quote.cashbackShareBps, 6000);
+      assert.equal(result.quote.estimatedCommissionRateBps, 2000);
+      assert.equal(result.quote.isEstimate, true);
+    }
+  },
+);
+
+test(
+  "Phase 20H.3d zero floor result treats product as quote_unavailable",
+  async () => {
+    const svc = await loadService();
+    // price 1 * commission 100 / 10000 = 0 VND network commission;
+    // user cashback floors to 0 VND -> new guard returns
+    // commission_rate_unavailable so the UI never shows "0 đ".
+    const result = await svc.resolveShopeeCashbackQuoteWithDeps(
+      { productUrl: "https://shopee.vn/product/12345/67890" },
+      makeDeps({
+        metadataProvider: {
+          async getProduct() {
+            return {
+              ...VALID_METADATA,
+              price: { amount: 1, currency: "VND" },
+            };
+          },
+        },
+        offerSelector: makeFakeSelector({
+          kind: "eligible",
+          offer: {
+            offerId: "off-tiny",
+            campaignId: "cmp-tiny",
+            commissionRateBps: 100,
+            cashbackShareBps: 6000,
+            hasPolicy: true,
+          },
+        }),
+      }),
+    );
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "commission_rate_unavailable");
+    }
+  },
+);
+
 test("quote only succeeds when selector returns eligible", async () => {
   const svc = await loadService();
   const result = await svc.resolveShopeeCashbackQuoteWithDeps(

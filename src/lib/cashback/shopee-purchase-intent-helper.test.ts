@@ -307,3 +307,92 @@ test("no secret/token fields exist on the payload shape", () => {
     );
   }
 });
+
+test(
+  "Phase 20H.3d commissionRateBps is persisted by the snapshot constructor",
+  () => {
+    const snapshot = buildShopeePurchaseIntentQuoteSnapshot({
+      status: "available",
+      cashbackShareBps: 6000,
+      estimatedCashbackVnd: 19380,
+      productPriceVnd: 161500,
+      commissionRateBps: 2000,
+      reason: null,
+      message: null,
+      capturedAt: "2026-07-05T00:00:00.000Z",
+    });
+    assert.equal(snapshot.commissionRateBps, 2000);
+    assert.equal(snapshot.estimatedCashbackVnd, 19380);
+    assert.equal(snapshot.productPriceVnd, 161500);
+  },
+);
+
+test(
+  "Phase 20H.3d payload validator accepts commissionRateBps within range",
+  () => {
+    const payload = {
+      ...buildValidPayload(),
+      quoteSnapshot: buildShopeePurchaseIntentQuoteSnapshot({
+        status: "available",
+        cashbackShareBps: 6000,
+        estimatedCashbackVnd: 19380,
+        productPriceVnd: 161500,
+        commissionRateBps: 2000,
+        reason: null,
+        message: null,
+        capturedAt: new Date().toISOString(),
+      }),
+    };
+    const result = validateShopeePurchaseIntentPayload(payload);
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.errors, []);
+  },
+);
+
+test(
+  "Phase 20H.3d payload validator rejects commissionRateBps outside range",
+  () => {
+    const payload = {
+      ...buildValidPayload(),
+      quoteSnapshot: buildShopeePurchaseIntentQuoteSnapshot({
+        status: "available",
+        cashbackShareBps: 6000,
+        estimatedCashbackVnd: 19380,
+        productPriceVnd: 161500,
+        commissionRateBps: 15000,
+        reason: null,
+        message: null,
+        capturedAt: new Date().toISOString(),
+      }),
+    };
+    const result = validateShopeePurchaseIntentPayload(payload);
+    assert.equal(result.ok, false);
+    assert.ok(
+      result.errors.some((e) =>
+        e.includes("commissionRateBps"),
+      ),
+    );
+  },
+);
+
+test(
+  "Phase 20H.3d payload validator accepts absent commissionRateBps for backwards compatibility",
+  () => {
+    // Historical rows persisted before Phase 20H.3d have no
+    // commissionRateBps field. The validator must tolerate that.
+    const payload = {
+      ...buildValidPayload(),
+      quoteSnapshot: {
+        status: "available" as const,
+        cashbackShareBps: 6000,
+        estimatedCashbackVnd: 19380,
+        productPriceVnd: 161500,
+        reason: null,
+        message: null,
+        capturedAt: new Date().toISOString(),
+      },
+    };
+    const result = validateShopeePurchaseIntentPayload(payload);
+    assert.equal(result.ok, true);
+  },
+);
