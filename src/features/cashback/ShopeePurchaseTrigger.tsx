@@ -20,6 +20,18 @@ interface ShopeePurchaseTriggerProps {
    * into the buy action before they sign in.
    */
   isAuthenticated?: boolean;
+  /**
+   * Optional override for the login link rendered to logged-out
+   * visitors. Phase 20H.4a passes the public `/cashback?productUrl=...`
+   * return path here so the buyer lands back on the same preview
+   * after signing in. The in-app `/app/cashback` flow does not pass
+   * this prop, so it keeps the original `/login` behaviour.
+   *
+   * Must be a same-origin absolute path or a root-relative URL.
+   * Relative paths are not used as default values to avoid leaking
+   * the form action's origin into the rendered link.
+   */
+  loginHref?: string;
   /** Callback when navigation is about to start */
   onNavigate?: () => void;
 }
@@ -41,6 +53,7 @@ export default function ShopeePurchaseTrigger({
   variant = "prominent",
   buttonText,
   isAuthenticated = true,
+  loginHref,
   onNavigate,
 }: ShopeePurchaseTriggerProps) {
   const initialState: InitiateShopeePurchaseActionState = {
@@ -128,7 +141,7 @@ export default function ShopeePurchaseTrigger({
           aria-live="polite"
         >
           <p className="text-sm font-medium text-[color:var(--text)]">
-            Đang chuyển bạn sang Shopee…
+            Đang chuyển bạn sang Shopee...
           </p>
         </div>
       ) : isAuthenticated ? (
@@ -140,7 +153,7 @@ export default function ShopeePurchaseTrigger({
             aria-busy={isPurchasing}
             className={buttonClassName}
           >
-            {isPurchasing ? "Đang xử lý…" : finalButtonText}
+            {isPurchasing ? "Đang xử lý..." : finalButtonText}
           </button>
 
           {purchaseError ? (
@@ -167,9 +180,9 @@ export default function ShopeePurchaseTrigger({
             role="status"
             className="rounded-[var(--radius-md)] border border-[rgba(124,63,44,0.14)] bg-[rgba(255,250,246,0.85)] px-3 py-2 text-xs leading-5 text-[color:var(--text)]"
           >
-            Đăng nhập để tiếp tục mua hàng nhận hoàn tiền qua Vaffiliate.{" "}
+            Đăng nhập để nhận hoàn tiền từ Vaffiliate qua Shopee.{" "}
             <Link
-              href="/login"
+              href={loginHref ?? "/login"}
               className="font-semibold text-[color:var(--brand-strong)] underline-offset-4 hover:underline"
             >
               Đăng nhập

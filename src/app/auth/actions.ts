@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { getSafePostLoginRedirect } from "@/lib/auth/post-login-redirect";
 import { createClient } from "@/lib/supabase/server";
 
 function readRequiredString(
@@ -45,47 +46,6 @@ async function getRequestOrigin(): Promise<string> {
   }
 
   return new URL(`${protocol}://${host}`).origin;
-}
-
-function getSafePostLoginRedirect(
-  value: string | null,
-): string {
-  const fallbackPath = "/app";
-
-  if (!value) {
-    return fallbackPath;
-  }
-
-  try {
-    const baseUrl = new URL("http://localhost");
-    const redirectUrl = new URL(value, baseUrl);
-    const pathname = redirectUrl.pathname;
-
-    const isAppPath =
-      pathname === "/app" ||
-      pathname.startsWith("/app/");
-
-    const isCashbackTrackingPath =
-      /^\/go\/[A-Za-z0-9_-]{10,32}$/.test(
-        pathname,
-      );
-
-    if (
-      redirectUrl.origin !== baseUrl.origin ||
-      (!isAppPath &&
-        !isCashbackTrackingPath)
-    ) {
-      return fallbackPath;
-    }
-
-    return (
-      pathname +
-      redirectUrl.search +
-      redirectUrl.hash
-    );
-  } catch {
-    return fallbackPath;
-  }
 }
 
 function buildLoginRedirect(

@@ -106,12 +106,34 @@ function ShopeeCashbackPreviewPendingPanel() {
 
 export default function ShopeeCashbackPreviewForm({
   isAuthenticated = true,
+  initialProductUrl,
+  loginHref,
 }: {
   isAuthenticated?: boolean;
+  /**
+   * Optional pre-fill value for the Shopee link input. Phase 20H.4a
+   * wires this from `?productUrl=` on the public `/cashback` route
+   * so a buyer who clicked a tracked link or arrived via the auth
+   * handoff continues with the same product already typed in.
+   *
+   * The value is intentionally NOT auto-submitted: the form must
+   * still require an explicit preview action because that is the
+   * boundary that writes intent/audit snapshots and triggers
+   * provider calls. Pre-filling only shortens the typing step.
+   */
+  initialProductUrl?: string;
+  /**
+   * Same-origin path forwarded to the preview card and fallback
+   * trigger as the logged-out login link. Phase 20H.4a passes
+   * `/login?next=/cashback?productUrl=...` so the buyer returns to
+   * the same preview after signing in. Optional; falls back to the
+   * internal default (`/login`) when not provided.
+   */
+  loginHref?: string;
 }) {
   const productUrlInputId = useId();
   const [productUrl, setProductUrl] =
-    useState("");
+    useState(initialProductUrl ?? "");
 
   const [
     lastSubmittedUrl,
@@ -306,6 +328,7 @@ export default function ShopeeCashbackPreviewForm({
                 }
                 quote={renderModel.quote}
                 isAuthenticated={isAuthenticated}
+                loginHref={loginHref}
               />
             );
 
@@ -332,6 +355,7 @@ export default function ShopeeCashbackPreviewForm({
                     }
                     variant="neutral"
                     isAuthenticated={isAuthenticated}
+                    loginHref={loginHref}
                   />
                 </div>
               </div>
