@@ -48,13 +48,6 @@ async function getRequestOrigin(): Promise<string> {
   return new URL(`${protocol}://${host}`).origin;
 }
 
-// Re-exported so the existing module surface stays stable for
-// callers that imported `getSafePostLoginRedirect` from this file
-// before Phase 20H.4a. The actual implementation now lives in
-// `@/lib/auth/post-login-redirect` so it can be unit-tested without
-// dragging the `"use server"` action runtime into the test process.
-export { getSafePostLoginRedirect } from "@/lib/auth/post-login-redirect";
-
 function buildLoginRedirect(
   key: "error" | "message",
   value: string,
