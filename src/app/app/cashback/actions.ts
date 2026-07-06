@@ -380,14 +380,14 @@ function createProvisionFailure(
 }
 
 /**
- * Phase 20H.3b — map a server-resolved preview result onto the typed
+ * Phase 20H.3b -- map a server-resolved preview result onto the typed
  * quote-snapshot shape persisted on `shopee_purchase_intents.quote_snapshot`.
  *
  * Returns `null` when the preview did not produce a usable quote
  * (e.g. metadata unavailable, fallback handoff). A `null` snapshot
  * is a legitimate state and means "we have a tracking link and an
  * affiliate URL, but we could not compute a cashback quote at intent
- * time" — never a guarantee.
+ * time" -- never a guarantee.
  *
  * Never throws. Returns a best-effort, JSONB-safe snapshot.
  */
@@ -657,9 +657,7 @@ export async function initiateShopeePurchaseAction(
         ok: false,
         message:
           "Chưa thể ghi nhận phiên mua hoàn tiền. Vui lòng thử lại để đảm bảo đơn được theo dõi.",
-        shortCode: null,
         trackingPath: null,
-        productUrl: null,
       };
     }
 
@@ -675,9 +673,7 @@ export async function initiateShopeePurchaseAction(
     return {
       ok: false,
       message: "Vui lòng dán một liên kết sản phẩm Shopee hợp lệ.",
-      shortCode: null,
       trackingPath: null,
-      productUrl: null,
     };
   }
 
@@ -692,9 +688,7 @@ export async function initiateShopeePurchaseAction(
     return {
       ok: false,
       message: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
-      shortCode: null,
       trackingPath: null,
-      productUrl: null,
     };
   }
 
@@ -713,9 +707,7 @@ export async function initiateShopeePurchaseAction(
     return {
       ok: false,
       message: "Link sản phẩm Shopee không hợp lệ.",
-      shortCode: null,
       trackingPath: null,
-      productUrl: null,
     };
   }
 
@@ -743,9 +735,7 @@ export async function initiateShopeePurchaseAction(
       message: isAuthError
         ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
         : "Không thể tạo link hoàn tiền lúc này. Vui lòng thử lại.",
-      shortCode: null,
       trackingPath: null,
-      productUrl: null,
     };
   }
 
@@ -763,9 +753,7 @@ export async function initiateShopeePurchaseAction(
       ok: false,
       message:
         "Cấu hình liên kết Shopee hiện chưa sẵn sàng. Vui lòng thử lại sau.",
-      shortCode: null,
       trackingPath: null,
-      productUrl: null,
     };
   }
 
@@ -787,9 +775,7 @@ export async function initiateShopeePurchaseAction(
       ok: false,
       message:
         "Không thể tạo link hoàn tiền lúc này. Vui lòng thử lại.",
-      shortCode: null,
       trackingPath: null,
-      productUrl: null,
     };
   }
 
@@ -845,9 +831,7 @@ export async function initiateShopeePurchaseAction(
         return {
           ok: false,
           message: outcome.message,
-          shortCode: null,
           trackingPath: null,
-          productUrl: null,
         };
       }
 
@@ -866,9 +850,7 @@ export async function initiateShopeePurchaseAction(
       return {
         ok: true,
         message: "Đã tạo link hoàn tiền.",
-        shortCode: trackingLink.shortCode,
         trackingPath: trackingLink.trackingPath,
-        productUrl: canonicalUrl,
       };
     } catch (error) {
       console.error(
@@ -880,9 +862,7 @@ export async function initiateShopeePurchaseAction(
         ok: false,
         message:
           "Không thể lưu link hoàn tiền lúc này. Vui lòng thử lại.",
-        shortCode: null,
         trackingPath: null,
-        productUrl: null,
       };
     }
   }
@@ -928,9 +908,7 @@ export async function initiateShopeePurchaseAction(
     return {
       ok: false,
       message: outcome.message,
-      shortCode: null,
       trackingPath: null,
-      productUrl: null,
     };
   }
 
@@ -949,8 +927,6 @@ export async function initiateShopeePurchaseAction(
   return {
     ok: true,
     message: "Đã tạo link hoàn tiền.",
-    shortCode: trackingLink.shortCode,
     trackingPath: trackingLink.trackingPath,
-    productUrl: canonicalUrl,
   };
 }

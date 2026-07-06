@@ -7,8 +7,12 @@ src/lib/auth/post-login-redirect.ts
 src/lib/auth/post-login-redirect.test.ts
 src/app/auth/actions.ts
 src/features/cashback/ShopeePurchaseTrigger.tsx
+src/features/cashback/ShopeePurchaseTriggerView.tsx
+src/features/cashback/ShopeePurchaseTriggerView.test.tsx
 src/features/cashback/ShopeeProductPreviewCard.tsx
 src/features/cashback/ShopeeCashbackPreviewForm.tsx
 package.json
 scripts/source-copy-audit.mjs
 scripts/check-audit-self.mjs
+src/app/app/cashback/actions.ts
+src/types/cashback.ts

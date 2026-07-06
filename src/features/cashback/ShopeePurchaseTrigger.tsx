@@ -1,10 +1,20 @@
 "use client";
 
-import Link from "next/link";
-import { startTransition, useActionState, useCallback, useEffect, useRef, useState } from "react";
+import {
+  startTransition,
+  useActionState,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { initiateShopeePurchaseAction } from "@/app/app/cashback/actions";
 import type { InitiateShopeePurchaseActionState } from "@/types/cashback";
+
+import ShopeePurchaseTriggerView, {
+  type ShopeePurchaseTriggerViewState,
+} from "./ShopeePurchaseTriggerView";
 
 interface ShopeePurchaseTriggerProps {
   /** The canonical product URL to use for purchase handoff */
@@ -37,16 +47,58 @@ interface ShopeePurchaseTriggerProps {
 }
 
 /**
- * Shared purchase trigger component that handles:
- * - User authentication check
- * - initiateShopeePurchaseAction call
- * - Tracking link creation/reuse
- * - Deterministic /an_redir URL persistence
- * - Navigation to /go/<shortCode>
+ * Phase 20H.4b: container component for the public buyer purchase
+ * handoff. Owns the React state machine around the server action
+ * (initial / pending / success-with-redirect / error) and delegates
+ * the visual rendering to `<ShopeePurchaseTriggerView/>`.
  *
- * This component is used by both:
- * - Normal product preview (with metadata)
- * - Metadata-unavailable fallback (no product metadata)
+ * Behavioural contract (enforced by tests in
+ * `ShopeePurchaseTriggerView.test.tsx`):
+ *
+ *   - Logged-out: the buy button is hard-disabled; the only path
+ *     forward is the in-flow login link, which points to
+ *     `loginHref` when provided (default `/login`). The visible
+ *     Vietnamese sentence and link label are owned by the view
+ *     (see `LoggedOutBlock` in `ShopeePurchaseTriggerView.tsx`).
+ *   - Logged-in idle: the buy button is enabled and labelled with
+ *     the default prominent buy-CTA (or the `neutral` fallback
+ *     copy). Labels are owned by the view (`LoggedInCta`).
+ *   - Logged-in pending: the buy button is `aria-busy=true` and
+ *     shows the in-flight label; the action is invoked exactly
+ *     once per click (subsequent clicks are no-ops because the
+ *     button is disabled).
+ *   - Logged-in success: the redirect happens via
+ *     `window.location.assign(trackingPath)` exactly once, even if
+ *     the success state re-renders. The internal `hasStartedRedirectRef`
+ *     is the idempotency guard.
+ *   - Logged-in error: the friendly `purchaseState.message` is
+ *     rendered with `role="alert"`. `trackingPath` is null on
+ *     failure, so the redirect `useEffect` does not fire.
+ *
+ * The buyer-visible `InitiateShopeePurchaseActionState` is
+ * intentionally narrow: only `ok`, `message`, and `trackingPath`.
+ *
+ *   - `shortCode`  -- the raw tracking short_code is no longer
+ *                     surfaced as its own client field. It is still
+ *                     present on the wire only in encoded form,
+ *                     inside `trackingPath` (`/go/<shortCode>`).
+ *   - `productUrl` -- the canonical Shopee URL is no longer
+ *                     returned to the client action state.
+ *
+ * Other internal identifiers (`networkSubId`, `clickId`,
+ * `purchaseIntentId`, `campaignId`, `offerId`) remain strictly
+ * server-side and never appear in this state. They live on the
+ * `shopee_purchase_intents` and `cashback_clicks` rows and are
+ * stitched together by the `/go/[shortCode]` route handler at
+ * click time.
+ *
+ * `trackingPath` is treated as an opaque same-origin navigation
+ * path. It is consumed ONLY by the redirect effect via
+ * `window.location.assign(trackingPath)` (see below) and must
+ * NEVER be rendered into buyer-facing DOM, surfaced in error copy,
+ * or written to logs. The trigger container does NOT pass it down
+ * to `<ShopeePurchaseTriggerView/>` -- the view stays purely
+ * presentational and never receives `trackingPath` at all.
  */
 export default function ShopeePurchaseTrigger({
   productUrl,
@@ -59,9 +111,7 @@ export default function ShopeePurchaseTrigger({
   const initialState: InitiateShopeePurchaseActionState = {
     ok: false,
     message: "",
-    shortCode: null,
     trackingPath: null,
-    productUrl: null,
   };
 
   const [purchaseState, purchaseAction, isPurchasing] =
@@ -76,9 +126,7 @@ export default function ShopeePurchaseTrigger({
           {
             ok: false,
             message: "",
-            shortCode: null,
             trackingPath: null,
-            productUrl: null,
           },
           fd,
         );
@@ -90,6 +138,9 @@ export default function ShopeePurchaseTrigger({
 
   const [isRedirecting, setIsRedirecting] = useState(false);
 
+  // `trackingPath` is an opaque same-origin URL. This effect is its
+  // ONLY allowed sink -- consumed via window.location.assign and
+  // never rendered into DOM, error copy, or logs.
   useEffect(() => {
     if (
       !purchaseState.ok ||
@@ -127,70 +178,54 @@ export default function ShopeePurchaseTrigger({
 
   const finalButtonText = buttonText ?? defaultButtonText;
 
-  const buttonClassName =
-    variant === "prominent"
-      ? "mt-4 w-full rounded-[var(--radius-lg)] bg-[color:var(--brand)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition disabled:cursor-not-allowed disabled:opacity-60"
-      : "mt-4 w-full rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.2)] bg-[rgba(255,248,242,0.94)] px-4 py-3 text-sm font-medium text-[color:var(--text)] transition disabled:cursor-not-allowed disabled:opacity-60";
+  const resolvedLoginHref = loginHref ?? "/login";
+
+  const viewState: ShopeePurchaseTriggerViewState = (() => {
+    if (isRedirecting) {
+      return { kind: "redirecting" };
+    }
+
+    if (!isAuthenticated) {
+      return {
+        kind: "logged_out",
+        loginHref: resolvedLoginHref,
+        buttonText: finalButtonText,
+        variant,
+      };
+    }
+
+    if (purchaseError !== null) {
+      return {
+        kind: "logged_in_error",
+        buttonText: finalButtonText,
+        variant,
+        errorMessage: purchaseError,
+      };
+    }
+
+    if (isPurchasing) {
+      return {
+        kind: "logged_in_pending",
+        buttonText: finalButtonText,
+        variant,
+      };
+    }
+
+    return {
+      kind: "logged_in_idle",
+      buttonText: finalButtonText,
+      variant,
+    };
+  })();
 
   return (
-    <div>
-      {isRedirecting ? (
-        <div
-          className="rounded-[var(--radius-lg)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,248,242,0.94)] px-5 py-4 text-center"
-          role="status"
-          aria-live="polite"
-        >
-          <p className="text-sm font-medium text-[color:var(--text)]">
-            Đang chuyển bạn sang Shopee...
-          </p>
-        </div>
-      ) : isAuthenticated ? (
-        <>
-          <button
-            type="button"
-            onClick={handleInitiatePurchase}
-            disabled={isPurchasing}
-            aria-busy={isPurchasing}
-            className={buttonClassName}
-          >
-            {isPurchasing ? "Đang xử lý..." : finalButtonText}
-          </button>
-
-          {purchaseError ? (
-            <p
-              role="alert"
-              className="mt-2 rounded-[var(--radius-md)] border border-[rgba(190,92,54,0.18)] bg-[rgba(190,92,54,0.08)] px-3 py-2 text-xs font-medium leading-5 text-[color:var(--warning)]"
-            >
-              {purchaseError}
-            </p>
-          ) : null}
-        </>
-      ) : (
-        <div className="mt-4 space-y-2">
-          <button
-            type="button"
-            disabled
-            aria-disabled="true"
-            className={buttonClassName}
-          >
-            {finalButtonText}
-          </button>
-
-          <p
-            role="status"
-            className="rounded-[var(--radius-md)] border border-[rgba(124,63,44,0.14)] bg-[rgba(255,250,246,0.85)] px-3 py-2 text-xs leading-5 text-[color:var(--text)]"
-          >
-            Đăng nhập để nhận hoàn tiền từ Vaffiliate qua Shopee.{" "}
-            <Link
-              href={loginHref ?? "/login"}
-              className="font-semibold text-[color:var(--brand-strong)] underline-offset-4 hover:underline"
-            >
-              Đăng nhập
-            </Link>
-            .
-          </p>
-        </div>
-      )}
-    </div>
+    <ShopeePurchaseTriggerView
+      state={viewState}
+      onPurchase={
+        isAuthenticated && !isPurchasing
+          ? handleInitiatePurchase
+          : undefined
+      }
+    />
   );
 }
