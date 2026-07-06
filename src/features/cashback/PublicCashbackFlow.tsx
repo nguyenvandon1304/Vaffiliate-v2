@@ -87,6 +87,47 @@ export function buildLoginHref(
 }
 
 /**
+ * Phase 20H.4b smoke fix helper.
+ *
+ * Resolves the logged-out purchase trigger's `loginHref` from the
+ * MOST CURRENT product URL the form knows about. Pure, synchronous,
+ * and exported so it can be unit-tested without dragging the form
+ * or its `"use server"` action imports into the test runtime.
+ *
+ * Priority (most preferred first):
+ *   1. Server-resolved canonical URL (passed back from the quote or
+ *      purchase-allowed-fallback action). This is the URL the buyer
+ *      actually wants to come back to -- it has been validated and
+ *      canonicalised by the server.
+ *   2. The user's last submitted input (post-trim). Used when the
+ *      server has not yet resolved a quote (still pending, errored,
+ *      or empty after an edit).
+ *   3. The page-level `loginHref` (already round-tripped from
+ *      `initialProductUrl` when `/cashback?productUrl=...` was the
+ *      entry URL).
+ *   4. `undefined` -- the caller (the trigger) renders `/login`
+ *      with no `next=` so the buyer is never stranded.
+ *
+ * `buildLoginHref` returns `undefined` for empty inputs, so the
+ * fallback chain naturally short-circuits when a URL is missing.
+ */
+export function pickEffectiveLoginHref(args: {
+  readonly canonicalProductUrl: string;
+  readonly lastSubmittedUrl: string;
+  readonly pageLevelLoginHref: string | undefined;
+}): string | undefined {
+  const { canonicalProductUrl, lastSubmittedUrl, pageLevelLoginHref } = args;
+
+  if (canonicalProductUrl) {
+    return buildLoginHref(canonicalProductUrl) ?? pageLevelLoginHref;
+  }
+  if (lastSubmittedUrl) {
+    return buildLoginHref(lastSubmittedUrl) ?? pageLevelLoginHref;
+  }
+  return pageLevelLoginHref;
+}
+
+/**
  * Pure shell. Imports nothing from the server-action chain.
  * Production callers should use `<PublicCashbackFlowWithPreview/>`
  * below which wires the real form as the preview slot.

@@ -12,6 +12,7 @@ import {
 import ShopeeProductPreviewBadge from "@/features/cashback/ShopeeProductPreviewBadge";
 import ShopeePurchaseTrigger from "@/features/cashback/ShopeePurchaseTrigger";
 import ShopeeProductPreviewCard from "@/features/cashback/ShopeeProductPreviewCard";
+import { pickEffectiveLoginHref } from "@/features/cashback/PublicCashbackFlow";
 import type {
   PreviewShopeeProductPreviewActionState,
 } from "@/types/cashback";
@@ -234,6 +235,33 @@ export default function ShopeeCashbackPreviewForm({
     }
   })();
 
+  // Phase 20H.4b smoke fix: compute the login handoff link from the
+  // MOST CURRENT product URL the form knows about. The page-level
+  // `loginHref` prop is built once from `initialProductUrl` and is
+  // stale when a logged-out buyer pastes a URL into the form after
+  // arriving at `/cashback` without `?productUrl=`. Without this, the
+  // buyer is bounced to `/login` and loses their pasted link.
+  //
+  // The decision lives in the pure helper `pickEffectiveLoginHref`
+  // (exported from `PublicCashbackFlow.tsx`) so the priority chain
+  // is unit-testable without dragging the form's `"use server"`
+  // action imports into the test runtime.
+  //
+  // `buildLoginHref` returns `undefined` for empty inputs, so the
+  // fallback chain naturally short-circuits when a URL is missing.
+  // The trigger renders `/login` when no handoff is available, so
+  // the buyer never gets stranded.
+  const effectiveLoginHref: string | undefined = pickEffectiveLoginHref({
+    canonicalProductUrl:
+      renderModel.kind === "card"
+        ? renderModel.quote.product.productUrl
+        : renderModel.kind === "purchase_allowed_fallback"
+          ? renderModel.canonicalProductUrl
+          : "",
+    lastSubmittedUrl,
+    pageLevelLoginHref: loginHref,
+  });
+
   return (
     <div>
       <form
@@ -328,7 +356,7 @@ export default function ShopeeCashbackPreviewForm({
                 }
                 quote={renderModel.quote}
                 isAuthenticated={isAuthenticated}
-                loginHref={loginHref}
+                loginHref={effectiveLoginHref}
               />
             );
 
@@ -355,7 +383,7 @@ export default function ShopeeCashbackPreviewForm({
                     }
                     variant="neutral"
                     isAuthenticated={isAuthenticated}
-                    loginHref={loginHref}
+                    loginHref={effectiveLoginHref}
                   />
                 </div>
               </div>

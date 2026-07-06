@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import PublicCashbackFlow, {
   buildLoginHref,
+  pickEffectiveLoginHref,
 } from "./PublicCashbackFlow";
 
 /**
@@ -515,6 +516,175 @@ test(
       roundTripped,
       productUrl,
       "an ampersand-bearing Shopee URL must round-trip exactly through two-layer URLSearchParams",
+    );
+  },
+);
+
+// --- pickEffectiveLoginHref unit tests ---
+
+test(
+  "Phase 20H.4b pickEffectiveLoginHref prefers the server-resolved canonical URL after a successful preview",
+  () => {
+    const productUrl =
+      "https://shopee.vn/product/1408027998/44812498433";
+    const href = pickEffectiveLoginHref({
+      canonicalProductUrl: productUrl,
+      lastSubmittedUrl: "",
+      pageLevelLoginHref: undefined,
+    });
+    assert.ok(
+      href !== undefined,
+      "must produce a loginHref when canonicalProductUrl is set",
+    );
+    const loginUrl = new URL(`http://placeholder.local${href}`);
+    const next = loginUrl.searchParams.get("next");
+    assert.ok(next !== null);
+    const cashbackUrl = new URL(`http://placeholder.local${next}`);
+    assert.equal(
+      cashbackUrl.searchParams.get("productUrl"),
+      productUrl,
+      "canonical productUrl must round-trip through /login -> next -> /cashback?productUrl",
+    );
+  },
+);
+
+test(
+  "Phase 20H.4b pickEffectiveLoginHref falls back to lastSubmittedUrl when no canonical URL is available yet",
+  () => {
+    const productUrl =
+      "https://shopee.vn/product/1408027998/44812498433";
+    const href = pickEffectiveLoginHref({
+      canonicalProductUrl: "",
+      lastSubmittedUrl: productUrl,
+      pageLevelLoginHref: undefined,
+    });
+    assert.ok(
+      href !== undefined,
+      "must produce a loginHref from lastSubmittedUrl when canonicalProductUrl is empty",
+    );
+    const loginUrl = new URL(`http://placeholder.local${href}`);
+    const next = loginUrl.searchParams.get("next");
+    const cashbackUrl = new URL(`http://placeholder.local${next}`);
+    assert.equal(
+      cashbackUrl.searchParams.get("productUrl"),
+      productUrl,
+    );
+  },
+);
+
+test(
+  "Phase 20H.4b pickEffectiveLoginHref preserves lastSubmittedUrl when page had no initialProductUrl (smoke fix)",
+  () => {
+    // Smoke scenario: buyer opens /cashback (no ?productUrl=),
+    // pastes a Shopee URL into the form, and submits. Without the
+    // fix, the trigger renders /login with no next= and the buyer
+    // loses their pasted link. With the fix, lastSubmittedUrl is
+    // promoted into the loginHref.
+    const productUrl =
+      "https://shopee.vn/product/1408027998/44812498433";
+    const href = pickEffectiveLoginHref({
+      canonicalProductUrl: "",
+      lastSubmittedUrl: productUrl,
+      pageLevelLoginHref: undefined,
+    });
+    assert.ok(
+      href !== undefined && href.includes("next="),
+      "must produce a loginHref with next= even when pageLevelLoginHref is undefined",
+    );
+    const loginUrl = new URL(`http://placeholder.local${href}`);
+    const next = loginUrl.searchParams.get("next");
+    assert.ok(next !== null);
+    const cashbackUrl = new URL(`http://placeholder.local${next}`);
+    assert.equal(
+      cashbackUrl.searchParams.get("productUrl"),
+      productUrl,
+      "pasted productUrl must survive the login handoff round-trip",
+    );
+  },
+);
+
+test(
+  "Phase 20H.4b pickEffectiveLoginHref canonical URL wins over stale pageLevelLoginHref from initialProductUrl",
+  () => {
+    // Scenario: buyer opens /cashback?productUrl=OLD, pastes a
+    // NEW URL into the form, gets a preview. The canonical URL
+    // from the server-resolved preview must win over the
+    // page-level loginHref that was built from the old URL.
+    const oldUrl =
+      "https://shopee.vn/product/OLD/0";
+    const newUrl =
+      "https://shopee.vn/product/NEW/1";
+    const pageLevelLoginHref = buildLoginHref(oldUrl);
+    assert.ok(pageLevelLoginHref !== undefined);
+    const href = pickEffectiveLoginHref({
+      canonicalProductUrl: newUrl,
+      lastSubmittedUrl: newUrl,
+      pageLevelLoginHref,
+    });
+    assert.ok(href !== undefined);
+    const loginUrl = new URL(`http://placeholder.local${href}`);
+    const next = loginUrl.searchParams.get("next");
+    const cashbackUrl = new URL(`http://placeholder.local${next}`);
+    assert.equal(
+      cashbackUrl.searchParams.get("productUrl"),
+      newUrl,
+      "server-resolved canonical URL must take priority over pageLevelLoginHref",
+    );
+  },
+);
+
+test(
+  "Phase 20H.4b pickEffectiveLoginHref round-trips a Shopee URL with query params and ampersand through the smoke-fix path",
+  () => {
+    const productUrl =
+      "https://shopee.vn/product/1408027998/44812498433?sp_atk=abc&x=1";
+    const href = pickEffectiveLoginHref({
+      canonicalProductUrl: "",
+      lastSubmittedUrl: productUrl,
+      pageLevelLoginHref: undefined,
+    });
+    assert.ok(href !== undefined);
+    const loginUrl = new URL(`http://placeholder.local${href}`);
+    const next = loginUrl.searchParams.get("next");
+    const cashbackUrl = new URL(`http://placeholder.local${next}`);
+    assert.equal(
+      cashbackUrl.searchParams.get("productUrl"),
+      productUrl,
+      "ampersand-bearing Shopee URL must round-trip through the smoke-fix path",
+    );
+  },
+);
+
+test(
+  "Phase 20H.4b pickEffectiveLoginHref returns undefined when no source URL is available (buyer has not pasted yet)",
+  () => {
+    assert.equal(
+      pickEffectiveLoginHref({
+        canonicalProductUrl: "",
+        lastSubmittedUrl: "",
+        pageLevelLoginHref: undefined,
+      }),
+      undefined,
+    );
+  },
+);
+
+test(
+  "Phase 20H.4b pickEffectiveLoginHref forwards pageLevelLoginHref verbatim when no current URL is set",
+  () => {
+    const initialUrl =
+      "https://shopee.vn/product/INITIAL/1";
+    const pageLevelLoginHref = buildLoginHref(initialUrl);
+    assert.ok(pageLevelLoginHref !== undefined);
+    const href = pickEffectiveLoginHref({
+      canonicalProductUrl: "",
+      lastSubmittedUrl: "",
+      pageLevelLoginHref,
+    });
+    assert.equal(
+      href,
+      pageLevelLoginHref,
+      "page-level loginHref must be preserved verbatim when the form has no current URL",
     );
   },
 );
