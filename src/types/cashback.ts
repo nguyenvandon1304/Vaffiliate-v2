@@ -65,12 +65,50 @@ export interface ProvisionShopeeAffiliateUrlActionState {
   trackingLinkId: TrackingLinkId | null;
   affiliateUrl: string | null;
 }
+/**
+ * Phase 20H.4b: tightened buyer-visible surface for the
+ * `/cashback` purchase handoff.
+ *
+ * The state shape carries only three fields:
+ *
+ *   - `ok`             -- boolean success/failure flag.
+ *   - `message`        -- buyer-facing copy on failure (calm,
+ *                         short, non-technical). May also be the
+ *                         empty string.
+ *   - `trackingPath`   -- an opaque same-origin navigation path on
+ *                         success (currently `/go/<shortCode>`).
+ *                         Consumed only by the redirect effect in
+ *                         `ShopeePurchaseTrigger.tsx` via
+ *                         `window.location.assign(trackingPath)`.
+ *                         Must NEVER be rendered into the
+ *                         buyer-facing DOM, surfaced in error copy,
+ *                         or written to logs. The encoded `<shortCode>`
+ *                         travels with the string only as part of an
+ *                         opaque same-origin URL the buyer would have
+ *                         hit anyway when clicking through a tracking
+ *                         link.
+ *
+ * Historical fields that used to be exposed and were removed:
+ *
+ *   - `shortCode`   -- the raw tracking short_code is no longer
+ *                      surfaced as its own client field. It is still
+ *                      present on the wire only in encoded form,
+ *                      inside `trackingPath` (`/go/<shortCode>`).
+ *   - `productUrl`  -- the canonical Shopee URL is no longer
+ *                      returned to the client action state.
+ *
+ * Fields that remain strictly server-side and are intentionally
+ * NEVER part of the buyer-visible state:
+ *
+ *   - `networkSubId`, `clickId`, `purchaseIntentId`, `campaignId`,
+ *     `offerId`. They live on the `shopee_purchase_intents` and
+ *     `cashback_clicks` rows and are stitched together by the
+ *     `/go/[shortCode]` route handler at click time.
+ */
 export interface InitiateShopeePurchaseActionState {
   ok: boolean;
   message: string;
-  shortCode: string | null;
   trackingPath: string | null;
-  productUrl: string | null;
 }
 export type ShopeeProductPreviewLegacyErrorCode =
   | "invalid_url"
@@ -102,16 +140,16 @@ export type ShopeeProductPreviewPurchaseAllowedState =
  * always surfaced so the user can see which Shopee product was
  * recognized.
  *
- *   - `resolution_failed` — the URL was bad or metadata could not be
+ *   - `resolution_failed` -- the URL was bad or metadata could not be
  *     fetched; the action state carries no product.
- *   - `quote_unavailable`  — metadata was fetched successfully, but
+ *   - `quote_unavailable`  -- metadata was fetched successfully, but
  *     the offer selector could not determine a cashback quote. The
  *     product metadata is still rendered and the typed reason is
  *     stored in `errorCode` for tests.
- *   - `quote_available`    — metadata + quote are both fetched.
- *   - `metadata_incomplete_purchase_allowed` — URL valid but metadata
+ *   - `quote_available`    -- metadata + quote are both fetched.
+ *   - `metadata_incomplete_purchase_allowed` -- URL valid but metadata
  *     incomplete; purchase still allowed via canonical URL.
- *   - `metadata_unavailable_purchase_allowed` — metadata unavailable but
+ *   - `metadata_unavailable_purchase_allowed` -- metadata unavailable but
  *     purchase allowed via canonical URL.
  */
 export type ShopeeProductPreviewState =
