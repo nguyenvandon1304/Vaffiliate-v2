@@ -48,6 +48,10 @@ const FILES = [
   "src/features/cashback/ShopeePurchaseTrigger.tsx",
   "src/features/cashback/ShopeeProductPreviewCard.tsx",
   "src/features/cashback/ShopeeCashbackPreviewForm.tsx",
+  "src/repositories/shopee-reconciliation-ingestion.repository.ts",
+  "src/repositories/shopee-reconciliation-attribution-mapper.ts",
+  "src/repositories/shopee-reconciliation-attribution-mapper.test.ts",
+  "scripts/shopee-reconciliation-ingestion-postgres.integration.test.ts",
   "package.json",
 ];
 
