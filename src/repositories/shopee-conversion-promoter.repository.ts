@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Server-only repository: Shopee CSV row -> canonical conversion promoter.
  *
  * 1. Receives a shopee_csv_rows.id from the orchestrator.
