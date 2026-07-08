@@ -15,3 +15,15 @@ src/app/ma-giam-gia/page.tsx
 src/app/ma-giam-gia/[platform]/page.tsx
 package.json
 scripts/source-copy-audit.mjs
+src/lib/deals/public-deal-catalog.source.ts
+src/lib/deals/public-deal-normalizer.ts
+src/lib/deals/public-deal-sanitizer.ts
+src/lib/deals/public-deal-normalizer.test.ts
+src/lib/deals/public-deal-sanitizer.test.ts
+src/lib/deals/public-deal-catalog.source.test.ts
+src/lib/deals/sources/public-offer-feed.types.ts
+src/lib/deals/sources/mock-offer-feed.adapter.ts
+src/lib/deals/sources/addlivetag-offer-feed.adapter.ts
+src/lib/deals/sources/addlivetag-offer-raw.types.ts
+src/lib/deals/sources/addlivetag-offer-raw.types.test.ts
+src/services/public-deals.snapshot.test.ts
