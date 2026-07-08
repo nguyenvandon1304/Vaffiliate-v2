@@ -80,6 +80,21 @@ const FILES = [
   "src/app/app/admin/addlivetag/actions.ts",
   "src/db/schema.ts",
   "drizzle/0023_phase_20h8_addlivetag_source.sql",
+  "src/services/public-deals.types.ts",
+  "src/services/public-deals.service.ts",
+  "src/services/public-deals.service.test.ts",
+  "src/lib/mock/public-deals.ts",
+  "src/features/deals/DealHero.tsx",
+  "src/features/deals/PlatformTabs.tsx",
+  "src/features/deals/DealCategoryTabs.tsx",
+  "src/features/deals/VoucherCard.tsx",
+  "src/features/deals/DealCard.tsx",
+  "src/features/deals/CashbackProgramCard.tsx",
+  "src/features/deals/DealGrid.tsx",
+  "src/features/deals/SafeDisclosure.tsx",
+  "src/features/deals/public-deals.components.test.tsx",
+  "src/app/ma-giam-gia/page.tsx",
+  "src/app/ma-giam-gia/[platform]/page.tsx",
 ];
 
 // Marker byte strings assembled from code-point arithmetic so the
