@@ -3,6 +3,10 @@
  *
  * Routes to /cashback (the existing safe cashback flow).
  * Never exposes internal IDs.
+ *
+ * CTA label uses an inline white colour so the global
+ * `a { color: inherit }` rule in globals.css cannot dim the
+ * text against the brown button.
  */
 import Link from "next/link";
 import type { PublicCashbackDeal } from "@/services/public-deals.types";
@@ -12,6 +16,8 @@ interface CashbackProgramCardProps {
   readonly deal: PublicCashbackDeal;
   readonly action: SerializedDealAction;
 }
+
+const WHITE_TEXT_STYLE = { color: "#ffffff" } as const;
 
 export default function CashbackProgramCard({
   deal,
@@ -43,7 +49,8 @@ export default function CashbackProgramCard({
       <Link
         href={action.ctaHref ?? "/cashback"}
         data-testid="cashback-program-cta"
-        className="mt-auto rounded-full bg-[color:var(--brand-strong)] px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-white shadow-[var(--shadow-sm)]"
+        style={WHITE_TEXT_STYLE}
+        className="mt-auto inline-flex items-center justify-center rounded-full bg-[color:var(--brand-strong)] px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide no-underline shadow-[var(--shadow-sm)]"
       >
         {action.ctaLabel}
       </Link>

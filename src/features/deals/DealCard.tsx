@@ -1,5 +1,9 @@
 /**
  * Phase 20I.1 -- display-only deal card (no voucher code).
+ *
+ * Outbound CTA uses an inline style for the white text colour so the
+ * global `a { color: inherit }` rule in globals.css cannot dim the
+ * label on the dark background.
  */
 import type { PublicPromoDeal } from "@/services/public-deals.types";
 import type { SerializedDealAction } from "@/services/public-deals.service";
@@ -8,6 +12,8 @@ interface DealCardProps {
   readonly deal: PublicPromoDeal;
   readonly action: SerializedDealAction;
 }
+
+const WHITE_TEXT_STYLE = { color: "#ffffff" } as const;
 
 export default function DealCard({ deal, action }: DealCardProps) {
   return (
@@ -34,7 +40,9 @@ export default function DealCard({ deal, action }: DealCardProps) {
           href={action.ctaHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-auto rounded-full bg-[color:var(--text)] px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide text-white shadow-[var(--shadow-sm)]"
+          data-testid="deal-cta-outbound"
+          style={WHITE_TEXT_STYLE}
+          className="mt-auto inline-flex items-center justify-center rounded-full bg-[color:var(--text)] px-4 py-2 text-center text-xs font-semibold uppercase tracking-wide no-underline shadow-[var(--shadow-sm)]"
         >
           {action.ctaLabel}
         </a>

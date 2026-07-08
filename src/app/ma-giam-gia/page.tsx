@@ -52,7 +52,7 @@ export default function PublicDealsPage() {
 
         <section className="flex flex-col gap-4">
           <h2 className="text-[length:var(--text-xl)] font-semibold tracking-[-0.01em] text-[color:var(--text)]">
-            Ưu nổi bật
+            Ưu đãi nổi bật
           </h2>
           <DealGrid deals={featured} />
         </section>
