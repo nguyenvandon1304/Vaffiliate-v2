@@ -65,6 +65,21 @@ const FILES = [
   "src/app/app/cashback/page.tsx",
   "src/app/cashback/page.tsx",
   "package.json",
+  "src/reporting/addlivetag-types.ts",
+  "src/reporting/addlivetag-client.ts",
+  "src/reporting/addlivetag-client.test.ts",
+  "src/reporting/addlivetag-normalizer.ts",
+  "src/reporting/addlivetag-normalizer.test.ts",
+  "src/reporting/addlivetag-staging.ts",
+  "src/reporting/addlivetag-staging.server.ts",
+  "src/reporting/addlivetag-staging.service.test.ts",
+  "src/services/addlivetag-import.service.ts",
+  "scripts/addlivetag-import.ts",
+  "scripts/addlivetag-import-postgres.integration.test.ts",
+  "src/app/app/admin/addlivetag/page.tsx",
+  "src/app/app/admin/addlivetag/actions.ts",
+  "src/db/schema.ts",
+  "drizzle/0023_phase_20h8_addlivetag_source.sql",
 ];
 
 // Marker byte strings assembled from code-point arithmetic so the
