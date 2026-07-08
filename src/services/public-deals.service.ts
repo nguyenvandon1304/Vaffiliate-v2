@@ -2,14 +2,30 @@
  * Phase 20I.1 -- selectors for the public deal/voucher catalog.
  *
  * Buyer-facing selectors that never leak internal identifiers.
+ *
+ * Phase 20I.2 -- the selectors now consume a normalized/sanitized
+ * catalog snapshot produced by `composePublicCatalog` (see
+ * `@/lib/deals/public-deal-catalog.source`). The snapshot is built
+ * from the manual / mock seed plus zero or more
+ * `PublicOfferFeedAdapter` payloads.
+ *
+ * This module exposes ONLY synchronous selectors because the
+ * existing buyer-facing RSC routes call them synchronously. A future
+ * async refresh path can hydrate this snapshot without changing the
+ * selector signatures. Until then the snapshot is built from the
+ * manual PUBLIC_DEALS seed through `composePublicCatalog()`, which
+ * keeps the buyer-facing reads sync and the manual fallback stable.
  */
 
 import {
   ALL_CATEGORY_SLUGS,
   PUBLIC_CATEGORIES,
-  PUBLIC_DEALS,
   PUBLIC_PLATFORMS,
 } from "@/lib/mock/public-deals";
+import {
+  composePublicCatalog,
+  type PublicDealCatalogSource,
+} from "@/lib/deals/public-deal-catalog.source";
 
 import type {
   DealAction,
@@ -32,7 +48,7 @@ const ALLOWED_CATEGORY_SLUGS = new Set<DealCategorySlug>(
 );
 
 /**
- * Validate a raw \`?category=\` query value against the real, allowed
+ * Validate a raw `?category=` query value against the real, allowed
  * slug list. Falls back to the "all" sentinel for missing, malformed,
  * or unknown values. The regex pre-check mirrors the original guard so
  * unexpected glyphs (e.g. embedded slashes) never reach the typed
@@ -45,8 +61,36 @@ export function parseCategorySlug(raw: unknown): DealCategorySlug {
   return raw as DealCategorySlug;
 }
 
+let cachedSnapshot: PublicDealCatalogSource | null = null;
+
+/**
+ * Build (or reuse) the public deal catalog snapshot used by every
+ * sync selector.
+ *
+ * Why synchronous: the existing buyer-facing RSC routes call the
+ * selectors synchronously. The snapshot is built from the manual
+ * seed plus an empty adapter list, which equals the sanitized
+ * manual list returned by `composePublicCatalog()`. A future
+ * async refresh path could hydrate this snapshot without changing
+ * the selector signatures; until it is wired, this sync helper
+ * remains the single source the buyer-facing layer consumes.
+ */
+export function getPublicDealCatalogSnapshotSync(): PublicDealCatalogSource {
+  if (cachedSnapshot) return cachedSnapshot;
+  cachedSnapshot = composePublicCatalog({ adapterResults: [] });
+  return cachedSnapshot;
+}
+
+/**
+ * Force the next call to re-seed the snapshot. Test-only hook.
+ */
+export function resetPublicDealCatalogSnapshot(): void {
+  cachedSnapshot = null;
+}
+
 export function listFeaturedDeals(): ReadonlyArray<PublicDeal> {
-  return PUBLIC_DEALS.filter(
+  const snap = getPublicDealCatalogSnapshotSync();
+  return snap.all.filter(
     (d) => d.status === "active" && d.isFeatured === true,
   );
 }
@@ -54,19 +98,21 @@ export function listFeaturedDeals(): ReadonlyArray<PublicDeal> {
 export function listDealsByPlatform(
   platform: PublicDeal["platform"],
 ): ReadonlyArray<PublicDeal> {
-  return PUBLIC_DEALS.filter((d) => d.platform === platform);
+  const snap = getPublicDealCatalogSnapshotSync();
+  return snap.all.filter((d) => d.platform === platform);
 }
 
 export function listDealsByCategory(
   platform: PublicDeal["platform"],
   category: DealCategorySlug,
 ): ReadonlyArray<PublicDeal> {
+  const snap = getPublicDealCatalogSnapshotSync();
   if (category === "all") {
-    return PUBLIC_DEALS.filter(
+    return snap.all.filter(
       (d) => d.platform === platform && d.status === "active",
     );
   }
-  return PUBLIC_DEALS.filter(
+  return snap.all.filter(
     (d) =>
       d.platform === platform &&
       d.status === "active" &&
