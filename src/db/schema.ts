@@ -16,7 +16,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-// ─── Profiles ────────────────────────────────────────────────────────────────
+// --- Profiles ----------------------------------------------------------------
 
 export const profiles = pgTable("profiles", {
   userId: uuid("user_id").primaryKey(),
@@ -49,7 +49,7 @@ export const profiles = pgTable("profiles", {
     .notNull(),
 });
 
-// ─── Publisher payout accounts ──────────────────────────────────────────────
+// --- Publisher payout accounts ----------------------------------------------
 
 export const payoutAccounts = pgTable(
   "payout_accounts",
@@ -109,7 +109,7 @@ export const payoutAccounts = pgTable(
   ],
 );
 
-// ─── Consumer cashback tracking links ───────────────────────────────────────
+// --- Consumer cashback tracking links ---------------------------------------
 
 export const trackingLinks = pgTable(
   "tracking_links",
@@ -263,7 +263,7 @@ export const trackingLinks = pgTable(
   ],
 );
 
-// ─── Consumer cashback clicks ────────────────────────────────────────────────
+// --- Consumer cashback clicks ------------------------------------------------
 
 export const clicks = pgTable(
   "clicks",
@@ -360,7 +360,7 @@ export const clicks = pgTable(
   ],
 );
 
-// ─── Shopee CSV import staging ────────────────────────────────────────────────
+// --- Shopee CSV import staging ------------------------------------------------
 
 export const shopeeCsvImportBatches = pgTable(
   "shopee_csv_import_batches",
@@ -398,6 +398,19 @@ export const shopeeCsvImportBatches = pgTable(
 
     parserVersion: text("parser_version")
       .notNull(),
+
+    /**
+     * Report source identifier.
+     *
+     * - manual_csv        : a human-uploaded CSV file (Phase 20G.1 baseline)
+     * - addlivetag_api    : Addlivetag REST API adapter (Phase 20H.8)
+     * - official_shopee_api: reserved for a future direct Shopee API adapter
+     *
+     * Defaults to `manual_csv` to preserve historical CSV row identity.
+     */
+    source: text("source")
+      .notNull()
+      .default("manual_csv"),
 
     status: text("status")
       .default("pending")
@@ -552,6 +565,24 @@ export const shopeeCsvImportBatches = pgTable(
         )
       `,
     ),
+
+    /**
+     * Phase 20H.8 -- allowed batch source values. The forward-compatible
+     * 'official_shopee_api' value is reserved for a later adapter.
+     */
+    check(
+      "shopee_csv_import_batches_source_check",
+      sql`${table.source} in (
+        'manual_csv',
+        'addlivetag_api',
+        'official_shopee_api'
+      )`,
+    ),
+
+    index("shopee_csv_import_batches_source_created_at_idx").on(
+      table.source,
+      table.createdAt,
+    ),
   ],
 );
 
@@ -570,6 +601,15 @@ export const shopeeCsvRows = pgTable(
           onDelete: "cascade",
         },
       ),
+
+    /**
+     * Report source that produced this row. Mirrors
+     * `shopee_csv_import_batches.source` so the source is queryable
+     * per row and not only per batch.
+     */
+    source: text("source")
+      .notNull()
+      .default("manual_csv"),
 
     /**
      * Physical row number in the original CSV file.
@@ -850,6 +890,21 @@ export const shopeeCsvRows = pgTable(
         )
       `,
     ),
+
+    /**
+     * Phase 20H.8 -- allowed row source values. Mirrors the
+     * `shopee_csv_import_batches_source_check` constraint.
+     */
+    check(
+      "shopee_csv_rows_source_check",
+      sql`${table.source} in (
+        'manual_csv',
+        'addlivetag_api',
+        'official_shopee_api'
+      )`,
+    ),
+
+    index("shopee_csv_rows_source_idx").on(table.source),
   ],
 );
 // ----------------------------------------------------------------------------
@@ -1009,7 +1064,7 @@ export const shopeeIngestionEvents = pgTable(
 ).enableRLS();
 
 
-// ─── Conversion ledger ──────────────────────────────────────────────────────
+// --- Conversion ledger ------------------------------------------------------
 
 export const conversions = pgTable(
   "conversions",
@@ -1431,7 +1486,7 @@ export const conversions = pgTable(
   ],
 );
 
-// ─── Affiliate catalog ──────────────────────────────────────────────────────
+// --- Affiliate catalog ------------------------------------------------------
 
 export const advertisers = pgTable(
   "advertisers",
@@ -1636,7 +1691,7 @@ export const cashbackPolicies = pgTable(
   ],
 ).enableRLS();
 
-// ─── Shopee buyer purchase intent (Phase 20H.3b) ─────────────────────────────
+// --- Shopee buyer purchase intent (Phase 20H.3b) -----------------------------
 //
 // One durable first-party record of a buyer's intent to start a Shopee
 // cashback handoff. Written by `initiateShopeePurchaseAction` BEFORE the
@@ -1845,7 +1900,7 @@ export const shopeePurchaseIntents = pgTable(
   ],
 ).enableRLS();
 
-// ─── Inferred database row types ────────────────────────────────────────────
+// --- Inferred database row types --------------------------------------------
 
 export type ProfileRow = typeof profiles.$inferSelect;
 export type NewProfileRow = typeof profiles.$inferInsert;
