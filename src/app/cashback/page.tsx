@@ -30,8 +30,10 @@
 import Link from "next/link";
 
 import PublicCashbackFlowWithPreview from "@/features/cashback/PublicCashbackFlowWithPreview";
+import ShopeePopularPrograms from "@/features/cashback/ShopeePopularPrograms";
 import BrandLogo from "@/components/shared/BrandLogo";
 import { createClient } from "@/lib/supabase/server";
+import { listShopeeProgramCardsAsync } from "@/services/shopee-programs.service";
 
 type CashbackPageProps = {
   searchParams: Promise<{
@@ -66,6 +68,8 @@ export default async function PublicCashbackPage({
     data: { user },
   } = await supabase.auth.getUser();
   const isAuthenticated = user !== null;
+
+  const programCards = await listShopeeProgramCardsAsync();
 
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 sm:py-8">
@@ -106,6 +110,8 @@ export default async function PublicCashbackPage({
           isAuthenticated={isAuthenticated}
           initialProductUrl={rawProductUrl || null}
         />
+
+        <ShopeePopularPrograms cards={programCards} />
 
         <section
           aria-labelledby="public-cashback-coming-soon"
