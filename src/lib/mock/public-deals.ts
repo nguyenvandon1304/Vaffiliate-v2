@@ -44,7 +44,17 @@ export const PUBLIC_PLATFORMS: ReadonlyArray<PlatformDescriptor> = [
   },
 ];
 
+/**
+ * Public-facing categories. Order matters: the first entry becomes the
+ * default "All" tab and renders leftmost in the category row on every
+ * platform page. The "all" sentinel must always come first.
+ */
 export const PUBLIC_CATEGORIES: ReadonlyArray<DealCategoryDescriptor> = [
+  {
+    slug: "all",
+    displayName: "Tất cả",
+    description: "Tất cả mã và deal.",
+  },
   {
     slug: "popular",
     displayName: "Phổ biến",
@@ -84,11 +94,6 @@ export const PUBLIC_CATEGORIES: ReadonlyArray<DealCategoryDescriptor> = [
     slug: "home",
     displayName: "Gia dụng",
     description: "Mã giảm giá đồ gia dụng.",
-  },
-  {
-    slug: "all",
-    displayName: "Tất cả",
-    description: "Tất cả mã và deal.",
   },
 ];
 

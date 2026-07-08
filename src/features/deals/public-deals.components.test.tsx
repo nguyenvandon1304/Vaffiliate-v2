@@ -3,6 +3,8 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import CashbackProgramCard from "@/features/deals/CashbackProgramCard";
 import DealCard from "@/features/deals/DealCard";
@@ -13,6 +15,7 @@ import SafeDisclosure from "@/features/deals/SafeDisclosure";
 import VoucherCard from "@/features/deals/VoucherCard";
 import {
   getDealAction,
+  listCategories,
   listDealsByPlatform,
   listPlatforms,
   serializeDealAction,
@@ -42,6 +45,10 @@ const FORBIDDEN_HEX: ReadonlyArray<string> = [
   "#1a94ff",
 ];
 
+// Build the U+FFFD character via code-point arithmetic so the test
+// source itself never contains the replacement byte.
+const REPLACEMENT_CHAR = String.fromCharCode(0xfffd);
+
 function assertNoInternalIdLeak(markup: string): void {
   for (const marker of INTERNAL_ID_MARKERS) {
     assert.ok(!markup.includes(marker));
@@ -55,7 +62,10 @@ function assertNoBrandColorHex(markup: string): void {
 }
 
 function assertNoReplacementChar(markup: string): void {
-  assert.ok(!markup.includes("�"), "markup contains U+FFFD replacement char");
+  assert.ok(
+    !markup.includes(REPLACEMENT_CHAR),
+    "markup contains U+FFFD replacement char",
+  );
 }
 
 test("VoucherCard renders copy button when code is available", () => {
@@ -142,6 +152,39 @@ test("DealCard renders safe outbound link", () => {
   assertNoReplacementChar(markup);
 });
 
+test("DealCard outbound CTA uses inline white text style for contrast", () => {
+  const deal = PUBLIC_DEALS.find(
+    (d) => d.kind === "deal" && d.status === "active",
+  ) as PublicPromoDeal | undefined;
+  assert.ok(deal);
+  const action = serializeDealAction(getDealAction(deal));
+  const markup = renderToStaticMarkup(<DealCard deal={deal} action={action} />);
+  assert.ok(
+    markup.includes('data-testid="deal-cta-outbound"'),
+    "CTA must carry the testid",
+  );
+  assert.ok(
+    /color:\s*(?:#ffffff|rgb\(\s*255\s*,\s*255\s*,\s*255\s*\))/i.test(markup),
+    "CTA must carry inline white text colour",
+  );
+});
+
+test("CashbackProgramCard CTA uses inline white text style for contrast", () => {
+  const cashback = PUBLIC_DEALS.find(
+    (d) => d.kind === "cashback_program",
+  ) as PublicCashbackDeal | undefined;
+  assert.ok(cashback);
+  const action = serializeDealAction(getDealAction(cashback));
+  const markup = renderToStaticMarkup(
+    <CashbackProgramCard deal={cashback} action={action} />,
+  );
+  assert.ok(
+    /color:\s*(?:#ffffff|rgb\(\s*255\s*,\s*255\s*,\s*255\s*\))/i.test(markup),
+    "Cashback CTA must carry inline white text colour",
+  );
+  assert.ok(markup.includes("Xem điều kiện hoàn tiền"));
+});
+
 test("DealGrid dispatches by deal kind", () => {
   const shopee = listDealsByPlatform("shopee");
   const markup = renderToStaticMarkup(<DealGrid deals={shopee} />);
@@ -195,6 +238,82 @@ test("SafeDisclosure renders the buyer-facing disclaimer", () => {
   assertNoReplacementChar(markup);
 });
 
+test("DealCategoryTabs renders 'Tất cả' as the first tab", () => {
+  const categories = listCategories();
+  assert.equal(categories[0].slug, "all", "first category slug must be 'all'");
+  assert.equal(
+    categories[0].displayName,
+    "Tất cả",
+    "first category display name must be 'Tất cả'",
+  );
+});
+
+test("DealCategoryTabs renders all categories including 'Tất cả'", () => {
+  const categories = listCategories();
+  const markup = renderToStaticMarkup(
+    <DealCategoryTabs
+      platform="shopee"
+      categories={categories}
+      activeCategory="all"
+    />,
+  );
+  assert.ok(markup.includes("category-tabs"));
+  assert.ok(markup.includes("data-testid=\"category-tab\""));
+  assert.ok(markup.includes("data-category-slug=\"all\""));
+  assert.ok(markup.includes("data-category-slug=\"popular\""));
+  assert.ok(markup.includes("Tất cả"));
+  assertNoReplacementChar(markup);
+});
+
+test("DealCategoryTabs active 'all' tab is not blank and uses white text", () => {
+  const categories = listCategories();
+  const markup = renderToStaticMarkup(
+    <DealCategoryTabs
+      platform="shopee"
+      categories={categories}
+      activeCategory="all"
+    />,
+  );
+  const activeTabMatch = markup.match(
+    /<a[^>]*data-category-slug="all"[^>]*data-active="true"[^>]*>([\s\S]*?)<\/a>/,
+  );
+  assert.ok(activeTabMatch, "active 'all' tab must be present");
+  const innerHtml = activeTabMatch![1].trim();
+  assert.ok(innerHtml.length > 0, "active 'all' tab must not render blank");
+  assert.ok(innerHtml.includes("Tất cả"), "active tab must render 'Tất cả' text");
+  assert.ok(
+    /color:\s*(?:#ffffff|rgb\(\s*255\s*,\s*255\s*,\s*255\s*\))/i.test(
+      activeTabMatch![0],
+    ),
+    "active 'all' tab must carry inline white text colour",
+  );
+});
+
+test("DealCategoryTabs skips categories whose displayName is blank", () => {
+  const categories = listCategories();
+  const withBlank = [
+    ...categories,
+    {
+      slug: "popular" as const,
+      displayName: "   ",
+      description: "should never render",
+    },
+  ];
+  const markup = renderToStaticMarkup(
+    <DealCategoryTabs
+      platform="shopee"
+      categories={withBlank}
+      activeCategory="all"
+    />,
+  );
+  assert.ok(
+    !markup.includes("should never render"),
+    "blank-label categories must not render",
+  );
+  const popularCount = (markup.match(/data-category-slug="popular"/g) || []).length;
+  assert.equal(popularCount, 1, "only the real 'Phổ biến' tab should render");
+});
+
 test("All public-deals markup uses Vietnamese diacritics in key headings", () => {
   const deal = PUBLIC_DEALS.find(
     (d) => d.kind === "deal" && d.status === "active",
@@ -238,4 +357,23 @@ test("All public-deals markup uses Vietnamese diacritics in key headings", () =>
   for (const p of placeholders) {
     assert.ok(!all.includes(p), `markup still uses unaccented placeholder "${p}"`);
   }
+});
+
+test("public deals landing page uses 'Ưu đãi nổi bật' heading", () => {
+  // Phase 20I.1 visual fix: section heading must read
+  // "Ưu đãi nổi bật", never the older truncated "Ưu nổi bật".
+  const src = readFileSync(
+    join(process.cwd(), "src/app/ma-giam-gia/page.tsx"),
+    "utf8",
+  );
+  const wantedHeading = "Ưu đãi nổi bật";
+  const forbiddenHeading = "Ưu nổi bật";
+  assert.ok(
+    src.includes(wantedHeading),
+    "section heading must use accented Ưu đãi nổi bật",
+  );
+  assert.ok(
+    !src.includes(forbiddenHeading),
+    "section heading must not contain the truncated Ưu nổi bật form",
+  );
 });
