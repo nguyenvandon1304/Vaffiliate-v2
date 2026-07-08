@@ -4,12 +4,14 @@ import PageHeader from "@/components/layout/PageHeader";
 import ShopeeCashbackEntrySteps from "@/features/cashback/ShopeeCashbackEntrySteps";
 import ShopeeCashbackPreviewForm from "@/features/cashback/ShopeeCashbackPreviewForm";
 import ShopeeCashbackTrustInstructions from "@/features/cashback/ShopeeCashbackTrustInstructions";
+import ShopeePopularPrograms from "@/features/cashback/ShopeePopularPrograms";
 import CashbackFilters from "@/features/cashback/CashbackFilters";
 import CashbackHistoryTable from "@/features/cashback/CashbackHistoryTable";
 import CashbackStats from "@/features/cashback/CashbackStats";
 import { loadCashbackAsync } from "@/hooks/loadCashbackAsync";
 import { isApprovedStatus } from "@/lib/analytics/format";
 import { createClient } from "@/lib/supabase/server";
+import { listShopeeProgramCardsAsync } from "@/services/shopee-programs.service";
 import type { CashbackPlatformName, CashbackStat } from "@/types/cashback";
 
 // Platforms whose cashback history is shown on this page. The buyer
@@ -42,9 +44,10 @@ function formatVnd(amount: number): string {
 }
 
 export default async function CashbackPage() {
-  const [{ history }, supabase] = await Promise.all([
+  const [{ history }, supabase, programCards] = await Promise.all([
     loadCashbackAsync(),
     createClient(),
+    listShopeeProgramCardsAsync(),
   ]);
 
   const {
@@ -117,6 +120,8 @@ export default async function CashbackPage() {
 
       <ShopeeCashbackTrustInstructions />
 
+      <ShopeePopularPrograms cards={programCards} />
+
       <CashbackFilters filters={filters} />
       <CashbackHistoryTable history={supportedHistory} />
 
@@ -176,6 +181,10 @@ export default async function CashbackPage() {
         <CashbackFilters filters={filters} />
       </AppSection>
       <CashbackHistoryTable history={supportedHistory} />
+
+      <AppSection>
+        <ShopeePopularPrograms cards={programCards} />
+      </AppSection>
 
       <AppSection className="mt-4 pb-8">
         <div className="rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.62)] p-4 shadow-[var(--shadow-sm)]">

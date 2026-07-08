@@ -33,6 +33,10 @@ import {
 import {
   createCashbackTrackingLinkAsync,
 } from "@/repositories/cashback-tracking.repository";
+import {
+  classifyOnPurchaseAsync,
+  CLASSIFY_ON_PURCHASE_FAILURE_COPY,
+} from "@/app/app/cashback/classify-on-purchase";
 import { db } from "@/db/client";
 import { trackingLinks } from "@/db/schema";
 import {
@@ -615,6 +619,16 @@ export async function initiateShopeePurchaseAction(
   // verify, before the success return). If persistence fails, we
   // return a typed `persistence_failed` state with friendly copy and
   // NO redirect path so the CTA cannot navigate the buyer away.
+  //
+  // Phase 20H.7a (correction): the intent must persist the CLASSIFIED
+  // campaignId/offerId returned by `classifyOnPurchaseAsync`, NOT the
+  // stale pre-classification `trackingLink.campaignId/offerId`. The
+  // RPC-built tracking link object is loaded BEFORE the catalog
+  // update runs, so its campaignId/offerId fields are still null even
+  // though classifyShopeeTrackingLinkAsync has just written the real
+  // values to the DB. Threading the classified values through this
+  // helper is the only way the Phase 20H.6 reconciliation engine can
+  // recover the catalog snapshot when it promotes a future CSV row.
   const recordIntentOrAbort = async (args: {
     canonicalUrl: string;
     shopId: string;
@@ -623,6 +637,8 @@ export async function initiateShopeePurchaseAction(
     trackingLink: Awaited<
       ReturnType<typeof createCashbackTrackingLinkAsync>
     >;
+    classifiedCampaignId: string;
+    classifiedOfferId: string;
   }): Promise<InitiateShopeePurchaseActionState | null> => {
     const quoteSnapshot =
       await buildShopeePurchaseIntentQuoteSnapshotFromPreview(
@@ -640,8 +656,8 @@ export async function initiateShopeePurchaseAction(
           canonicalProductUrl: args.canonicalUrl,
           shopId: args.shopId,
           itemId: args.itemId,
-          campaignId: args.trackingLink.campaignId,
-          offerId: args.trackingLink.offerId,
+          campaignId: args.classifiedCampaignId,
+          offerId: args.classifiedOfferId,
           affiliateUrl: args.affiliateUrl,
           quoteSnapshot,
         },
@@ -735,6 +751,37 @@ export async function initiateShopeePurchaseAction(
       message: isAuthError
         ? "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
         : "Không thể tạo link hoàn tiền lúc này. Vui lòng thử lại.",
+      trackingPath: null,
+    };
+  }
+
+  // Phase 20H.7a -- an eligible Shopee cashback purchase flow
+  // REQUIRES a classified tracking link. Without a classified link
+  // the Phase 20H.6 reconciliation engine has no usable catalog
+  // snapshot and would skip the row as `catalog_snapshot_not_found`,
+  // silently dropping the buyer's purchase. The buyer must NOT be
+  // redirected to Shopee unless classification is locked in.
+  //
+  // The resolve -> classify sequence lives in a dedicated helper so
+  // the ordering invariant can be unit-tested without spinning up
+  // the full server action.
+  const classification = await classifyOnPurchaseAsync({
+    publisherId,
+    trackingLinkId: trackingLink.id,
+  });
+
+  if (!classification.ok) {
+    // Safe server-side log: never echo the tracking link id,
+    // offer id, network sub id, or any short code. The detailed
+    // error stays inside our own logs; the buyer only sees the
+    // safe Vietnamese copy below.
+    console.error(
+      "[Phase 20H.7a] classify-on-purchase blocked redirect; reason=" +
+        classification.reason,
+    );
+    return {
+      ok: false,
+      message: CLASSIFY_ON_PURCHASE_FAILURE_COPY,
       trackingPath: null,
     };
   }
@@ -841,6 +888,8 @@ export async function initiateShopeePurchaseAction(
         itemId,
         affiliateUrl: expectedAffiliateUrl,
         trackingLink,
+        classifiedCampaignId: classification.campaignId,
+        classifiedOfferId: classification.offerId,
       });
 
       if (abortState !== null) {
@@ -918,6 +967,8 @@ export async function initiateShopeePurchaseAction(
     itemId,
     affiliateUrl: trackingLink.affiliateUrl ?? expectedAffiliateUrl,
     trackingLink,
+    classifiedCampaignId: classification.campaignId,
+    classifiedOfferId: classification.offerId,
   });
 
   if (abortState !== null) {

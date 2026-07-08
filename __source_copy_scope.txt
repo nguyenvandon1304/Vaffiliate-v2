@@ -20,3 +20,14 @@ src/repositories/shopee-reconciliation-ingestion.repository.ts
 src/repositories/shopee-reconciliation-attribution-mapper.ts
 src/repositories/shopee-reconciliation-attribution-mapper.test.ts
 scripts/shopee-reconciliation-ingestion-postgres.integration.test.ts
+src/services/shopee-generic-cashback.service.ts
+src/services/shopee-generic-cashback.service.test.ts
+src/services/shopee-programs.service.ts
+src/services/shopee-programs.service.test.ts
+src/services/shopee-programs.types.ts
+src/lib/mock/shopee-programs.ts
+src/features/cashback/ShopeePopularPrograms.tsx
+src/features/cashback/ShopeePopularPrograms.test.tsx
+scripts/shopee-classify-on-purchase-postgres.integration.test.ts
+src/app/app/cashback/classify-on-purchase.ts
+src/app/app/cashback/classify-on-purchase.test.ts
