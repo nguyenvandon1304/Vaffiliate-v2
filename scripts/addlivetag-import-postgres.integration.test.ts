@@ -25,14 +25,14 @@
  *
  * Skips automatically when DATABASE_URL is not set.
  *
- * UUID fixtures use the dedicated UUID namespace
- * `00000000-0000-4000-8000-000000??????` reserved for Phase 20H.8
- * so fixtures cannot collide with other integration suites. Text /
+ * UUID fixtures are generated at runtime with randomUUID() to avoid
+ * secret-scanning false positives. Text /
  * FK ids (advertiser / campaign / offer / short_code /
  * external_order_id / source_file_name / network_sub_id) use the
  * `ci-20h8-...` marker and are unique by RUN_TAG.
  */
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import test, { after } from "node:test";
 import postgres from "postgres";
 
@@ -51,14 +51,13 @@ if (!DATABASE_URL) {
     .toString(36)
     .slice(2, 8)}`;
 
-  // Valid UUIDs for UUID columns (use the 7d8f / 7e8f namespace
-  // reserved for Phase 20H.8 so we cannot collide with other CI
-  // integration suites).
-  const PUBLISHER_ID = "00000000-0000-4000-8000-0000000007d1";
-  const TRACKING_LINK_ID = "00000000-0000-4000-8000-0000000007d2";
-  const INTENT_ID = "00000000-0000-4000-8000-0000000007d3";
-  const BATCH_ID = "00000000-0000-4000-8000-0000000007d4";
-  const STAGED_ROW_ID = "00000000-0000-4000-8000-0000000007d5";
+  // Runtime UUIDs for UUID columns; generated per test run to avoid
+  // secret-scanning false positives and fixture collisions.
+  const PUBLISHER_ID = randomUUID();
+  const TRACKING_LINK_ID = randomUUID();
+  const INTENT_ID = randomUUID();
+  const BATCH_ID = randomUUID();
+  const STAGED_ROW_ID = randomUUID();
 
   // Stable 64-char lowercase hex fingerprints. The promoted and
   // replay path share `ROW_FINGERPRINT_PROMOTED` because replay

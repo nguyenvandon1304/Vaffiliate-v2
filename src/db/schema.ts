@@ -565,6 +565,24 @@ export const shopeeCsvImportBatches = pgTable(
         )
       `,
     ),
+
+    /**
+     * Phase 20H.8 -- allowed batch source values. The forward-compatible
+     * 'official_shopee_api' value is reserved for a later adapter.
+     */
+    check(
+      "shopee_csv_import_batches_source_check",
+      sql`${table.source} in (
+        'manual_csv',
+        'addlivetag_api',
+        'official_shopee_api'
+      )`,
+    ),
+
+    index("shopee_csv_import_batches_source_created_at_idx").on(
+      table.source,
+      table.createdAt,
+    ),
   ],
 );
 
@@ -872,6 +890,21 @@ export const shopeeCsvRows = pgTable(
         )
       `,
     ),
+
+    /**
+     * Phase 20H.8 -- allowed row source values. Mirrors the
+     * `shopee_csv_import_batches_source_check` constraint.
+     */
+    check(
+      "shopee_csv_rows_source_check",
+      sql`${table.source} in (
+        'manual_csv',
+        'addlivetag_api',
+        'official_shopee_api'
+      )`,
+    ),
+
+    index("shopee_csv_rows_source_idx").on(table.source),
   ],
 );
 // ----------------------------------------------------------------------------
