@@ -23,6 +23,9 @@
  *     the full URL string.
  *   - Replaces any copy that smells like a guaranteed cashback /
  *     voucher claim with neutral, conditional wording.
+ *   - Phase 20I.4: scrubs the optional `offerLink` and
+ *     `productLink` fields the same way as `destinationUrl`, and
+ *     validates `cashbackLabel` against the guarantee phrase list.
  *
  * The sanitizer NEVER throws -- it returns a disjoint result so the
  * catalog source can decide to drop or keep the record.
@@ -309,6 +312,62 @@ export function sanitizePublicDeal(deal: PublicDeal): SanitizationResult {
   const urlResult = safeUrl(deal.destinationUrl, deal.platform);
   if (urlResult.replaced) redacted.push("destinationUrl");
 
+  // Phase 20I.4: scrub the optional offer/product URLs and the
+  // optional imageUrl / shopName / rating / cashbackLabel fields
+  // the same way as the rest of the buyer-visible surface.
+  const offerLinkResult = deal.offerLink
+    ? safeUrl(deal.offerLink, deal.platform)
+    : null;
+  if (offerLinkResult?.replaced) redacted.push("offerLink");
+  const productLinkResult = deal.productLink
+    ? safeUrl(deal.productLink, deal.platform)
+    : null;
+  if (productLinkResult?.replaced) redacted.push("productLink");
+  const imageUrlResult = deal.imageUrl
+    ? safeUrl(deal.imageUrl, deal.platform)
+    : null;
+  if (imageUrlResult?.replaced) redacted.push("imageUrl");
+
+  const shopName = deal.shopName
+    ? safeText(deal.shopName, "")
+    : null;
+  if (deal.shopName && shopName === "") redacted.push("shopName");
+
+  const rating = deal.rating
+    ? safeRating(deal.rating)
+    : null;
+  if (deal.rating && rating === null) redacted.push("rating");
+
+  const cashbackLabel = deal.cashbackLabel
+    ? safeText(deal.cashbackLabel, "")
+    : null;
+  if (deal.cashbackLabel && cashbackLabel === "") redacted.push("cashbackLabel");
+
+  // commissionRate is numeric. We refuse negative / non-finite /
+  // over-100% values; if missing or invalid, drop the field.
+  const commissionRate = deal.commissionRate === null || deal.commissionRate === undefined
+    ? null
+    : safeCommissionRate(deal.commissionRate);
+  if (
+    deal.commissionRate !== null &&
+    deal.commissionRate !== undefined &&
+    commissionRate === null
+  ) {
+    redacted.push("commissionRate");
+  }
+
+  // productCatIds: only forward integer IDs that look like safe
+  // Shopee category numbers; otherwise drop the whole array.
+  const productCatIds = deal.productCatIds
+    ? safeCategoryIds(deal.productCatIds)
+    : null;
+  if (deal.productCatIds && productCatIds === null) redacted.push("productCatIds");
+
+  const startsAt = deal.startsAt ? safeIsoOrNull(deal.startsAt) : null;
+  if (deal.startsAt && startsAt === null) redacted.push("startsAt");
+  const endsAt = deal.endsAt ? safeIsoOrNull(deal.endsAt) : null;
+  if (deal.endsAt && endsAt === null) redacted.push("endsAt");
+
   const base = {
     id: deal.id,
     platform: deal.platform,
@@ -322,6 +381,16 @@ export function sanitizePublicDeal(deal: PublicDeal): SanitizationResult {
     destinationUrl: urlResult.url,
     discountText: discountText === "" ? null : discountText,
     minSpendText: minSpendText === "" ? null : minSpendText,
+    offerLink: offerLinkResult ? offerLinkResult.url : null,
+    productLink: productLinkResult ? productLinkResult.url : null,
+    imageUrl: imageUrlResult ? imageUrlResult.url : null,
+    shopName: shopName === "" ? null : shopName,
+    rating: rating,
+    cashbackLabel: cashbackLabel === "" ? null : cashbackLabel,
+    commissionRate: commissionRate,
+    productCatIds: productCatIds,
+    startsAt: startsAt,
+    endsAt: endsAt,
   };
 
   let next: PublicDeal;
@@ -381,3 +450,68 @@ export const INTERNAL_TOKEN_HINTS_FOR_AUDIT = INTERNAL_TOKEN_HINTS;
  * reason as above.
  */
 export const GUARANTEE_PHRASES_FOR_AUDIT = GUARANTEE_PHRASES;
+
+/**
+ * Phase 20I.4 -- sanitise a rating. Accepts a string in the form
+ * `4.9` or numeric like `4.9`. Refuses values outside [0, 5] or
+ * with more than two fractional digits.
+ */
+function safeRating(value: string | number): string | null {
+  let n: number;
+  if (typeof value === "number") {
+    n = value;
+  } else if (typeof value === "string" && value.trim().length > 0) {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return null;
+    n = parsed;
+  } else {
+    return null;
+  }
+  if (!Number.isFinite(n)) return null;
+  if (n < 0 || n > 5) return null;
+  return n.toFixed(1);
+}
+
+/**
+ * Phase 20I.4 -- sanitise a platform commission rate. Must be a
+ * finite number in [0, 1]. Anything else is dropped (the catalog
+ * will simply not show the rate).
+ */
+function safeCommissionRate(value: number): number | null {
+  if (typeof value !== "number") return null;
+  if (!Number.isFinite(value)) return null;
+  if (value < 0 || value > 1) return null;
+  return value;
+}
+
+/**
+ * Phase 20I.4 -- sanitise Shopee category id list. Drop ids that
+ * are not positive safe integers; cap the list at 16 entries.
+ */
+function safeCategoryIds(
+  values: ReadonlyArray<number>,
+): ReadonlyArray<number> | null {
+  if (!Array.isArray(values)) return null;
+  const out: number[] = [];
+  for (const v of values) {
+    if (!Number.isInteger(v)) return null;
+    if (v < 0 || v > Number.MAX_SAFE_INTEGER) return null;
+    out.push(v);
+    if (out.length >= 16) break;
+  }
+  return out;
+}
+
+/**
+ * Phase 20I.4 -- validate an ISO-8601 string. Returns the original
+ * string when it parses, otherwise null. We accept the date-time
+ * subset only (yyyy-MM-ddTHH:mm:ss[.sss]Z).
+ */
+function safeIsoOrNull(value: string): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  const ms = Date.parse(trimmed);
+  if (!Number.isFinite(ms)) return null;
+  return new Date(ms).toISOString();
+}

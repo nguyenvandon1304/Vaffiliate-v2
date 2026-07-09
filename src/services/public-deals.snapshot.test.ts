@@ -187,3 +187,78 @@ test("selectors do not introduce guaranteed cashback / voucher copy", async () =
     );
   }
 });
+
+test("Phase 20I.4: voucher deal without a real code drops the Sao chep ma action", () => {
+  resetPublicDealCatalogSnapshot();
+  const snap = composePublicCatalog({
+    manual: PUBLIC_DEALS,
+    adapterResults: [
+      {
+        source: "mock",
+        result: {
+          ok: true,
+          offers: [
+            {
+              vendorId: "adapter-voucher-no-code",
+              platform: "shopee",
+              kind: "voucher_code",
+              title: "Shopee voucher no real code",
+              description: "Adapter voucher without a real code.",
+              destinationUrl: "https://shopee.vn/dien-tu",
+              status: "active",
+              // No `code` here -- the normalizer MUST NOT synthesise
+              // one from offerName / discountText.
+            },
+          ],
+        },
+      },
+    ],
+  });
+  const voucher = snap.all.find((d) => d.id === "adapter-voucher-no-code");
+  assert.ok(voucher);
+  if (voucher) {
+    assert.strictEqual(voucher.kind, "voucher_code");
+    assert.strictEqual(voucher.code, null);
+  }
+});
+
+test("Phase 20I.4: offerLink / productLink / cashbackLabel survive the sanitiser", () => {
+  resetPublicDealCatalogSnapshot();
+  const snap = composePublicCatalog({
+    manual: PUBLIC_DEALS,
+    adapterResults: [
+      {
+        source: "mock",
+        result: {
+          ok: true,
+          offers: [
+            {
+              vendorId: "adapter-meta-1",
+              platform: "shopee",
+              kind: "deal",
+              title: "Clean adapter offer",
+              description: "Clean adapter offer description.",
+              imageUrl: "https://cf.shopee.vn/x.jpg",
+              destinationUrl: "https://shopee.vn/dien-tu/sample",
+              validUntil: "2099-12-31T00:00:00.000Z",
+              status: "active",
+              cashbackHint: "Hoa hong chien dich 7%",
+              tracking: { affiliateUrl: "https://shopee.vn/r/sample" },
+            },
+          ],
+        },
+      },
+    ],
+  });
+  const offer = snap.all.find((d) => d.id === "adapter-meta-1");
+  assert.ok(offer);
+  if (offer) {
+    assert.strictEqual(offer.imageUrl, "https://cf.shopee.vn/x.jpg");
+    assert.strictEqual(
+      offer.offerLink,
+      "https://shopee.vn/r/sample",
+    );
+    assert.strictEqual(offer.cashbackLabel, "Hoa hong chien dich 7%");
+    assert.strictEqual(offer.endsAt, "2099-12-31T00:00:00.000Z");
+  }
+});

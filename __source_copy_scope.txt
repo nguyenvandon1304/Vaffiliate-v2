@@ -27,3 +27,11 @@ src/lib/deals/sources/addlivetag-offer-feed.adapter.ts
 src/lib/deals/sources/addlivetag-offer-raw.types.ts
 src/lib/deals/sources/addlivetag-offer-raw.types.test.ts
 src/services/public-deals.snapshot.test.ts
+src/lib/deals/sources/shopee-offer-raw.types.ts
+src/lib/deals/sources/shopee-offer-graphql.types.ts
+src/lib/deals/sources/shopee-offer-auth.types.ts
+src/lib/deals/sources/shopee-offer-live.client.ts
+src/lib/deals/sources/shopee-offer-normalizer.ts
+src/lib/deals/sources/shopee-offer-graphql.types.test.ts
+src/lib/deals/sources/shopee-offer-normalizer.test.ts
+src/lib/deals/sources/shopee-offer-live.client.test.ts

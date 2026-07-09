@@ -191,12 +191,18 @@ function buildVoucher(
   base: PublicDealBase,
   raw: RawOffer,
 ): PublicDeal {
+  // Phase 20I.4 -- DO NOT synthesise a voucher code from
+  // `discountText` (which is the descriptive "Giảm 30k" copy).
+  // A voucher code must be carried explicitly by the source. Until
+  // the RawOffer shape carries a `code` field, adapter-driven
+  // voucher entries expose `code: null` so the UI hides the
+  // copy-code action. Manual seeded entries continue to carry a
+  // real code because they bypass the normalizer entirely.
+  void raw;
   return {
     ...base,
     kind: "voucher_code",
-    code: typeof raw.discountText === "string"
-      ? sanitizeText(raw.discountText) ?? null
-      : null,
+    code: null,
   };
 }
 
@@ -233,6 +239,17 @@ interface PublicDealBase {
   readonly destinationUrl: string;
   readonly discountText: string | null;
   readonly minSpendText: string | null;
+  /** Phase 20I.4 -- optional surface fields forwarded to the sanitiser. */
+  readonly productLink: string | null;
+  readonly offerLink: string | null;
+  readonly imageUrl: string | null;
+  readonly cashbackLabel: string | null;
+  readonly commissionRate: number | null;
+  readonly shopName: string | null;
+  readonly rating: string | null;
+  readonly productCatIds: ReadonlyArray<number> | null;
+  readonly startsAt: string | null;
+  readonly endsAt: string | null;
 }
 
 /**
@@ -297,6 +314,64 @@ export function normalizeRawOffer(raw: RawOffer): NormalizationResult {
   const discountText = sanitizeText(raw.discountText) ?? null;
   const minSpendText = sanitizeText(raw.priceText) ?? null;
 
+  // Phase 20I.4 -- forward the optional non-internal fields so the
+  // sanitiser can decide what is safe to surface. Internal ids /
+  // tracking hints are still dropped here. Phase 20I.4 follow-up:
+  // also forward the new buyer-safe product metadata (shopName,
+  // rating, productCatIds, commissionRate, productLink / offerLink
+  // as separate concepts). The destinationUrl / offerLink fallback
+  // chain is intentionally explicit so adapter-driven offers keep
+  // working even when only one of the URLs is present.
+  const productLink =
+    typeof raw.productLink === "string" && raw.productLink.trim().length > 0
+      ? raw.productLink.trim()
+      : typeof raw.destinationUrl === "string" &&
+          raw.destinationUrl.trim().length > 0
+        ? raw.destinationUrl.trim()
+        : null;
+  const offerLink =
+    typeof raw.offerLink === "string" && raw.offerLink.trim().length > 0
+      ? raw.offerLink.trim()
+      : typeof raw.tracking?.affiliateUrl === "string" &&
+          raw.tracking.affiliateUrl.trim().length > 0
+        ? raw.tracking.affiliateUrl.trim()
+        : null;
+  const imageUrl =
+    typeof raw.imageUrl === "string" && raw.imageUrl.trim().length > 0
+      ? raw.imageUrl.trim()
+      : null;
+  const cashbackLabel =
+    typeof raw.cashbackHint === "string" && raw.cashbackHint.trim().length > 0
+      ? raw.cashbackHint.trim()
+      : null;
+  const commissionRate =
+    typeof raw.commissionRate === "number" &&
+    Number.isFinite(raw.commissionRate) &&
+    raw.commissionRate >= 0 &&
+    raw.commissionRate <= 1
+      ? raw.commissionRate
+      : null;
+  const shopName =
+    typeof raw.shopName === "string" && raw.shopName.trim().length > 0
+      ? raw.shopName.trim()
+      : null;
+  const rating =
+    typeof raw.rating === "string" && raw.rating.trim().length > 0
+      ? raw.rating.trim()
+      : null;
+  const productCatIds =
+    Array.isArray(raw.productCatIds) &&
+    raw.productCatIds.length > 0 &&
+    raw.productCatIds.every(
+      (id) =>
+        typeof id === "number" &&
+        Number.isInteger(id) &&
+        id > 0 &&
+        id < 1_000_000,
+    )
+      ? (raw.productCatIds as ReadonlyArray<number>)
+      : null;
+
   const base: PublicDealBase = {
     id,
     platform,
@@ -310,6 +385,19 @@ export function normalizeRawOffer(raw: RawOffer): NormalizationResult {
     destinationUrl,
     discountText,
     minSpendText,
+    productLink,
+    offerLink,
+    imageUrl,
+    cashbackLabel,
+    commissionRate,
+    shopName,
+    rating,
+    productCatIds,
+    startsAt:
+      typeof raw.validFrom === "string" && raw.validFrom.trim().length > 0
+        ? raw.validFrom.trim()
+        : null,
+    endsAt: expiresAt,
   };
 
   const value: PublicDeal =

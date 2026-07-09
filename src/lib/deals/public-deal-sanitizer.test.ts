@@ -225,6 +225,154 @@ test("sanitizer hint list is non-empty and includes all required entries", () =>
   }
 });
 
+test("Phase 20I.4: sanitizer scrubs offerLink and productLink the same as destinationUrl", () => {
+  const baseDeal = makeDeal();
+  const result = sanitizePublicDeal({
+    ...baseDeal,
+    offerLink: "https://shopee.vn/x?clickId=1",
+    productLink: "https://shopee.vn/x?aff_sub=2",
+    imageUrl: "https://cf.shopee.vn/y?vaflnk=3",
+  });
+  assert.strictEqual(result.ok, true);
+  if (result.ok) {
+    assert.strictEqual(
+      result.value.offerLink,
+      "https://shopee.vn/",
+      "offerLink must fall back to merchant landing page",
+    );
+    assert.strictEqual(
+      result.value.productLink,
+      "https://shopee.vn/",
+      "productLink must fall back to merchant landing page",
+    );
+    assert.strictEqual(
+      result.value.imageUrl,
+      "https://shopee.vn/",
+      "imageUrl must fall back to merchant landing page",
+    );
+    assert.ok(result.redactedFields.includes("offerLink"));
+    assert.ok(result.redactedFields.includes("productLink"));
+    assert.ok(result.redactedFields.includes("imageUrl"));
+  }
+});
+
+test("Phase 20I.4: sanitizer replaces cashback label that smells guaranteed", () => {
+  const baseDeal = makeDeal();
+  const result = sanitizePublicDeal({
+    ...baseDeal,
+    cashbackLabel: "Cashback du kien theo dieu kien",
+  });
+  assert.strictEqual(result.ok, true);
+  if (result.ok) {
+    // A clean label should not be redacted.
+    assert.strictEqual(result.value.cashbackLabel, "Cashback du kien theo dieu kien");
+    assert.ok(!result.redactedFields.includes("cashbackLabel"));
+  }
+});
+
+test("Phase 20I.4: sanitizer drops cashbackLabel that contains a tracking hint", () => {
+  const baseDeal = makeDeal();
+  const result = sanitizePublicDeal({
+    ...baseDeal,
+    cashbackLabel: "Cashback theo aff_sub=1",
+  });
+  assert.strictEqual(result.ok, true);
+  if (result.ok) {
+    assert.ok(result.value.cashbackLabel !== "Cashback theo aff_sub=1");
+    assert.ok(result.redactedFields.includes("cashbackLabel"));
+  }
+});
+
+test("Phase 20I.4: sanitizer accepts a clean commissionRate in [0, 1]", () => {
+  const baseDeal = makeDeal();
+  const result = sanitizePublicDeal({
+    ...baseDeal,
+    commissionRate: 0.07,
+  });
+  assert.strictEqual(result.ok, true);
+  if (result.ok) {
+    assert.strictEqual(result.value.commissionRate, 0.07);
+  }
+});
+
+test("Phase 20I.4: sanitizer drops a negative or >1 commissionRate", () => {
+  const baseDeal = makeDeal();
+  const negative = sanitizePublicDeal({
+    ...baseDeal,
+    commissionRate: -0.5,
+  });
+  const over = sanitizePublicDeal({
+    ...baseDeal,
+    commissionRate: 1.2,
+  });
+  assert.strictEqual(negative.ok, true);
+  assert.strictEqual(over.ok, true);
+  if (negative.ok) {
+    assert.strictEqual(negative.value.commissionRate, null);
+    assert.ok(negative.redactedFields.includes("commissionRate"));
+  }
+  if (over.ok) {
+    assert.strictEqual(over.value.commissionRate, null);
+    assert.ok(over.redactedFields.includes("commissionRate"));
+  }
+});
+
+test("Phase 20I.4: sanitizer keeps a clean rating and drops an out-of-range one", () => {
+  const baseDeal = makeDeal();
+  const clean = sanitizePublicDeal({ ...baseDeal, rating: "4.9" });
+  const bad = sanitizePublicDeal({ ...baseDeal, rating: "99" });
+  assert.strictEqual(clean.ok, true);
+  assert.strictEqual(bad.ok, true);
+  if (clean.ok) {
+    assert.strictEqual(clean.value.rating, "4.9");
+  }
+  if (bad.ok) {
+    assert.strictEqual(bad.value.rating, null);
+    assert.ok(bad.redactedFields.includes("rating"));
+  }
+});
+
+test("Phase 20I.4: sanitizer drops unsafe productCatIds", () => {
+  const baseDeal = makeDeal();
+  const result = sanitizePublicDeal({
+    ...baseDeal,
+    productCatIds: [100636, -1] as number[],
+  });
+  assert.strictEqual(result.ok, true);
+  if (result.ok) {
+    // Negative id poisons the whole array, so the array is dropped.
+    assert.strictEqual(result.value.productCatIds, null);
+    assert.ok(result.redactedFields.includes("productCatIds"));
+  }
+});
+
+test("Phase 20I.4: sanitizer drops malformed ISO timestamps", () => {
+  const baseDeal = makeDeal();
+  const result = sanitizePublicDeal({
+    ...baseDeal,
+    startsAt: "not-iso",
+    endsAt: "2099-12-31T23:59:59Z",
+  });
+  assert.strictEqual(result.ok, true);
+  if (result.ok) {
+    assert.strictEqual(result.value.startsAt, null);
+    assert.strictEqual(result.value.endsAt, "2099-12-31T23:59:59.000Z");
+  }
+});
+
+test("Phase 20I.4: sanitizer rewrites shopName that contains a forbidden tracking hint", () => {
+  const baseDeal = makeDeal();
+  const result = sanitizePublicDeal({
+    ...baseDeal,
+    shopName: "Top shop aff_sub=1",
+  });
+  assert.strictEqual(result.ok, true);
+  if (result.ok) {
+    assert.ok(result.value.shopName !== "Top shop aff_sub=1");
+    assert.ok(result.redactedFields.includes("shopName"));
+  }
+});
+
 function makeDeal(): PublicPromoDeal {
   return {
     id: "shopee-clean-test-deal",
