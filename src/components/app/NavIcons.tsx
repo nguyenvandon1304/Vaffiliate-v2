@@ -264,6 +264,26 @@ function BellIcon({ className }: NavIconProps) {
   );
 }
 
+function AdminIcon({ className }: NavIconProps) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
 export const navIconById: Record<
   NavItemId,
   ComponentType<NavIconProps>
@@ -282,4 +302,5 @@ export const navIconById: Record<
   commission: CashbackIcon,
   revenue: RevenueIcon,
   notifications: BellIcon,
+  admin: AdminIcon,
 };

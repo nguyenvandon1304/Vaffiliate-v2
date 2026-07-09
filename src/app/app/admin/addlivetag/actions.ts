@@ -4,6 +4,8 @@ import "server-only";
 
 import { revalidatePath } from "next/cache";
 
+import { recordAdminAction } from "@/lib/auth/audit-log";
+import { requireAdmin } from "@/lib/auth/server-guard";
 import { runAddlivetagImportAsync } from "@/services/addlivetag-import.service";
 import type { AddlivetagImportResult } from "@/reporting/addlivetag-types";
 
@@ -46,6 +48,14 @@ export async function runAddlivetagImportAction(
   // as omitted so the API key's owning account remains the
   // implicit filter.
   const accountIdRaw = formData.get("accountId");
+
+  // Phase 20I.5 -- server-side admin guard. This action is only
+  // reachable through the admin layout which already calls
+  // `requireAdmin()`; the second guard here is a belt-and-braces
+  // check so a future code path (route handler, scheduled job,
+  // console call) cannot invoke the action without an admin
+  // session.
+  const actor = await requireAdmin("/app/admin/addlivetag");
 
   if (
     typeof sourceRaw !== "string" ||
@@ -115,6 +125,28 @@ export async function runAddlivetagImportAction(
       },
     );
     revalidatePath("/app/admin/addlivetag");
+
+    // Phase 20I.5 -- record the action through the audit log
+    // foundation. The emitter is a no-op until a real sink is
+    // wired, but the call site is now consistent with the
+    // other admin actions that will land later.
+    recordAdminAction({
+      kind: "admin.addlivetag.import",
+      actorUserId: actor.userId,
+      actorRole: actor.role,
+      targetType: source,
+      targetId: type,
+      metadata: {
+        from: fromRaw,
+        to: toRaw,
+        pageSize,
+        dryRun,
+        accountId: accountId ?? null,
+        pagesFetched: result.pagesFetched,
+        rowsFetched: result.rowsFetched,
+      },
+    });
+
     return { ok: true, result };
   } catch (error) {
     const message =
