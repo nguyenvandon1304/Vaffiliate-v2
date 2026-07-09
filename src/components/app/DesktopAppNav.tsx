@@ -9,6 +9,7 @@ import {
   isAdvancedNavItemActive,
   isDesktopPrimaryNavItemActive,
   primaryNavItems,
+  type AdvancedNavItem,
   type NavItem,
 } from "./primaryNav";
 
@@ -45,8 +46,28 @@ function DesktopNavLink({
   );
 }
 
-export default function DesktopAppNav() {
+export default function DesktopAppNav({
+  extraAdvancedItems = [],
+}: {
+  /**
+   * Phase 20I.5 -- the server shell passes a list of additional
+   * advanced nav items to render. The list is server-side
+   * filtered by role: a non-admin user receives `[]` so the
+   * admin link is never rendered into the HTML.
+   */
+  extraAdvancedItems?: ReadonlyArray<AdvancedNavItem>;
+}) {
   const pathname = usePathname();
+  const sections = extraAdvancedItems.length
+    ? [
+        ...advancedNavSections,
+        {
+          id: "admin" as const,
+          label: "Quản trị",
+          items: extraAdvancedItems,
+        },
+      ]
+    : advancedNavSections;
 
   return (
     <aside
@@ -79,7 +100,7 @@ export default function DesktopAppNav() {
           </div>
 
           <div className="mt-5 space-y-5 border-t border-[color:var(--line)] pt-5">
-            {advancedNavSections.map((section) => {
+            {sections.map((section) => {
               const headingId = `desktop-nav-${section.id}`;
 
               return (

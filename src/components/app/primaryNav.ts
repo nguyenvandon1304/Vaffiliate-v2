@@ -20,7 +20,8 @@ export type AdvancedNavId =
   | "conversions"
   | "commission"
   | "revenue"
-  | "notifications";
+  | "notifications"
+  | "admin";
 
 export type NavItemId =
   | PrimaryNavId
@@ -38,7 +39,7 @@ export type MobileNavItem = NavItem<MobileNavId>;
 export type AdvancedNavItem = NavItem<AdvancedNavId>;
 
 export interface AdvancedNavSection {
-  id: "affiliate" | "reports" | "system";
+  id: "affiliate" | "reports" | "system" | "admin";
   label: string;
   items: AdvancedNavItem[];
 }
@@ -223,6 +224,18 @@ export const advancedNavSections: AdvancedNavSection[] = [
     ],
   },
 ];
+
+/**
+ * Phase 20I.5 -- the admin nav item is exported separately so the
+ * server component (`ResponsiveAppShell`) can decide whether to
+ * splice it into the visible list. The item is hidden from
+ * non-admin users at render time; it is not just visually hidden.
+ */
+export const adminNavItem: AdvancedNavItem = {
+  id: "admin",
+  href: "/app/admin",
+  label: "Quản trị",
+};
 
 export const advancedNavItems: AdvancedNavItem[] =
   advancedNavSections.flatMap((section) => section.items);
