@@ -175,3 +175,150 @@ test("mapOfferSource returns the raw source label verbatim", () => {
   assert.strictEqual(mapOfferSource("shopee-feed"), "shopee-feed");
   assert.strictEqual(mapOfferSource("manual"), "manual");
 });
+
+test("Phase 20I.4: normalizeRawOffer never synthesises a voucher code from discountText", () => {
+  const result = normalizeRawOffer(
+    rawOfferOf({
+      kind: "voucher_code",
+      voucherLabel: undefined,
+      discountText: "-10%",
+    }),
+  );
+  assert.strictEqual(result.ok, true);
+  if (result.ok) {
+    assert.strictEqual(result.value.kind, "voucher_code");
+    // No code, period. The UI must hide the copy-code action and
+    // fall back to "Mo uu dai".
+    assert.strictEqual(result.value.code, null);
+  }
+});
+
+test("Phase 20I.4: normalizeRawOffer forwards offerLink / productLink / cashbackLabel", () => {
+  const result = normalizeRawOffer(
+    rawOfferOf({
+      kind: "deal",
+      imageUrl: "https://cf.shopee.vn/x.jpg",
+      cashbackHint: "Hoa hong chien dich 7%",
+      tracking: { affiliateUrl: "https://shopee.vn/r/sample" },
+    }),
+  );
+  assert.strictEqual(result.ok, true);
+  if (result.ok) {
+    assert.strictEqual(result.value.offerLink, "https://shopee.vn/r/sample");
+    assert.strictEqual(
+      result.value.cashbackLabel,
+      "Hoa hong chien dich 7%",
+    );
+    assert.strictEqual(result.value.imageUrl, "https://cf.shopee.vn/x.jpg");
+    assert.strictEqual(result.value.productLink, "https://shopee.vn/dien-tu/laptop");
+    assert.strictEqual(result.value.endsAt, "2099-12-31T00:00:00.000Z");
+    assert.strictEqual(result.value.startsAt, null);
+  }
+});
+
+test("Phase 20I.4 follow-up: normalizeRawOffer forwards productOfferV2 metadata", () => {
+  const result = normalizeRawOffer(
+    rawOfferOf({
+      kind: "deal",
+      platform: "shopee",
+      title: "Giay ve sinh TopGia",
+      destinationUrl: "https://s.shopee.vn/PROD",
+      offerLink: "https://s.shopee.vn/PROD",
+      productLink: "https://shopee.vn/product/1016604648/23552060269",
+      shopName: "TopGia HCM Store",
+      rating: "4.9",
+      productCatIds: [100636, 100716, 101212],
+      commissionRate: 0.125,
+    }),
+  );
+  assert.strictEqual(result.ok, true);
+  if (result.ok) {
+    assert.strictEqual(result.value.shopName, "TopGia HCM Store");
+    assert.strictEqual(result.value.rating, "4.9");
+    assert.deepStrictEqual(result.value.productCatIds, [100636, 100716, 101212]);
+    assert.strictEqual(result.value.commissionRate, 0.125);
+    assert.strictEqual(result.value.offerLink, "https://s.shopee.vn/PROD");
+    assert.strictEqual(
+      result.value.productLink,
+      "https://shopee.vn/product/1016604648/23552060269",
+    );
+  }
+});
+
+test("Phase 20I.4 follow-up: normalizeRawOffer keeps offerLink and productLink as separate concepts", () => {
+  const result = normalizeRawOffer(
+    rawOfferOf({
+      kind: "deal",
+      offerLink: "https://s.shopee.vn/OFFER",
+      productLink: "https://shopee.vn/product/1",
+      destinationUrl: "https://shopee.vn/product/1",
+    }),
+  );
+  assert.strictEqual(result.ok, true);
+  if (result.ok) {
+    assert.strictEqual(result.value.offerLink, "https://s.shopee.vn/OFFER");
+    assert.strictEqual(result.value.productLink, "https://shopee.vn/product/1");
+  }
+});
+
+test("Phase 20I.4 follow-up: normalizeRawOffer drops malformed rating / commission / productCatIds", () => {
+  const result = normalizeRawOffer(
+    rawOfferOf({
+      kind: "deal",
+      rating: "" as never,
+      commissionRate: -0.5,
+      productCatIds: [-1, 0, 1.5] as never,
+    }),
+  );
+  assert.strictEqual(result.ok, true);
+  if (result.ok) {
+    assert.strictEqual(result.value.rating, null);
+    assert.strictEqual(result.value.commissionRate, null);
+    assert.strictEqual(result.value.productCatIds, null);
+  }
+});
+
+test("Phase 20I.4 follow-up: normalized PublicDeal never carries productId / shopId / brandId / categoryId / collectionId", () => {
+  const result = normalizeRawOffer(
+    rawOfferOf({
+      kind: "deal",
+      platform: "shopee",
+      title: "Sample",
+      destinationUrl: "https://shopee.vn/x",
+      offerLink: "https://s.shopee.vn/OFFER",
+      productLink: "https://shopee.vn/product/1",
+      shopName: "Shop X",
+      rating: "4.5",
+      productCatIds: [100, 200],
+      commissionRate: 0.1,
+      extra: {
+        productId: 12345,
+        shopId: 6789,
+        brandId: 11111,
+        categoryId: 22,
+        collectionId: 33,
+        offerType: 2,
+      },
+    }),
+  );
+  assert.strictEqual(result.ok, true);
+  if (result.ok) {
+    const serialised = JSON.stringify(result.value);
+    for (const banned of [
+      "productId",
+      "shopId",
+      "brandId",
+      "categoryId",
+      "collectionId",
+      "offerType",
+      "12345",
+      "6789",
+      "11111",
+    ]) {
+      assert.ok(
+        !serialised.includes(banned),
+        `PublicDeal leaked ${banned}`,
+      );
+    }
+  }
+});

@@ -141,6 +141,11 @@ export function getDealAction(deal: PublicDeal): DealAction {
     };
   }
 
+  // Phase 20I.4 -- "Sao chép mã" is shown ONLY when the deal is a
+  // voucher kind AND it carries a real, non-empty voucher code.
+  // If `code` is null (e.g. an adapter-sourced record without a
+  // vendor-supplied code) the CTA falls through to "Mở ưu đãi" so
+  // the buyer never sees a copy button that would copy nothing.
   if (deal.kind === "voucher_code" && deal.code && deal.status === "active") {
     return {
       ctaLabel: "Sao chép mã",
@@ -151,9 +156,14 @@ export function getDealAction(deal: PublicDeal): DealAction {
     };
   }
 
+  // Phase 20I.4 -- outbound CTA wording: "Mở ưu đãi" is the safe
+  // default. We use "Xem sản phẩm" only when the deal has no
+  // offerLink / destinationUrl but carries a productLink (the rare
+  // Shopee product-feed case).
+  const outboundLabel =
+    deal.offerLink || deal.destinationUrl ? "Mở ưu đãi" : "Xem sản phẩm";
   return {
-    ctaLabel:
-      deal.kind === "deal" ? "Xem deal" : "Mở trang ưu đãi",
+    ctaLabel: outboundLabel,
     ctaHref: deal.destinationUrl,
     ctaIntent: "outbound",
     supportsCopy: false,

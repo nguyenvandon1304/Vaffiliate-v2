@@ -100,6 +100,21 @@ export interface RawOffer {
   readonly validUntil?: string;
   readonly status?: "active" | "expired" | "upcoming" | "unknown";
   readonly tracking?: RawOfferTrackingHints;
+  /**
+   * Phase 20I.4 follow-up -- buyer-facing product metadata for Shopee
+   * productOfferV2 records. None of these are internal ids; the
+   * normalizer is the only consumer that maps them onto
+   * `PublicDeal`, and the sanitiser applies another defensive pass
+   * before they reach the UI. Internal ids (productId / shopId /
+   * brandId / categoryId / collectionId / offerType) are NOT carried
+   * forward.
+   */
+  readonly offerLink?: string;
+  readonly productLink?: string;
+  readonly commissionRate?: number;
+  readonly shopName?: string;
+  readonly rating?: string;
+  readonly productCatIds?: ReadonlyArray<number>;
   /** Anything else from the vendor payload. Discouraged to read. */
   readonly extra?: Record<string, unknown>;
 }
