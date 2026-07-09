@@ -1,6 +1,19 @@
 /**
  * Phase 20H.8 -- Addlivetag Report Source Adapter types.
  *
+ * Phase 20I.3 -- aligned the public types with the documented
+ * Addlivetag Conversion API contract at
+ * `https://addlivetag.com/api/v1/conversions.php`:
+ *
+ *   - `AddlivetagPageRequest.accountId` is now optional and is the
+ *     sole driver for the `account_id` query parameter;
+ *   - `AddlivetagPageRequest.format` is now optional and defaults
+ *     to `json` at the HTTP client boundary;
+ *   - the source-of-truth `AddlivetagSource` ("shopee" | "food"),
+ *     the resource selector `AddlivetagResourceType`
+ *     ("orders" | "items" | "clicks"), and the discriminated
+ *     `AddlivetagNormalizeResult` are unchanged from Phase 20H.8.
+ *
  * Pure type definitions shared by the HTTP client, the row
  * normalizer, the import service, the admin page, the dry-run
  * script, and the tests. No runtime code, no secrets, no env reads.
@@ -196,9 +209,13 @@ export type AddlivetagRowOutcome =
 /**
  * Pagination cursor for the import service.
  *
- * The Addlivetag API exposes `from`/`to`/`page`/`page_size`; the
- * orchestrator pages through them in order, stopping when the API
- * returns a page with fewer rows than `page_size`.
+ * The Addlivetag Conversion API (`/api/v1/conversions.php`) exposes
+ * `from`/`to`/`page`/`page_size` plus the report selectors `type`
+ * (orders|items|clicks) and `source` (shopee|food), and an optional
+ * `account_id`. `format=json` is always emitted by the HTTP client.
+ *
+ * The orchestrator pages through them in order, stopping when the
+ * API returns a page with fewer rows than `pageSize`.
  */
 export interface AddlivetagPageRequest {
   readonly from: string;
@@ -207,6 +224,19 @@ export interface AddlivetagPageRequest {
   readonly type: AddlivetagResourceType;
   readonly page: number;
   readonly pageSize: number;
+  /**
+   * Optional Addlivetag `account_id`. When omitted the HTTP client
+   * does NOT emit the `account_id` query parameter, which causes
+   * Addlivetag to default to the caller's own account (the only
+   * account reachable through the API key).
+   */
+  readonly accountId?: string;
+  /**
+   * Response format. Always `json` in production. Exposed in the
+   * request shape so unit tests and a future `csv` export can pin
+   * the contract.
+   */
+  readonly format?: string;
 }
 
 /**

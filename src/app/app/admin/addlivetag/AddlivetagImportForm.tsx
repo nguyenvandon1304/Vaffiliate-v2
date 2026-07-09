@@ -56,6 +56,19 @@ export function AddlivetagImportForm(): React.ReactElement {
         />
       </label>
       <label className="va-admin-form__field">
+        <span>
+          Account id <small>(optional)</small>
+        </span>
+        <input
+          type="text"
+          name="accountId"
+          inputMode="text"
+          pattern="[A-Za-z0-9_\-]{0,64}"
+          maxLength={64}
+          placeholder="leave empty to use the API key's account"
+        />
+      </label>
+      <label className="va-admin-form__field">
         <span>Page size</span>
         <input
           type="number"
