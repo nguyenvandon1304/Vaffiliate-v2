@@ -2,6 +2,11 @@
 /**
  * Phase 20H.8 -- Addlivetag import / dry-run entry point.
  *
+ * Phase 20I.3 -- aligned with the documented Addlivetag Conversion
+ * API at `https://addlivetag.com/api/v1/conversions.php`. The
+ * `--account-id` flag is forwarded to the HTTP client as the
+ * optional `account_id` query parameter.
+ *
  * Usage:
  *
  *   # Dry run: no DB writes, no network calls. Uses the env-supplied
@@ -23,7 +28,8 @@
  *         --source shopee \
  *         --type orders \
  *         --from 2026-01-01 \
- *         --to 2026-01-31
+ *         --to 2026-01-31 \
+ *         --account-id 1234
  *
  * The script never logs the API key value. The summary printed to
  * stdout never contains internal identifiers (tracking_link_id,
@@ -38,6 +44,7 @@ function parseArgs(argv: ReadonlyArray<string>): {
   from: string;
   to: string;
   pageSize: number;
+  accountId?: string;
   dryRun: boolean;
 } {
   const args = new Map<string, string>();
@@ -82,8 +89,18 @@ function parseArgs(argv: ReadonlyArray<string>): {
       `addlivetag-import: --page-size must be an integer in [1, 1000]; got ${pageSizeRaw}`,
     );
   }
+  const accountIdRaw = args.get("account-id") ?? "";
+  let accountId: string | undefined;
+  if (accountIdRaw.length > 0) {
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(accountIdRaw)) {
+      throw new Error(
+        `addlivetag-import: --account-id must match [A-Za-z0-9_-]{1,64}; got ${accountIdRaw}`,
+      );
+    }
+    accountId = accountIdRaw;
+  }
   const dryRun = process.env.ADDLIVETAG_DRY_RUN === "1";
-  return { source, type, from, to, pageSize, dryRun };
+  return { source, type, from, to, pageSize, accountId, dryRun };
 }
 
 function writeAndExit(
@@ -108,6 +125,7 @@ async function main(): Promise<void> {
       to: parsed.to,
       pageSize: parsed.pageSize,
       dryRun: parsed.dryRun,
+      accountId: parsed.accountId,
     },
     {
       fetchImpl: (input, init) => fetch(input, init),

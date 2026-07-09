@@ -78,6 +78,7 @@ const FILES = [
   "scripts/addlivetag-import-postgres.integration.test.ts",
   "src/app/app/admin/addlivetag/page.tsx",
   "src/app/app/admin/addlivetag/actions.ts",
+  "src/app/app/admin/addlivetag/AddlivetagImportForm.tsx",
   "src/db/schema.ts",
   "drizzle/0023_phase_20h8_addlivetag_source.sql",
   "src/services/public-deals.types.ts",

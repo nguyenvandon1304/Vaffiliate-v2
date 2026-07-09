@@ -42,6 +42,10 @@ export async function runAddlivetagImportAction(
   const toRaw = formData.get("to");
   const pageSizeRaw = formData.get("pageSize");
   const dryRunRaw = formData.get("dryRun");
+  // Phase 20I.3 -- optional `account_id`. Empty string is treated
+  // as omitted so the API key's owning account remains the
+  // implicit filter.
+  const accountIdRaw = formData.get("accountId");
 
   if (
     typeof sourceRaw !== "string" ||
@@ -75,6 +79,25 @@ export async function runAddlivetagImportAction(
   }
   const dryRun = dryRunRaw === "on" || dryRunRaw === "true";
 
+  // Phase 20I.3 -- sanitise `accountId` at the admin boundary.
+  // The HTTP client also caps length but the action does an extra
+  // pass so the user sees a clear message before a network round
+  // trip.
+  let accountId: string | undefined;
+  if (typeof accountIdRaw === "string") {
+    const trimmed = accountIdRaw.trim();
+    if (trimmed.length > 0) {
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(trimmed)) {
+        return {
+          ok: false,
+          message:
+            "Invalid account id (expected [A-Za-z0-9_-]{1,64}, or leave empty)",
+        };
+      }
+      accountId = trimmed;
+    }
+  }
+
   try {
     const result = await runAddlivetagImportAsync(
       {
@@ -84,6 +107,7 @@ export async function runAddlivetagImportAction(
         to: toRaw,
         pageSize,
         dryRun,
+        accountId,
       },
       {
         fetchImpl: (fetchInput, init) => fetch(fetchInput, init),

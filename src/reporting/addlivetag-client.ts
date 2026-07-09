@@ -2,14 +2,22 @@
  * Phase 20H.8 -- Addlivetag HTTP client (pure, server-only at the
  * production boundary).
  *
+ * Phase 20I.3 -- aligned the request contract with the documented
+ * Addlivetag Conversion API at
+ * `https://addlivetag.com/api/v1/conversions.php`. The endpoint
+ * path, the `account_id` query parameter, and the explicit `format`
+ * parameter are now first-class in the request shape.
+ *
  * Responsibilities:
  *
  *   1. Build the request URL with the documented query parameters:
- *        type, source, from, to, page, page_size, format
+ *        type, source, from, to, page, page_size, format=json,
+ *        account_id (only when supplied)
  *   2. Inject the X-API-Key header from the dependency-injected
  *      `getApiKey()` accessor. The client NEVER logs the header
  *      value, NEVER throws an Error whose message contains the key,
- *      and NEVER echoes the key back to the caller.
+ *      and NEVER echoes the key back to the caller. The api_key is
+ *      NEVER placed in the URL query string.
  *   3. Retry on 429 and 5xx with exponential backoff and jitter. The
  *      retry counter and the max attempt count are configurable.
  *   4. Decode the JSON body and surface typed `AddlivetagApiError`
@@ -18,12 +26,14 @@
  *   5. Support a pagination iterator. The caller passes a single
  *      request with `page = 1`; the client walks pages until the
  *      API returns fewer rows than `pageSize` (or `totalPages` is
- *      exhausted).
+ *      exhausted). A 5,000-page safety cap prevents runaway
+ *      pagination.
  *
  * Security boundary:
  *
- *   - The file imports `server-only` so it can never be bundled into
- *     a Client Component entrypoint.
+ *   - The file imports `server-only` only via the production
+ *     wrapper. The pure module is exported without the guard so
+ *     unit tests can run under plain `node --test`.
  *   - The production wrapper reads `ADDLIVETAG_API_KEY` from the
  *     environment. The pure client does NOT read it directly; tests
  *     pass an explicit `getApiKey()` accessor.
@@ -31,7 +41,7 @@
  *     A test asserts that no thrown Error carries the key.
  *
  * Server-only at the production boundary (see
- * `addlivetag-client.server.ts`); the pure module is exported
+ * `addlivetag-staging.server.ts`); the pure module is exported
  * without the `server-only` guard so unit tests can run under
  * plain `node --test`.
  */
@@ -45,13 +55,18 @@ import type {
 } from "./addlivetag-types";
 
 /**
- * Default Addlivetag account API base. Configurable via
- * `ADDLIVETAG_API_BASE_URL` at the production boundary; the constant
- * below is the documented public endpoint used as a fallback so the
- * pure client is self-contained for tests.
+ * Default Addlivetag account API endpoint.
+ *
+ * Phase 20I.3 -- aligned with the documented public endpoint at
+ * `https://addlivetag.com/api/v1/conversions.php`. Configurable via
+ * `ADDLIVETAG_CONVERSIONS_ENDPOINT` (preferred) or
+ * `ADDLIVETAG_API_BASE_URL` (legacy alias preserved for Phase 20H.8
+ * callers); the constant below is the documented public endpoint
+ * used as a fallback so the pure client is self-contained for
+ * tests.
  */
 export const ADDLIVETAG_API_BASE_FALLBACK =
-  "https://api.addlivetag.com/account";
+  "https://addlivetag.com/api/v1/conversions.php";
 
 const DEFAULT_PAGE_SIZE = 200;
 const MAX_PAGE_SIZE = 1_000;
@@ -66,6 +81,18 @@ const ACCEPTED_CONTENT_TYPES: ReadonlyArray<string> = [
   "text/json",
   "application/vnd.api+json",
 ];
+
+/**
+ * Phase 20I.3 follow-up -- canonical regex for the optional
+ * `account_id` query parameter. The pure client, the server action,
+ * and the CLI script all share this exact rule so that any caller
+ * that bypasses the higher layers still cannot inject malformed
+ * account ids into the URL.
+ *
+ * Allowed: letters, digits, underscore, hyphen. Length: 1..64.
+ * Empty after trim is treated as "omitted" (no error).
+ */
+const ADDLIVETAG_ACCOUNT_ID_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
 /**
  * Minimal fetch contract for the Addlivetag client. Mirrors the
@@ -188,7 +215,19 @@ function buildUrl(
     "page_size",
     String(Math.min(MAX_PAGE_SIZE, Math.max(1, request.pageSize))),
   );
-  url.searchParams.set("format", "json");
+  // Phase 20I.3 -- the documented `format` parameter. Defaults to
+  // `json` when omitted; only `json` is exercised by the staging
+  // pipeline in this phase.
+  url.searchParams.set("format", request.format ?? "json");
+  // Phase 20I.3 -- the optional `account_id` parameter. When the
+  // caller does not pass an accountId the query is left untouched so
+  // the API key's owning account remains the implicit filter.
+  if (
+    typeof request.accountId === "string" &&
+    request.accountId.trim().length > 0
+  ) {
+    url.searchParams.set("account_id", request.accountId.trim());
+  }
   return url;
 }
 
@@ -236,6 +275,34 @@ function validateRequest(
     return new AddlivetagApiError(
       "unknown_resource_type",
       "Addlivetag request: unknown `type`",
+    );
+  }
+  // Phase 20I.3 -- `account_id` is optional but, when present, must
+  // match the canonical regex [A-Za-z0-9_-]{1,64}. An empty value
+  // (after trim) is treated as "omitted" so that an uninitialised
+  // form field does not error. A malformed value is rejected here
+  // so the bad string never reaches `buildUrl`, never reaches the
+  // outgoing URL, and never echoes back through an Error message.
+  if (typeof request.accountId === "string") {
+    const trimmed = request.accountId.trim();
+    if (
+      trimmed.length > 0 &&
+      !ADDLIVETAG_ACCOUNT_ID_PATTERN.test(trimmed)
+    ) {
+      return new AddlivetagApiError(
+        "invalid_input",
+        "Addlivetag request: `accountId` is malformed",
+      );
+    }
+  }
+  if (
+    typeof request.format === "string" &&
+    request.format !== "json" &&
+    request.format !== "csv"
+  ) {
+    return new AddlivetagApiError(
+      "invalid_input",
+      "Addlivetag request: `format` must be 'json' or 'csv'",
     );
   }
   return null;
