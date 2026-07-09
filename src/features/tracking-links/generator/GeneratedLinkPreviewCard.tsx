@@ -46,7 +46,7 @@ export default function GeneratedLinkPreviewCard({
       <p className="mt-3 text-sm leading-6 text-[color:var(--text-muted)]">
         {isPreview
           ? "Đây là bản xem trước. Link chưa được lưu. Tính năng lưu link sẽ được hoàn thiện ở bước tiếp theo."
-          : "Dùng link này để mua hàng trên sàn. Tiền hoàn của giao dịch hợp lệ sẽ được ghi nhận vào ví của bạn."}
+          : "Dùng link này để mở trang mua hàng. Cashback dự kiến chỉ được ghi nhận sau khi Shopee đối soát đơn hàng hợp lệ."}
       </p>
     </div>
   );
