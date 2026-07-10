@@ -14,12 +14,34 @@ type Props = {
   profile: Profile;
 };
 
-const platformOptions: {
+// Phase 20I.8 follow-up safety: TikTok Shop is not active. The
+// "Sàn ưu tiên" checkbox list now has exactly one selectable
+// option (Shopee). TikTok Shop is rendered as a disabled,
+// read-only entry with "Sắp hỗ trợ" copy so the buyer can see
+// the upcoming platform is on our radar, but cannot submit it as
+// an active preferred platform.
+//
+// HTML `disabled` checkboxes are not submitted with the form, so
+// even if a future regression enables the input, the server
+// action (`updateProfileAction` in profile/actions.ts) still
+// rejects `TikTok Shop` because it is not in the
+// `supportedPlatforms` allow-list. Defense-in-depth: UI +
+// server-side validation both enforce the contract.
+type PlatformOption = {
   value: ClickPlatform;
   label: string;
-}[] = [
-  { value: "Shopee", label: "Shopee" },
-  { value: "TikTok Shop", label: "TikTok Shop" },
+  state: "active" | "upcoming";
+  hint?: string;
+};
+
+const platformOptions: PlatformOption[] = [
+  { value: "Shopee", label: "Shopee", state: "active" },
+  {
+    value: "TikTok Shop",
+    label: "TikTok Shop",
+    state: "upcoming",
+    hint: "Sắp hỗ trợ",
+  },
 ];
 
 const initialProfileActionState = {
@@ -128,22 +150,47 @@ export default function ProfileManagementPanel({
               Sàn ưu tiên
             </legend>
 
-            {platformOptions.map((option) => (
-              <label
-                key={option.value}
-                className="flex items-center gap-2 text-sm text-[color:var(--text)]"
-              >
-                <input
-                  type="checkbox"
-                  name="preferredPlatforms"
-                  value={option.value}
-                  defaultChecked={profile.preferredPlatforms.includes(
-                    option.value,
-                  )}
-                />
-                {option.label}
-              </label>
-            ))}
+            {platformOptions.map((option) => {
+              const isUpcoming = option.state === "upcoming";
+              const isChecked = profile.preferredPlatforms.includes(
+                option.value,
+              );
+              // Upcoming options are surfaced as a disabled
+              // read-only row so the buyer sees that the
+              // platform is on our radar, but cannot submit it
+              // as an active preferred platform. We render a
+              // sibling <span> instead of relying on the
+              // checkbox label so the disabled state stays
+              // visually distinct from the active one.
+              return (
+                <label
+                  key={option.value}
+                  className={
+                    "flex items-center gap-2 text-sm " +
+                    (isUpcoming
+                      ? "text-[color:var(--text-muted)]"
+                      : "text-[color:var(--text)]")
+                  }
+                >
+                  <input
+                    type="checkbox"
+                    name="preferredPlatforms"
+                    value={option.value}
+                    defaultChecked={!isUpcoming && isChecked}
+                    disabled={isUpcoming}
+                    aria-disabled={isUpcoming || undefined}
+                  />
+                  <span className="flex flex-col">
+                    <span>{option.label}</span>
+                    {option.hint ? (
+                      <span className="text-xs font-medium uppercase tracking-[0.12em] text-[color:var(--text-muted)]">
+                        {option.hint}
+                      </span>
+                    ) : null}
+                  </span>
+                </label>
+              );
+            })}
           </fieldset>
 
           <div className="flex gap-3">

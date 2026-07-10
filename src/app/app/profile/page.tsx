@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { logout } from "@/app/auth/actions";
-import AppShell from "@/components/layout/AppShell";
+import BuyerResponsiveShell from "@/components/buyer/BuyerResponsiveShell";
 import AppSection from "@/components/layout/AppSection";
 import PageHeader from "@/components/layout/PageHeader";
 import ProfileHeader from "@/features/profile/ProfileHeader";
@@ -10,6 +10,9 @@ import ProfileManagementPanel from "@/features/profile/ProfileManagementPanel";
 import PayoutAccountCard from "@/features/profile/PayoutAccountCard";
 import ProfileStatsCard from "@/features/profile/ProfileStatsCard";
 import { loadProfileAsync } from "@/hooks/loadProfileAsync";
+import { privateRouteMetadata } from "@/lib/seo/private-route-metadata";
+
+export const metadata = privateRouteMetadata();
 
 /**
  * Phase 20I.6 -- small footer of legal / deletion links shown at
@@ -95,7 +98,7 @@ export default async function ProfilePage() {
   );
 
   return (
-    <AppShell desktopContent={desktopContent}>
+    <BuyerResponsiveShell title="Hồ sơ" desktopContent={desktopContent}>
       <AppSection>
         <PageHeader
           eyebrow={
@@ -140,6 +143,6 @@ export default async function ProfilePage() {
       <AppSection className="pb-8">
         <LogoutForm />
       </AppSection>
-    </AppShell>
+    </BuyerResponsiveShell>
   );
 }

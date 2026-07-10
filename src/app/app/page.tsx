@@ -1,10 +1,13 @@
-import AppShell from "@/components/layout/AppShell";
+import BuyerResponsiveShell from "@/components/buyer/BuyerResponsiveShell";
 import AppSection from "@/components/layout/AppSection";
 import ConsumerHomeHero from "@/features/dashboard/ConsumerHomeHero";
 import ConsumerRecentOrders from "@/features/dashboard/ConsumerRecentOrders";
 import PopularOffers from "@/features/dashboard/PopularOffers";
 import TrustNotice from "@/features/dashboard/TrustNotice";
 import { loadDashboardAsync } from "@/hooks/loadDashboardAsync";
+import { privateRouteMetadata } from "@/lib/seo/private-route-metadata";
+
+export const metadata = privateRouteMetadata();
 
 export default async function AppDashboardPage() {
   const dashboard = await loadDashboardAsync();
@@ -33,7 +36,7 @@ export default async function AppDashboardPage() {
   );
 
   return (
-    <AppShell desktopContent={desktopContent}>
+    <BuyerResponsiveShell title="Trang chủ" desktopContent={desktopContent}>
       <AppSection>
         <ConsumerHomeHero
           greeting={greeting}
@@ -57,6 +60,6 @@ export default async function AppDashboardPage() {
       <AppSection className="pb-8">
         <TrustNotice />
       </AppSection>
-    </AppShell>
+    </BuyerResponsiveShell>
   );
 }

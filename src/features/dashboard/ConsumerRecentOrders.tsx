@@ -1,9 +1,10 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
 import SectionHeader from "@/components/ui/SectionHeader";
 import type { RecentOrder } from "@/types/orders";
 import { getOrderStatusPresentation } from "@/lib/statusPresentation";
+import { filterActiveRecentOrders } from "@/lib/orders/recent-orders-filter";
 
 type ConsumerRecentOrdersProps = {
   orders: RecentOrder[];
@@ -62,6 +63,11 @@ function OrderCard({ order }: { order: RecentOrder }) {
 }
 
 export default function ConsumerRecentOrders({ orders }: ConsumerRecentOrdersProps) {
+  // Phase 20I.8 follow-up safety: TikTok Shop is upcoming, not active.
+  // We must not surface TikTok Shop orders here with active cashback
+  // amounts or active reconciliation / payout statuses. Filter the input
+  // down to active-platform orders (Shopee today) before rendering.
+  const activeOrders = filterActiveRecentOrders(orders);
   return (
     <Card className="p-5">
       <SectionHeader
@@ -69,12 +75,12 @@ export default function ConsumerRecentOrders({ orders }: ConsumerRecentOrdersPro
         description="Các giao dịch được ghi nhận gần nhất."
       />
       <div className="mt-4 grid gap-3">
-        {orders.length === 0 ? (
+        {activeOrders.length === 0 ? (
           <p className="py-4 text-center text-sm text-[color:var(--text-muted)]">
             Chưa có đơn hàng nào được ghi nhận.
           </p>
         ) : (
-          orders.map((order) => <OrderCard key={`${order.store}-${order.time}`} order={order} />)
+          activeOrders.map((order) => <OrderCard key={`${order.store}-${order.time}`} order={order} />)
         )}
       </div>
       <Link

@@ -1,4 +1,4 @@
-import AppShell from "@/components/layout/AppShell";
+import BuyerResponsiveShell from "@/components/buyer/BuyerResponsiveShell";
 import AppSection from "@/components/layout/AppSection";
 import PageHeader from "@/components/layout/PageHeader";
 import ShopeeCashbackEntrySteps from "@/features/cashback/ShopeeCashbackEntrySteps";
@@ -10,20 +10,47 @@ import CashbackHistoryTable from "@/features/cashback/CashbackHistoryTable";
 import CashbackStats from "@/features/cashback/CashbackStats";
 import { loadCashbackAsync } from "@/hooks/loadCashbackAsync";
 import { isApprovedStatus } from "@/lib/analytics/format";
+import { privateRouteMetadata } from "@/lib/seo/private-route-metadata";
 import { createClient } from "@/lib/supabase/server";
 import { listShopeeProgramCardsAsync } from "@/services/shopee-programs.service";
 import type { CashbackPlatformName, CashbackStat } from "@/types/cashback";
 
+export const metadata = privateRouteMetadata();
+
 // Platforms whose cashback history is shown on this page. The buyer
-// entry flow itself is scoped to Shopee for Phase 20H.3a; the history
-// table continues to surface any historical rows the user already has
+// entry flow itself is scoped to Shopee for Phase 20H.3a. The history
+// table continues to surface historical rows the user already has
 // from earlier supported platforms.
-const supportedPlatforms: CashbackPlatformName[] = ["Shopee", "TikTok Shop"];
+//
+// Phase 20I.8 follow-up safety: TikTok Shop is planned AFTER Shopee.
+// Until tracking + reconciliation for TikTok Shop are production-ready
+// we MUST NOT show TikTok Shop cashback rows on this page. We therefore
+// scope the buyer-visible history filter to Shopee only. TikTok Shop
+// rows are still recorded by the upstream reconciliation pipeline --
+// they just stay out of the buyer-facing surface here.
+const supportedPlatforms: CashbackPlatformName[] = ["Shopee"];
 
 // Phase 20H.3a scopes the entry form to Shopee only. Do not surface
 // Lazada / TikTok Shop / Tiki / Sendo etc. on the hero or in the
 // preview workflow until those phases ship their own entry pages.
 const entrySupportedPlatforms: CashbackPlatformName[] = ["Shopee"];
+
+// Phase 20I.8 follow-up safety: platforms that are planned AFTER Shopee
+// and are NOT active today. We surface them on /app/cashback in a
+// "Sắp hỗ trợ" chip list. Each entry is informational only -- none
+// of these platforms receives tracking / reconciliation rows on the
+// buyer-facing cashback surface yet.
+//
+// Order is meaningful: TikTok Shop is listed FIRST so that it does
+// not visually disappear behind later entries when the chip list is
+// rendered in source order on a small mobile viewport.
+const UPCOMING_PLATFORMS: ReadonlyArray<string> = [
+  "TikTok Shop",
+  "Shopee Food",
+  "Lazada",
+  "Tiki",
+  "Sendo",
+];
 
 // Phase 20H.3e -- polished hero copy. The framing intentionally says
 // "hoa hong Shopee" rather than "gia tri san pham" so the buyer does
@@ -66,14 +93,14 @@ export default async function CashbackPage() {
   const shopeeTotal = supportedHistory
     .filter((item) => item.platform === "Shopee")
     .reduce((sum, item) => sum + parseAmount(item.amount), 0);
-  const tiktokTotal = supportedHistory
-    .filter((item) => item.platform === "TikTok Shop")
-    .reduce((sum, item) => sum + parseAmount(item.amount), 0);
 
+  // Phase 20I.8 follow-up safety: TikTok Shop MUST NOT surface as an
+  // active cashback bucket on the buyer dashboard. The buyer is shown
+  // only Shopee amounts. TikTok Shop is communicated separately in
+  // the "Sắp hỗ trợ" upcoming list further down the page.
   const stats: CashbackStat[] = [
     { label: "Ti\u1ec1n ho\u00e0n kh\u1ea3 d\u1ee5ng", value: formatVnd(available) },
     { label: "Ti\u1ec1n ho\u00e0n Shopee", value: formatVnd(shopeeTotal) },
-    { label: "Ti\u1ec1n ho\u00e0n TikTok Shop", value: formatVnd(tiktokTotal) },
   ];
 
   const platformsInUse = supportedPlatforms.filter((platform) =>
@@ -128,10 +155,10 @@ export default async function CashbackPage() {
       <section>
         <div className="rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.72)] p-5 shadow-[var(--shadow-sm)]">
           <h2 className="mb-3 text-base font-semibold text-[color:var(--text)]">
-            Sắp ra mắt
+            Sắp hỗ trợ
           </h2>
           <div className="flex flex-wrap gap-2">
-            {["Shopee Food", "Lazada", "Tiki", "Sendo"].map((item) => (
+            {UPCOMING_PLATFORMS.map((item) => (
               <span
                 key={item}
                 className="rounded-full border border-[rgba(124,63,44,0.12)] bg-[rgba(255,252,249,0.74)] px-3 py-1 text-xs font-medium text-[color:var(--text-muted)] opacity-75"
@@ -148,7 +175,7 @@ export default async function CashbackPage() {
   );
 
   return (
-    <AppShell desktopContent={desktopContent}>
+    <BuyerResponsiveShell title="Hoàn tiền" desktopContent={desktopContent}>
       <AppSection>
         <PageHeader
           eyebrow={
@@ -189,10 +216,10 @@ export default async function CashbackPage() {
       <AppSection className="mt-4 pb-8">
         <div className="rounded-[var(--radius-xl)] border border-[rgba(124,63,44,0.1)] bg-[rgba(255,250,246,0.62)] p-4 shadow-[var(--shadow-sm)]">
           <h2 className="mb-3 text-base font-semibold text-[color:var(--text)]">
-            Sắp ra mắt
+            Sắp hỗ trợ
           </h2>
           <div className="flex flex-wrap gap-2">
-            {["Shopee Food", "Lazada", "Tiki", "Sendo"].map((item) => (
+            {UPCOMING_PLATFORMS.map((item) => (
               <span
                 key={item}
                 className="cursor-not-allowed rounded-full border border-[rgba(124,63,44,0.12)] bg-[rgba(255,252,249,0.74)] px-3 py-1 text-xs font-medium text-[color:var(--text-muted)] opacity-75"
@@ -204,6 +231,6 @@ export default async function CashbackPage() {
           </div>
         </div>
       </AppSection>
-    </AppShell>
+    </BuyerResponsiveShell>
   );
 }
