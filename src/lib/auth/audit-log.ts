@@ -31,6 +31,8 @@ import { isAdmin, type AppRole } from "./roles";
  */
 export type AdminActionKind =
   | "admin.addlivetag.import"
+  | "admin.shopee_csv.preview"
+  | "admin.shopee_csv.commit"
   | "admin.role.grant"
   | "admin.role.revoke"
   | "admin.payout.execute"
