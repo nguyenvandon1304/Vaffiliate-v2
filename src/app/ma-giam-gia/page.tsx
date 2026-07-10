@@ -1,23 +1,38 @@
 /**
  * Phase 20I.1 -- public deals landing page.
+ * Phase 20I.7 -- mobile-first polish:
+ *   - canonical + OpenGraph metadata via shared helper
+ *   - BreadcrumbList JSON-LD
+ *   - unified PublicTopNav header
+ *   - mobile-first public footer
+ *   - same content; no overpromise.
  */
-import Link from "next/link";
-import BrandLogo from "@/components/shared/BrandLogo";
+import PublicTopNav from "@/components/public/PublicTopNav";
+import PublicFooter from "@/components/public/PublicFooter";
 import DealGrid from "@/features/deals/DealGrid";
 import DealHero from "@/features/deals/DealHero";
 import PlatformTabs from "@/features/deals/PlatformTabs";
 import SafeDisclosure from "@/features/deals/SafeDisclosure";
+import CouponGuideSection from "@/features/deals/CouponGuideSection";
+import { buildPublicRouteMetadata } from "@/lib/seo/public-route-metadata";
+import {
+  JsonLdScript,
+  buildBreadcrumbJsonLd,
+  buildFaqJsonLd,
+} from "@/lib/seo/jsonld";
+import { COUPON_GUIDE_FAQS } from "@/lib/seo/coupon-guide-content";
 import {
   listDealsByPlatform,
   listFeaturedDeals,
   listPlatforms,
 } from "@/services/public-deals.service";
 
-export const metadata = {
-  title: "Mã giảm giá & ưu đãi | Vaffiliate",
+export const metadata = buildPublicRouteMetadata({
+  title: "Mã giảm giá & ưu đãi",
   description:
-    "Tổng hợp mã giảm giá, deal nổi bật và ưu đãi Shopee, cập nhật theo ngày.",
-};
+    "Tổng hợp mã giảm giá và ưu đãi Shopee đang áp dụng, cập nhật theo ngày trên Vaffiliate.",
+  canonicalPath: "/ma-giam-gia",
+});
 
 export default function PublicDealsPage() {
   const featured = listFeaturedDeals();
@@ -27,26 +42,20 @@ export default function PublicDealsPage() {
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 sm:py-8">
       <div className="page-shell flex flex-col gap-6">
-        <header className="flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 sm:flex-row sm:items-center sm:justify-between">
-          <BrandLogo />
-          <nav
-            className="flex flex-wrap items-center gap-3 text-sm font-medium text-[color:var(--text-muted)]"
-            aria-label="Tài khoản"
-          >
-            <Link
-              href="/ma-giam-gia"
-              className="rounded-full border border-[rgba(124,63,44,0.18)] bg-[rgba(255,250,246,0.84)] px-4 py-2 text-[color:var(--text)] shadow-[var(--shadow-sm)]"
-            >
-              Tất cả ưu đãi
-            </Link>
-            <Link
-              href="/cashback"
-              className="rounded-full px-4 py-2 text-[color:var(--text-muted)]"
-            >
-              Hoàn tiền Shopee
-            </Link>
-          </nav>
-        </header>
+        <JsonLdScript
+          payloads={[
+            buildBreadcrumbJsonLd([
+              { name: "Trang chủ", item: "/" },
+              {
+                name: "Mã giảm giá & ưu đãi",
+                item: "/ma-giam-gia",
+              },
+            ]),
+            buildFaqJsonLd(COUPON_GUIDE_FAQS),
+          ]}
+        />
+
+        <PublicTopNav isAuthenticated={false} active="deals" />
 
         <DealHero />
 
@@ -66,6 +75,13 @@ export default function PublicDealsPage() {
         </section>
 
         <SafeDisclosure />
+
+        <CouponGuideSection
+          heading="Cách dùng mã giảm giá và hoàn tiền"
+          faqIdPrefix="ma-giam-gia-guide"
+        />
+
+        <PublicFooter />
       </div>
     </main>
   );
