@@ -68,6 +68,8 @@ const PUBLIC_PREFIXES: ReadonlyArray<string> = [
   "/",
   "/ma-giam-gia",
   "/cashback",
+  "/cashback-terms",
+  "/data-deletion",
   "/go",
   "/login",
   "/register",
@@ -75,6 +77,7 @@ const PUBLIC_PREFIXES: ReadonlyArray<string> = [
   "/forbidden",
   "/about",
   "/policy",
+  "/privacy",
   "/terms",
 ];
 

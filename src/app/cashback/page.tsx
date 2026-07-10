@@ -32,6 +32,7 @@ import Link from "next/link";
 import PublicCashbackFlowWithPreview from "@/features/cashback/PublicCashbackFlowWithPreview";
 import ShopeePopularPrograms from "@/features/cashback/ShopeePopularPrograms";
 import BrandLogo from "@/components/shared/BrandLogo";
+import PolicyFooter from "@/components/policy/PolicyFooter";
 import { createClient } from "@/lib/supabase/server";
 import { listShopeeProgramCardsAsync } from "@/services/shopee-programs.service";
 
@@ -135,6 +136,8 @@ export default async function PublicCashbackPage({
             ))}
           </div>
         </section>
+
+        <PolicyFooter variant="marketing" />
       </div>
     </main>
   );

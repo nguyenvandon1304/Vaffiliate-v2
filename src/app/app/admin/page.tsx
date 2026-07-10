@@ -53,6 +53,21 @@ export default async function AdminHomePage() {
             </span>
           </Link>
         </li>
+        <li className="va-admin-home__item">
+          <Link
+            href="/app/admin/account-deletion"
+            className="va-admin-home__link"
+          >
+            <span className="va-admin-home__item-title">
+              Yêu cầu xóa tài khoản
+            </span>
+            <span className="va-admin-home__item-subtitle">
+              Hàng chờ nền tảng ghi nhận các yêu cầu xóa tài khoản
+              từ khu vực người dùng. Bản nền, chưa có thao tác
+              duyệt / từ chối / xử lý thật.
+            </span>
+          </Link>
+        </li>
       </ul>
     </section>
   );

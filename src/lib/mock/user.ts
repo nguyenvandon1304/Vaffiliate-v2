@@ -73,4 +73,12 @@ export const moreMenuItems: MoreMenuItem[] = [
     subtitle:
       "Thông báo, bảo mật và tuỳ chọn ứng dụng.",
   },
+  {
+    // Phase 20I.6 -- account-deletion entry. Sits at the end of
+    // the menu grid so it does not clutter the main buyer UI.
+    title: "Yêu cầu xóa tài khoản",
+    subtitle:
+      "Gửi yêu cầu xóa hoặc ẩn danh hóa dữ liệu của bạn.",
+    href: "/app/account/delete",
+  },
 ];
