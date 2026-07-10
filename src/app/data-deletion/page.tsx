@@ -1,5 +1,7 @@
 /**
  * Phase 20I.6 -- public Data Deletion page (`/data-deletion`).
+ * Phase 20I.7 -- canonical + OpenGraph metadata + JSON-LD
+ *                 BreadcrumbList.
  *
  * Server component. NO auth requirement: anyone can read the
  * policy copy. The CTA below the lead is conditional:
@@ -14,18 +16,22 @@
  * still renders and just shows the unauthenticated CTA.
  */
 
-import type { Metadata } from "next";
-
 import PolicyPageLayout from "@/components/policy/PolicyPageLayout";
 import { DATA_DELETION_POLICY } from "@/lib/policy/policy-content";
+import { buildPublicRouteMetadata } from "@/lib/seo/public-route-metadata";
+import {
+  JsonLdScript,
+  buildBreadcrumbJsonLd,
+} from "@/lib/seo/jsonld";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: `${DATA_DELETION_POLICY.title} | Vaffiliate`,
+export const metadata = buildPublicRouteMetadata({
+  title: DATA_DELETION_POLICY.title,
   description: DATA_DELETION_POLICY.description,
-};
+  canonicalPath: DATA_DELETION_POLICY.path,
+});
 
 export default async function DataDeletionPage() {
   let isAuthenticated = false;
@@ -56,9 +62,16 @@ export default async function DataDeletionPage() {
       };
 
   return (
-    <PolicyPageLayout
-      page={DATA_DELETION_POLICY}
-      cta={cta}
-    />
+    <>
+      <JsonLdScript
+        payloads={[
+          buildBreadcrumbJsonLd([
+            { name: "Trang chủ", item: "/" },
+            { name: "Xóa dữ liệu", item: "/data-deletion" },
+          ]),
+        ]}
+      />
+      <PolicyPageLayout page={DATA_DELETION_POLICY} cta={cta} />
+    </>
   );
 }

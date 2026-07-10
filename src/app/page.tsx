@@ -1,6 +1,21 @@
 import Link from "next/link";
 import BrandLogo from "@/components/shared/BrandLogo";
+import PublicTopNav from "@/components/public/PublicTopNav";
+import PublicFooter from "@/components/public/PublicFooter";
 import { loadDashboardAsync } from "@/hooks/loadDashboardAsync";
+import { buildPublicRouteMetadata } from "@/lib/seo/public-route-metadata";
+import {
+  JsonLdScript,
+  buildOrganizationJsonLd,
+  buildWebSiteJsonLd,
+} from "@/lib/seo/jsonld";
+
+export const metadata = buildPublicRouteMetadata({
+  title: "Vaffiliate",
+  description:
+    "Vaffiliate - nền tảng hoàn tiền cho mua sắm online tại Việt Nam. Hoàn tiền chỉ xác nhận sau khi đối soát với đối tác.",
+  canonicalPath: "/",
+});
 
 export default async function Home() {
   const dashboard = await loadDashboardAsync();
@@ -8,6 +23,13 @@ export default async function Home() {
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 sm:py-8">
       <div className="page-shell">
+        <JsonLdScript
+          payloads={[
+            buildWebSiteJsonLd(),
+            buildOrganizationJsonLd(),
+          ]}
+        />
+        <PublicTopNav isAuthenticated={false} active="home" />
         <section className="relative overflow-hidden rounded-[calc(var(--radius-2xl)+0.25rem)] border border-[color:var(--line)] bg-[linear-gradient(180deg,rgba(255,250,246,0.92),rgba(250,242,235,0.92))] px-5 py-5 shadow-[var(--shadow-lg)] sm:px-8 sm:py-7 lg:px-10 lg:py-8">
           <div className="pointer-events-none absolute inset-0">
             <div className="absolute -left-14 top-10 h-40 w-40 rounded-full bg-[rgba(216,138,82,0.18)] blur-3xl" />
@@ -115,7 +137,7 @@ export default async function Home() {
                   </div>
 
                   <div className="mt-4 rounded-[var(--radius-lg)] bg-[linear-gradient(135deg,var(--brand),var(--accent))] p-4 text-white shadow-[var(--shadow-glow)]">
-                    <p className="text-sm text-white/80">Hoàn tiền trong tháng</p>
+                    <p className="text-sm text-white/80">Hoàn tiền dự kiến theo chương trình</p>
                     <p className="mt-2 text-2xl font-semibold tracking-tight">
                       {dashboard.hero.monthlyCashback}
                     </p>
@@ -131,7 +153,7 @@ export default async function Home() {
                         Shopee
                       </p>
                       <p className="mt-1 text-sm font-medium text-[color:var(--success)]">
-                        +18.000đ đã ghi nhận
+                        Đã ghi nhận theo chương trình
                       </p>
                     </div>
                     <div className="rounded-[var(--radius-lg)] border border-[color:var(--line)] bg-[rgba(255,255,255,0.82)] p-4">
@@ -142,7 +164,7 @@ export default async function Home() {
                         <div className="h-2 w-2/3 rounded-full bg-[linear-gradient(90deg,var(--accent),var(--brand))]" />
                       </div>
                       <p className="mt-2 text-sm font-medium text-[color:var(--text)]">
-                        68% để đạt mốc rút tiếp theo
+                        Tiến độ hiển thị sau khi đăng nhập
                       </p>
                     </div>
                   </div>
@@ -170,6 +192,8 @@ export default async function Home() {
             </article>
           ))}
         </section>
+
+        <PublicFooter />
       </div>
     </main>
   );

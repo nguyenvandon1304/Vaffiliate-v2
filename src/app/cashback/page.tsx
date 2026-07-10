@@ -35,6 +35,11 @@ import BrandLogo from "@/components/shared/BrandLogo";
 import PolicyFooter from "@/components/policy/PolicyFooter";
 import { createClient } from "@/lib/supabase/server";
 import { listShopeeProgramCardsAsync } from "@/services/shopee-programs.service";
+import { buildPublicRouteMetadata } from "@/lib/seo/public-route-metadata";
+import {
+  JsonLdScript,
+  buildBreadcrumbJsonLd,
+} from "@/lib/seo/jsonld";
 
 type CashbackPageProps = {
   searchParams: Promise<{
@@ -58,6 +63,13 @@ const COMING_SOON_PLATFORMS = [
   "Sendo",
 ] as const;
 
+export const metadata = buildPublicRouteMetadata({
+  title: "Hoàn tiền Shopee",
+  description:
+    "Công cụ ước tính hoàn tiền Shopee trên Vaffiliate. Hoàn tiền chỉ được xác nhận sau khi đối soát với đối tác.",
+  canonicalPath: "/cashback",
+});
+
 export default async function PublicCashbackPage({
   searchParams,
 }: CashbackPageProps) {
@@ -75,6 +87,14 @@ export default async function PublicCashbackPage({
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 sm:py-8">
       <div className="page-shell">
+        <JsonLdScript
+          payloads={[
+            buildBreadcrumbJsonLd([
+              { name: "Trang chủ", item: "/" },
+              { name: "Hoàn tiền Shopee", item: "/cashback" },
+            ]),
+          ]}
+        />
         <header className="mb-6 flex flex-col gap-4 border-b border-[color:var(--line)] pb-5 sm:flex-row sm:items-center sm:justify-between">
           <BrandLogo />
           <nav

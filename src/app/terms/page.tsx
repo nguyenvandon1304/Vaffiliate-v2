@@ -1,23 +1,37 @@
 /**
  * Phase 20I.6 -- public Terms of Service page (`/terms`).
- *
- * Static server component. The copy lives in
- * `lib/policy/policy-content.ts` so it can be audited by the
- * policy-content unit test.
+ * Phase 20I.7 -- canonical + OpenGraph metadata + JSON-LD
+ *                 BreadcrumbList.
  */
-
-import type { Metadata } from "next";
 
 import PolicyPageLayout from "@/components/policy/PolicyPageLayout";
 import { TERMS_POLICY } from "@/lib/policy/policy-content";
+import { buildPublicRouteMetadata } from "@/lib/seo/public-route-metadata";
+import {
+  JsonLdScript,
+  buildBreadcrumbJsonLd,
+} from "@/lib/seo/jsonld";
 
 export const dynamic = "force-static";
 
-export const metadata: Metadata = {
-  title: `${TERMS_POLICY.title} | Vaffiliate`,
+export const metadata = buildPublicRouteMetadata({
+  title: TERMS_POLICY.title,
   description: TERMS_POLICY.description,
-};
+  canonicalPath: TERMS_POLICY.path,
+});
 
 export default function TermsPage() {
-  return <PolicyPageLayout page={TERMS_POLICY} />;
+  return (
+    <>
+      <JsonLdScript
+        payloads={[
+          buildBreadcrumbJsonLd([
+            { name: "Trang chủ", item: "/" },
+            { name: "Điều khoản dịch vụ", item: "/terms" },
+          ]),
+        ]}
+      />
+      <PolicyPageLayout page={TERMS_POLICY} />
+    </>
+  );
 }

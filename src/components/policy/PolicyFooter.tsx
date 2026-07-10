@@ -1,57 +1,49 @@
-import Link from "next/link";
-
 /**
- * Phase 20I.6 -- minimal public site footer.
+ * Phase 20I.7 -- public site footer (policy-page variant).
  *
- * Renders the four policy links that ship with Phase 20I.6 plus
- * the brand label. Mobile-first: stacks on small screens, single
- * row on wide screens. The footer does NOT include any internal
- * tokens, marketing promises, or copy that varies per page.
+ * Backed by the unified `PublicFooter` so every public SEO route
+ * renders the same nav links and brand mark. The policy variant
+ * keeps the page chrome minimal (no product nav), matching what
+ * policy pages looked like in Phase 20I.6.
  *
- * The footer is intentionally a server component: it renders
- * inside the public policy page wrappers and never carries
- * state.
+ * Note: marketing / deal / cashback pages should use
+ * `<PublicFooter />` directly (or pass `productLinks` explicitly)
+ * to surface the "Tất cả ưu đãi" and "Hoàn tiền Shopee" links.
  */
+
+import PublicFooter, {
+  PUBLIC_FOOTER_POLICY_LINKS,
+} from "@/components/public/PublicFooter";
 
 export type PolicyFooterProps = {
   readonly variant?: "page" | "marketing";
+  readonly productLinks?: ReadonlyArray<{
+    readonly href: string;
+    readonly label: string;
+  }>;
+  readonly note?: string;
 };
 
-const POLICY_LINKS: ReadonlyArray<{ readonly href: string; readonly label: string }> =
-  [
-    { href: "/privacy", label: "Quyền riêng tư" },
-    { href: "/terms", label: "Điều khoản" },
-    { href: "/cashback-terms", label: "Điều khoản hoàn tiền" },
-    { href: "/data-deletion", label: "Xóa dữ liệu" },
-  ];
-
-export default function PolicyFooter({ variant = "page" }: PolicyFooterProps) {
+export default function PolicyFooter({
+  variant = "page",
+  productLinks,
+  note,
+}: PolicyFooterProps) {
+  const resolvedProductLinks =
+    variant === "marketing"
+      ? productLinks ?? [
+          { href: "/ma-giam-gia", label: "Tất cả ưu đãi" },
+          { href: "/cashback", label: "Hoàn tiền Shopee" },
+        ]
+      : productLinks ?? [];
   return (
-    <footer
-      className={
-        variant === "marketing"
-          ? "mt-10 border-t border-[color:var(--line)] pt-6"
-          : "mt-12 border-t border-[color:var(--line)] pt-6"
-      }
-      aria-label="Liên kết chính sách"
-    >
-      <nav
-        aria-label="Chính sách"
-        className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-[color:var(--text-muted)]"
-      >
-        {POLICY_LINKS.map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="rounded-full px-2 py-1 hover:text-[color:var(--brand-strong)]"
-          >
-            {link.label}
-          </Link>
-        ))}
-      </nav>
-      <p className="mt-4 text-xs text-[color:var(--text-muted)]">
-        Vaffiliate - nền tảng hoàn tiền cho mua sắm online.
-      </p>
-    </footer>
+    <PublicFooter
+      productLinks={resolvedProductLinks}
+      note={note}
+    />
   );
 }
+
+// Re-export the policy link list so existing tests / callers that
+// import `POLICY_LINKS` from this module keep working.
+export { PUBLIC_FOOTER_POLICY_LINKS as POLICY_LINKS };
