@@ -15,9 +15,15 @@ type PayoutAccountUpdateActionState = {
   message: string;
 };
 
+// Phase 20I.8 follow-up safety: TikTok Shop is not active. The
+// buyer-profile "Sàn ưu tiên" field may only accept active
+// platforms. Today that means Shopee; TikTok Shop is roadmap-only.
+// If a buyer submits a TikTok Shop preferred platform (via a
+// tampered form, old cached HTML, or curl), the action rejects
+// it with the existing "Nền tảng ưu tiên không hợp lệ" branch,
+// so the contract is enforced server-side as well as on the UI.
 const supportedPlatforms = new Set<ClickPlatform>([
   "Shopee",
-  "TikTok Shop",
 ]);
 
 function readTrimmedString(formData: FormData, key: string) {

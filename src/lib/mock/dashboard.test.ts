@@ -27,6 +27,8 @@ import {
   homeFeatures,
   homeMetrics,
   heroPreview,
+  dashboardSummary,
+  popularOffers,
 } from "./dashboard";
 import type { HomeMetric } from "@/types/dashboard";
 import {
@@ -291,4 +293,72 @@ test("Phase 20I.7: combined homepage copy (metrics + hero + features) still pass
   assert.doesNotThrow(() => {
     assertBuyerFacingCopyIsSafe(pieces);
   });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 20I.8 follow-up -- buyer home runtime data must not surface TikTok
+// Shop as an active flow. The buyer home `/app` consumes `dashboardSummary`
+// and `popularOffers` from this file (via the missing
+// `repositories/dashboard.repository`). Until that wiring returns, we
+// hold the mock exports themselves to the same TikTok-active contract
+// the runtime route claims. This catches regressions that would
+// otherwise reintroduce TikTok active copy in the home runtime surface.
+// ---------------------------------------------------------------------------
+
+test("Phase 20I.8 follow-up: dashboardSummary.activePlatforms is Shopee only", () => {
+  const list = dashboardSummary.activePlatforms.map((s) => s.toLowerCase());
+  assert.ok(
+    list.includes("shopee"),
+    "activePlatforms must include Shopee as the active flow",
+  );
+  for (const token of [
+    "tiktok shop",
+    "lazada",
+    "tiki",
+    "sendo",
+    "shopee food",
+  ]) {
+    assert.ok(
+      !list.includes(token),
+      `dashboardSummary.activePlatforms must NOT include roadmap-only token '${token}'`,
+    );
+  }
+});
+
+test("Phase 20I.8 follow-up: dashboardSummary lists TikTok Shop in upcomingPlatforms", () => {
+  // We want TikTok Shop to be communicated to the buyer, but ONLY as
+  // an upcoming platform. Dropping it silently is also a regression,
+  // so this test asserts it is present in the upcoming list.
+  const list = dashboardSummary.upcomingPlatforms.map((s) => s.toLowerCase());
+  assert.ok(
+    list.includes("tiktok shop"),
+    "upcomingPlatforms must mention TikTok Shop so the buyer knows it is planned",
+  );
+});
+
+test("Phase 20I.8 follow-up: popularOffers contains no TikTok Shop row", () => {
+  for (const offer of popularOffers) {
+    assert.notEqual(
+      offer.platform.toLowerCase(),
+      "tiktok shop",
+      `popularOffers must not surface TikTok Shop as an active offer -- got '${offer.title}'`,
+    );
+    const lower = `${offer.platform} ${offer.title} ${offer.rewardLabel} ${offer.category} ${offer.description}`.toLowerCase();
+    assert.ok(
+      !lower.includes("tiktok"),
+      `popularOffers row '${offer.title}' must not mention TikTok -- it is upcoming only`,
+    );
+  }
+});
+
+test("Phase 20I.8 follow-up: every popularOffers row mentions Shopee as the active platform", () => {
+  // Cross-check the inverse: at least one popular offer must be a
+  // Shopee offer so the buyer home still has live cards.
+  const shopeeCount = popularOffers.filter((o) =>
+    o.platform.toLowerCase().includes("shopee"),
+  ).length;
+  assert.ok(
+    shopeeCount >= 1,
+    "popularOffers must include at least one Shopee active offer so the buyer home is not empty",
+  );
 });

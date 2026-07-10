@@ -70,8 +70,18 @@ export const dashboardSummary: DashboardSummary = {
   trackedOrders: "16 đơn",
   tier: "Hạng Bạc",
   nextPayout: "Tiền hoàn sẽ khả dụng sau khi đơn được ghi nhận và hoa hồng được sàn duyệt.",
-  activePlatforms: ["Shopee", "TikTok Shop"],
-  upcomingPlatforms: ["Shopee Food", "Lazada", "Tiki", "Sendo"],
+  // Phase 20I.8 follow-up safety: TikTok Shop is planned AFTER Shopee.
+  // The buyer-facing active platforms list must be Shopee only.
+  // TikTok Shop is communicated separately as an upcoming platform,
+  // never as a live cashback flow.
+  activePlatforms: ["Shopee"],
+  upcomingPlatforms: [
+    "TikTok Shop",
+    "Shopee Food",
+    "Lazada",
+    "Tiki",
+    "Sendo",
+  ],
 };
 
 export const quickActions: QuickAction[] = [
@@ -98,9 +108,9 @@ export const popularOffers: PopularOffer[] = [
     description: "Mỹ phẩm, chăm sóc da và sức khỏe.",
   },
   {
-    offerId: "off-tiktok-home",
-    platform: "TikTok Shop",
-    title: "Đồ gia dụng TikTok",
+    offerId: "off-shopee-home",
+    platform: "Shopee",
+    title: "Đồ gia dụng Shopee",
     rewardLabel: "6% hoàn tiền",
     category: "Gia dụng",
     description: "Đồ gia dụng, nhà bếp và nội thất.",

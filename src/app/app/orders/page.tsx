@@ -1,4 +1,4 @@
-import AppShell from "@/components/layout/AppShell";
+import BuyerResponsiveShell from "@/components/buyer/BuyerResponsiveShell";
 import AppSection from "@/components/layout/AppSection";
 import PageHeader from "@/components/layout/PageHeader";
 import OrdersFilters from "@/features/orders/OrdersFilters";
@@ -6,6 +6,9 @@ import { OrdersEmptyState } from "@/features/orders/OrdersStates";
 import OrdersTable from "@/features/orders/OrdersTable";
 import { loadOrdersAsync } from "@/hooks/loadOrdersAsync";
 import { parseFilterParam } from "@/lib/filterUtils";
+import { privateRouteMetadata } from "@/lib/seo/private-route-metadata";
+
+export const metadata = privateRouteMetadata();
 
 type SearchParams = Promise<
 Record<string, string | string[] | undefined>
@@ -62,7 +65,7 @@ Theo dõi đơn hàng và cashback </p>
 
 );
 
-return ( <AppShell desktopContent={desktopContent}> <AppSection>
+return ( <BuyerResponsiveShell title="Đơn hàng" desktopContent={desktopContent}> <AppSection>
 <PageHeader
 eyebrow={ <p className="mb-2 text-sm font-medium text-[color:var(--text-muted)]">
 Theo dõi đơn hàng và cashback </p>
@@ -74,7 +77,7 @@ description="Cashback chỉ được xác nhận sau khi đối tác đối soá
   <AppSection>
     {renderOrdersContent()}
   </AppSection>
-</AppShell>
+</BuyerResponsiveShell>
 
 );
 }

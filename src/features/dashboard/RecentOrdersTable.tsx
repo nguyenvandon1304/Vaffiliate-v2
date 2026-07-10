@@ -2,12 +2,20 @@ import Badge from "@/components/ui/Badge";
 import Card from "@/components/ui/Card";
 import SectionHeader from "@/components/ui/SectionHeader";
 import type { RecentOrder } from "@/types/orders";
+import { filterActiveRecentOrders } from "@/lib/orders/recent-orders-filter";
 
 type RecentOrdersTableProps = {
   orders: RecentOrder[];
 };
 
 export default function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
+  // Phase 20I.8 follow-up safety: TikTok Shop is upcoming, not active.
+  // Filter orders to Shopee-only active rows before rendering so the
+  // buyer never sees TikTok Shop order rows paired with cashback
+  // amounts or active reconciliation statuses. The hook
+  // `filterActiveRecentOrders` is the single source of truth for
+  // this contract and is unit-tested.
+  const activeOrders = filterActiveRecentOrders(orders);
   return (
     <Card className="bg-[rgba(255,250,246,0.72)] p-5">
       <SectionHeader
@@ -24,7 +32,7 @@ export default function RecentOrdersTable({ orders }: RecentOrdersTableProps) {
           <span>Thời gian</span>
         </div>
         <div className="divide-y divide-[color:var(--line)]">
-          {orders.map((order) => (
+          {activeOrders.map((order) => (
             <div
               key={`${order.store}-${order.time}`}
               className="grid grid-cols-[1.2fr_1.4fr_0.8fr_0.9fr_0.8fr] gap-3 px-4 py-4 text-sm"

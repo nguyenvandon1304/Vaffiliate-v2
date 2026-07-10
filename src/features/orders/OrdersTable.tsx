@@ -1,6 +1,7 @@
 import Badge from "@/components/ui/Badge";
 import type { RecentOrder } from "@/types/orders";
 import { getOrderStatusPresentation } from "@/lib/statusPresentation";
+import { filterActiveRecentOrders } from "@/lib/orders/recent-orders-filter";
 
 type OrdersTableProps = {
   orders: RecentOrder[];
@@ -33,10 +34,19 @@ function formatOrderAmountForDisplay(
 export default function OrdersTable({
   orders,
 }: OrdersTableProps) {
+  // Phase 20I.8 follow-up safety: TikTok Shop is upcoming, not
+  // active. We must not surface TikTok Shop order rows paired
+  // with cashback amounts, "Đang đối soát", "Có thể rút", or
+  // "Đã thanh toán". Run the input through the central filter
+  // helper (the same one `ConsumerRecentOrders` and
+  // `RecentOrdersTable` use) so the contract is locked at the
+  // render boundary regardless of which data layer eventually
+  // feeds `/app/orders`.
+  const activeOrders = filterActiveRecentOrders(orders);
   return (
     <section className="pb-8">
       <div className="grid gap-3">
-        {orders.map((order) => {
+        {activeOrders.map((order) => {
           const presentation = getOrderStatusPresentation(order.status);
           const amountClass = getOrderAmountClassName(order.status);
           const displayAmount = formatOrderAmountForDisplay(order.amount, order.status);
