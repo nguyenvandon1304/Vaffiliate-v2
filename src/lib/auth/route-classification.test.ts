@@ -23,10 +23,14 @@ test("Phase 20I.5: classifyRoute marks the documented public routes", () => {
     "/ma-giam-gia",
     "/ma-giam-gia/shopee",
     "/cashback",
+    "/cashback-terms",
+    "/data-deletion",
     "/login",
     "/register",
     "/auth/callback",
     "/forbidden",
+    "/privacy",
+    "/terms",
   ]) {
     assert.equal(
       classifyRoute(path),
