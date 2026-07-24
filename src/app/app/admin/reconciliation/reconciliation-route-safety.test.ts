@@ -30,21 +30,47 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ACTIONS_PATH =
-  "D:/Vaffiliate/web/src/app/app/admin/reconciliation/actions.ts";
-const ACTION_STATE_PATH =
-  "D:/Vaffiliate/web/src/app/app/admin/reconciliation/action-state.ts";
-const PAGE_PATH =
-  "D:/Vaffiliate/web/src/app/app/admin/reconciliation/page.tsx";
-const FORM_PATH =
-  "D:/Vaffiliate/web/src/app/app/admin/reconciliation/ReconciliationForm.tsx";
-const AUDIT_PATH = "D:/Vaffiliate/web/src/lib/auth/audit-log.ts";
-const ENGINE_PATH =
-  "D:/Vaffiliate/web/src/lib/reconciliation/reconciliation-engine.ts";
-const REPOSITORY_PATH =
-  "D:/Vaffiliate/web/src/server/reconciliation/reconciliation.repository.ts";
-const SCHEMA_PATH = "D:/Vaffiliate/web/src/db/schema.ts";
+const TEST_DIRECTORY = dirname(fileURLToPath(import.meta.url));
+const REPOSITORY_ROOT = resolve(TEST_DIRECTORY, "../../../../..");
+
+function fromTestDirectory(fileName: string): string {
+  return join(TEST_DIRECTORY, fileName);
+}
+
+function fromRepositoryRoot(...segments: string[]): string {
+  return join(REPOSITORY_ROOT, ...segments);
+}
+
+const ACTIONS_PATH = fromTestDirectory("actions.ts");
+const ACTION_STATE_PATH = fromTestDirectory("action-state.ts");
+const PAGE_PATH = fromTestDirectory("page.tsx");
+const FORM_PATH = fromTestDirectory("ReconciliationForm.tsx");
+const AUDIT_PATH = fromRepositoryRoot(
+  "src",
+  "lib",
+  "auth",
+  "audit-log.ts",
+);
+const ENGINE_PATH = fromRepositoryRoot(
+  "src",
+  "lib",
+  "reconciliation",
+  "reconciliation-engine.ts",
+);
+const REPOSITORY_PATH = fromRepositoryRoot(
+  "src",
+  "server",
+  "reconciliation",
+  "reconciliation.repository.ts",
+);
+const SCHEMA_PATH = fromRepositoryRoot("src", "db", "schema.ts");
+const RECONCILIATION_AUDIT_MIGRATION_PATH = fromRepositoryRoot(
+  "drizzle",
+  "0024_phase_20k_reconciliation_audit.sql",
+);
 
 function readSource(relPath: string): string {
   return readFileSync(relPath, "utf8");
@@ -279,7 +305,7 @@ test("Phase 20K: reconciliation engine refuses to plan payable -> paid in Phase 
   );
   // Audit-table CHECK refuses paid in the durable trail.
   assert.ok(
-    readSource("D:/Vaffiliate/web/drizzle/0024_phase_20k_reconciliation_audit.sql").includes(
+    readSource(RECONCILIATION_AUDIT_MIGRATION_PATH).includes(
       "reconciliation_audit_events_no_paid_by_phase_20k_check",
     ),
     "drizzle/0024_phase_20k_reconciliation_audit.sql must declare the no-paid CHECK constraint",
