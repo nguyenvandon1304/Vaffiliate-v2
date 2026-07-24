@@ -1143,6 +1143,9 @@ export const conversions = pgTable(
     })
       .notNull(),
 
+    /** Immutable cashback policy applied when this conversion was created. */
+    cashbackShareBpsSnapshot: integer("cashback_share_bps_snapshot"),
+
     userCashback: bigint("user_cashback", {
       mode: "number",
     })
@@ -1341,6 +1344,16 @@ export const conversions = pgTable(
     check(
       "conversions_commission_allocation_check",
       sql`${table.networkCommission} = ${table.userCashback} + ${table.platformProfit}`,
+    ),
+
+    check(
+      "conversions_cashback_share_bps_snapshot_range_check",
+      sql`${table.cashbackShareBpsSnapshot} is null or ${table.cashbackShareBpsSnapshot} between 0 and 10000`,
+    ),
+
+    check(
+      "conversions_cashback_policy_allocation_check",
+      sql`${table.cashbackShareBpsSnapshot} is null or ${table.userCashback} = floor(${table.networkCommission}::numeric * ${table.cashbackShareBpsSnapshot} / 10000)::bigint`,
     ),
 
     /**
@@ -1938,3 +1951,654 @@ export type NewOfferRow = typeof offers.$inferInsert;
 
 export type CashbackPolicyRow = typeof cashbackPolicies.$inferSelect;
 export type NewCashbackPolicyRow = typeof cashbackPolicies.$inferInsert;
+
+// --- Phase 20K: reconciliation audit trail -----------------------------------
+
+/**
+ * Phase 20K -- durable reconciliation audit event surface.
+ *
+ * Every applied reconciliation transition inserts a row here in the
+ * same DB transaction as the matching `conversions.status` update.
+ * The full 64-character lowercase hex `idempotency_key` is persisted
+ * and the `(network, idempotency_key)` UNIQUE constraint enforces
+ * DB-level idempotency: a repeated sequential OR concurrent commit
+ * with the same `(network, sourceConversionKey, decision)` tuple
+ * collides on this index and is treated as an idempotent skipped
+ * result by the application layer.
+ *
+ * The closed enum on `decision`, the explicit CHECK that
+ * `next_status <> 'paid'`, the commission allocation invariant
+ * (`network_commission = user_cashback + platform_profit`), and the
+ * `actor_kind in ('admin', 'system')` constraint together keep the
+ * audit trail internally consistent with the conversion row.
+ *
+ * The actor model is intentionally narrow:
+ *
+ *   - `actor_kind = 'admin'`: a real authenticated admin pressed
+ *     Commit through the admin UI. `actor_user_id` and
+ *     `actor_role` are populated from `requireAdmin()`.
+ *   - `actor_kind = 'system'`: a future scheduled job / settlement
+ *     pipeline triggers the same idempotent transition. No user
+ *     id, no role. Phase 20K only ever inserts `'admin'` rows;
+ *     `'system'` is reserved for the future payout / settlement
+ *     pipeline.
+ *
+ * `reconciliation_run_id` is generated per commit pass and is
+ * stable across every audit row the pass produces. It is NOT the
+ * idempotency key -- the idempotency key is the per-decision
+ * SHA-256. The run id is a separate grouping handle so a reviewer
+ * can fetch all events from one admin click in one query.
+ */
+export const reconciliationAuditEvents = pgTable(
+  "reconciliation_audit_events",
+  {
+    id: uuid("id")
+      .defaultRandom()
+      .primaryKey(),
+
+    /**
+     * Affiliate network that produced the conversion. Closed enum:
+     * 'shopee' / 'manual'. 'tiktok' is deliberately absent -- the
+     * engine refuses to plan an apply decision for any other
+     * network.
+     */
+    network: text("network")
+      .notNull(),
+
+    /**
+     * The conversion's `source_conversion_key` value. Stored
+     * alongside the idempotency key for human-readable auditing.
+     * Shape is enforced to the SHA-256 hex pattern to match
+     * `conversions.source_conversion_key`.
+     */
+    sourceConversionKey: text("source_conversion_key")
+      .notNull(),
+
+    /**
+     * The full 64-char lowercase hex SHA-256 digest from
+     * `buildReconciliationIdempotencyKey()`. The UNIQUE index on
+     * `(network, idempotency_key)` is the database-level
+     * idempotency boundary; the application layer treats a unique
+     * violation as an idempotent skipped result.
+     */
+    idempotencyKey: text("idempotency_key")
+      .notNull(),
+
+    conversionId: uuid("conversion_id")
+      .notNull(),
+
+    previousStatus: text("previous_status")
+      .notNull(),
+
+    nextStatus: text("next_status")
+      .notNull(),
+
+    decision: text("decision")
+      .notNull(),
+
+    reasonCode: text("reason_code")
+      .notNull(),
+
+    humanReason: text("human_reason")
+      .notNull(),
+
+    networkCommission: bigint("network_commission", {
+      mode: "number",
+    })
+      .notNull(),
+
+    userCashback: bigint("user_cashback", {
+      mode: "number",
+    })
+      .notNull(),
+
+    platformProfit: bigint("platform_profit", {
+      mode: "number",
+    })
+      .notNull(),
+
+    /** Policy evidence copied from the conversion for this audit decision. */
+    cashbackShareBpsSnapshot: integer("cashback_share_bps_snapshot"),
+
+    /**
+     * Either 'admin' (a real admin pressed Commit) or 'system' (a
+     * future settlement pipeline; never inserted by Phase 20K).
+     */
+    actorKind: text("actor_kind")
+      .notNull(),
+
+    actorUserId: uuid("actor_user_id"),
+
+    actorRole: text("actor_role"),
+
+    /**
+     * Per-commit grouping handle. Distinct from the per-decision
+     * `idempotency_key`. Every audit row emitted by a single
+     * commit pass shares the same `reconciliation_run_id`.
+     */
+    reconciliationRunId: uuid("reconciliation_run_id")
+      .notNull(),
+
+    /**
+     * The candidate row from `reconciliation_run_candidates` that
+     * this audit event applied. NULL for legacy audit rows
+     * inserted before Phase 20K follow-up 2 added run scoping.
+     *
+     * Together with the UNIQUE index on this column, this is the
+     * DB-level idempotency boundary for "the same run + same
+     * candidate may produce at most one applied audit event".
+     */
+    runCandidateId: uuid("run_candidate_id"),
+
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "date",
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    /**
+     * Database-level idempotency boundary. Repeated sequential
+     * OR concurrent commits of the SAME `(network,
+     * sourceConversionKey, decision)` tuple collide here and the
+     * application layer treats the conflict as an idempotent
+     * skipped result rather than a server crash.
+     */
+    unique("reconciliation_audit_events_network_idempotency_key_unique").on(
+      table.network,
+      table.idempotencyKey,
+    ),
+
+    index("reconciliation_audit_events_conversion_id_idx").on(
+      table.conversionId,
+    ),
+
+    index("reconciliation_audit_events_reconciliation_run_id_idx").on(
+      table.reconciliationRunId,
+    ),
+
+    index("reconciliation_audit_events_created_at_idx").on(
+      table.createdAt,
+    ),
+
+    /**
+     * Database-level idempotency boundary for "the same run
+     * candidate may produce at most one applied audit event".
+     * Partial unique index because legacy audit rows from
+     * before Phase 20K follow-up 2 have NULL `run_candidate_id`.
+     */
+    uniqueIndex("reconciliation_audit_events_run_candidate_id_unique")
+      .on(table.runCandidateId)
+      .where(sql`${table.runCandidateId} is not null`),
+
+    check(
+      "reconciliation_audit_events_network_check",
+      sql`${table.network} in ('shopee', 'manual')`,
+    ),
+
+    check(
+      "reconciliation_audit_events_network_not_blank_check",
+      sql`char_length(trim(${table.network})) > 0`,
+    ),
+
+    check(
+      "reconciliation_audit_events_source_conversion_key_shape_check",
+      sql`${table.sourceConversionKey} ~ '^[a-f0-9]{64}$'`,
+    ),
+
+    check(
+      "reconciliation_audit_events_idempotency_key_shape_check",
+      sql`${table.idempotencyKey} ~ '^[a-f0-9]{64}$'`,
+    ),
+
+    check(
+      "reconciliation_audit_events_previous_status_check",
+      sql`${table.previousStatus} in ('pending', 'approved', 'rejected', 'payable', 'paid')`,
+    ),
+
+    check(
+      "reconciliation_audit_events_next_status_check",
+      sql`${table.nextStatus} in ('pending', 'approved', 'rejected', 'payable', 'paid')`,
+    ),
+
+    check(
+      "reconciliation_audit_events_decision_check",
+      sql`${table.decision} in ('approve', 'reject', 'mark_payable', 'mark_paid', 'reverse_to_pending')`,
+    ),
+
+    check(
+      "reconciliation_audit_events_reason_code_not_blank_check",
+      sql`char_length(trim(${table.reasonCode})) > 0`,
+    ),
+
+    check(
+      "reconciliation_audit_events_human_reason_not_blank_check",
+      sql`char_length(trim(${table.humanReason})) > 0`,
+    ),
+
+    /**
+     * Defense-in-depth: a Phase 20K audit event MUST NOT be
+     * stamped with `next_status = 'paid'`. The state machine
+     * permits `payable -> paid` for a future settlement pipeline,
+     * but the audit row itself refuses that stamp so a stray code
+     * path cannot bypass the application-level guard.
+     */
+    check(
+      "reconciliation_audit_events_no_paid_by_phase_20k_check",
+      sql`${table.nextStatus} <> 'paid'`,
+    ),
+
+    check(
+      "reconciliation_audit_events_previous_next_status_must_differ_check",
+      sql`${table.previousStatus} <> ${table.nextStatus}`,
+    ),
+
+    check(
+      "reconciliation_audit_events_network_commission_non_negative_check",
+      sql`${table.networkCommission} >= 0`,
+    ),
+
+    check(
+      "reconciliation_audit_events_user_cashback_non_negative_check",
+      sql`${table.userCashback} >= 0`,
+    ),
+
+    check(
+      "reconciliation_audit_events_platform_profit_non_negative_check",
+      sql`${table.platformProfit} >= 0`,
+    ),
+
+    check(
+      "reconciliation_audit_events_commission_allocation_check",
+      sql`${table.networkCommission} = ${table.userCashback} + ${table.platformProfit}`,
+    ),
+
+    check(
+      "reconciliation_audit_events_cashback_bps_range_check",
+      sql`${table.cashbackShareBpsSnapshot} is null or ${table.cashbackShareBpsSnapshot} between 0 and 10000`,
+    ),
+
+    check(
+      "reconciliation_audit_events_cashback_policy_allocation_check",
+      sql`${table.cashbackShareBpsSnapshot} is null or ${table.userCashback} = floor(${table.networkCommission}::numeric * ${table.cashbackShareBpsSnapshot} / 10000)::bigint`,
+    ),
+
+    check(
+      "reconciliation_audit_events_actor_kind_check",
+      sql`${table.actorKind} in ('admin', 'system')`,
+    ),
+
+    /**
+     * Cross-column actor consistency. Phase 20K only ever inserts
+     * `'admin'` rows. The `'system'` branch is reserved for a
+     * future settlement pipeline and forces `actor_user_id` /
+     * `actor_role` to be NULL.
+     */
+    check(
+      "reconciliation_audit_events_actor_consistency_check",
+      sql`
+        (
+          ${table.actorKind} = 'admin'
+          and ${table.actorUserId} is not null
+          and ${table.actorRole} in ('admin', 'super_admin')
+        )
+        or
+        (
+          ${table.actorKind} = 'system'
+          and ${table.actorUserId} is null
+          and ${table.actorRole} is null
+        )
+      `,
+    ),
+  ],
+).enableRLS();
+
+export type ReconciliationAuditEventRow =
+  typeof reconciliationAuditEvents.$inferSelect;
+export type NewReconciliationAuditEventRow =
+  typeof reconciliationAuditEvents.$inferInsert;
+
+// --- Reconciliation run scope (Phase 20K follow-up 2) ----------------------
+//
+// A reconciliation run is a server-generated, bounded candidate set
+// produced by dry-run and consumed by commit. The client never gets
+// to choose candidate IDs or actor IDs -- the dry-run creates the run
+// server-side, the commit MUST accept only the server-generated
+// reconciliationRunId and reload only candidates belonging to that
+// run.
+//
+// Phase 20K follow-up 2 invariants:
+//
+//   1. `reconciliation_runs` records run metadata + the closed
+//      policy version + the authenticated actor who created the run.
+//   2. `reconciliation_run_candidates` pins the exact candidate set
+//      the run plans against. A UNIQUE constraint on
+//      `(run_id, conversion_id)` is the durable boundary for the
+//      "same-run replay is a true no-op" rule.
+//   3. `reconciliation_audit_events` adds `run_candidate_id` to bind
+//      each applied audit row to the candidate it claimed. The new
+//      UNIQUE constraint on `run_candidate_id` (nullable for legacy
+//      rows) is the database-level idempotency boundary for the
+//      operation.
+
+export const RECONCILIATION_RUN_STATUSES = [
+  "draft",
+  "committed",
+  "superseded",
+] as const;
+
+export type ReconciliationRunStatus =
+  (typeof RECONCILIATION_RUN_STATUSES)[number];
+
+export const reconciliationRuns = pgTable(
+  "reconciliation_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    /**
+     * Network the run plans against. Closed enum -- `shopee`,
+     * `manual`. Unknown values are rejected at the application
+     * boundary (`reconciliation-engine.ts`).
+     */
+    network: text("network").notNull(),
+
+    /**
+     * The authenticated admin who created the run. Stored as text
+     * for human readability; the actor's `user_id` is the durable
+     * handle, the role is mirrored so the audit trail can be read
+     * without joining back to the actor's profile row.
+     */
+    createdByUserId: uuid("created_by_user_id").notNull(),
+    createdByRole: text("created_by_role").notNull(),
+
+    /**
+     * Reconciliation policy version active when the run was
+     * created. Bumping the policy will NOT replay earlier runs --
+     * they remain bound to the policy version under which they
+     * were planned.
+     */
+    policyVersion: integer("policy_version").notNull(),
+
+    /**
+     * SHA-256 fingerprint of the candidate-set inputs (network +
+     * source_conversion_key list + policy version + actor id). The
+     * fingerprint is metadata-only; the durable boundary for
+     * "this exact run was planned once" is the primary key + the
+     * `(run_id, conversion_id)` UNIQUE index on
+     * `reconciliation_run_candidates`.
+     */
+    candidateFingerprint: text("candidate_fingerprint").notNull(),
+
+    /**
+     * Phase 20K follow-up 4 -- normalized, server-validated source
+     * scope captured at planning time. The commit path reloads
+     * this JSONB to ensure the same boundary that produced the
+     * candidate set is what is being applied. NULL only on legacy
+     * rows that predate follow-up 4.
+     */
+    scope: jsonb("scope").$type<{
+      readonly ingestionEventIds?: ReadonlyArray<string>;
+      readonly sourceConversionKeys?: ReadonlyArray<string>;
+      readonly explicitConversionIds?: ReadonlyArray<string>;
+      readonly occurredAfter?: string;
+      readonly occurredBefore?: string;
+    }>(),
+
+    /**
+     * Phase 20K follow-up 4 -- count of candidates persisted for
+     * the run. Captured at planning time; the commit path can
+     * cross-check it against the actual candidate rows to detect
+     * drift.
+     */
+    scopeCandidateCount: integer("scope_candidate_count"),
+
+    /**
+     * Run lifecycle.
+     *   draft       : initial state after dry-run
+     *   committing  : commit transaction in progress; the run has
+     *                 been acquired via a draft -> committing
+     *                 compare-and-set update
+     *   committed   : commit completed at least one transition
+     *   failed      : commit was acquired but a per-candidate
+     *                 failure left the run non-terminal; the run
+     *                 can be resumed on a subsequent attempt
+     *   superseded  : reserved for future pipeline
+     *
+     * A run MUST NEVER remain `draft` after a money mutation was
+     * applied. The acquire step (`draft -> committing`) is the
+     * atomic gate; once the run is `committing`, a terminal
+     * transition to either `committed` (success) or `failed`
+     * (recoverable) MUST eventually complete.
+     */
+    status: text("status").notNull().default("draft"),
+
+    /**
+     * Phase 20K checkpoint 4D2 -- terminal failure timestamp.
+     * Set exactly once, when the lifecycle moves from
+     * `committing` to `failed`. The associated reason is in
+     * `failed_reason`.
+     */
+    failedAt: timestamp("failed_at", { withTimezone: true, mode: "date" }),
+
+    failedReason: text("failed_reason"),
+
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+    committedAt: timestamp("committed_at", { withTimezone: true, mode: "date" }),
+  },
+  (table) => [
+    check(
+      "reconciliation_runs_network_check",
+      sql`${table.network} in ('shopee', 'manual')`,
+    ),
+    check(
+      "reconciliation_runs_status_check",
+      sql`${table.status} in ('draft', 'committing', 'committed', 'failed', 'superseded')`,
+    ),
+    check(
+      "reconciliation_runs_created_by_role_check",
+      sql`${table.createdByRole} in ('admin', 'super_admin')`,
+    ),
+    check(
+      "reconciliation_runs_policy_version_positive_check",
+      sql`${table.policyVersion} > 0`,
+    ),
+    check(
+      "reconciliation_runs_candidate_fingerprint_shape_check",
+      sql`char_length(trim(${table.candidateFingerprint})) > 0`,
+    ),
+    check(
+      "reconciliation_runs_scope_candidate_count_non_negative_check",
+      sql`${table.scopeCandidateCount} is null or ${table.scopeCandidateCount} >= 0`,
+    ),
+    index("reconciliation_runs_created_at_idx").on(table.createdAt),
+    index("reconciliation_runs_status_idx").on(table.status),
+  ],
+).enableRLS();
+
+export type ReconciliationRunRow = typeof reconciliationRuns.$inferSelect;
+export type NewReconciliationRunRow = typeof reconciliationRuns.$inferInsert;
+
+export const reconciliationRunCandidates = pgTable(
+  "reconciliation_run_candidates",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => reconciliationRuns.id, {
+        onDelete: "cascade",
+      }),
+
+    conversionId: uuid("conversion_id").notNull(),
+
+    /**
+     * Source-evidence fingerprint captured at planning time. The
+     * source evidence is the minimum sufficient provenance the
+     * engine needs to plan the transition. The Phase 20K
+     * follow-up 2 contract is:
+     *
+     *   - `sourceConversionKey` (sha256 hex of the source CSV row)
+     *   - `ingestionEventId` (FK to the immutable ingestion event)
+     *   - `validationStatus` / `settlementStatus` snapshots from
+     *     the conversion row at planning time
+     *
+     * If any of these is missing or inconsistent the candidate is
+     * refused at planning time and the audit row carries
+     * `rejected_missing_provenance`.
+     */
+    sourceConversionKey: text("source_conversion_key"),
+    network: text("network").notNull(),
+    expectedPreviousStatus: text("expected_previous_status").notNull(),
+    intendedNextStatus: text("intended_next_status").notNull(),
+    plannedReasonCode: text("planned_reason_code").notNull(),
+    plannedMoneyNetworkCommission: bigint("planned_money_network_commission", {
+      mode: "number",
+    }).notNull(),
+    plannedCashbackShareBps: integer("planned_cashback_share_bps"),
+    plannedMoneyUserCashback: bigint("planned_money_user_cashback", {
+      mode: "number",
+    }).notNull(),
+    plannedMoneyPlatformProfit: bigint("planned_money_platform_profit", {
+      mode: "number",
+    }).notNull(),
+    plannedIdempotencyKey: text("planned_idempotency_key").notNull(),
+    provenanceFingerprint: text("provenance_fingerprint").notNull(),
+
+    /**
+     * Phase 20K checkpoint 4D2 -- durable per-candidate processing
+     * outcome. Captured during the commit transaction so the
+     * outer run-level transition (`committing -> committed`) can
+     * be trusted to rely on durable per-candidate evidence, not
+     * on an in-memory array. Closed values:
+     *
+     *   - 'pending'             : default; not yet processed
+     *   - 'applied'             : conversion transitioned +
+     *                             audit claim persisted
+     *   - 'skipped/idempotent'  : audit claim already existed;
+     *                             replay / no-op
+     *   - 'skipped/stale'       : 4B commit-time evidence
+     *                             revalidation reported a drift
+     *   - 'skipped/blocked'     : Phase 20K 4F1B -- hard policy
+     *                             block at commit time. Used
+     *                             when the intended transition
+     *                             is `approved -> payable` AND
+     *                             no real durable upstream
+     *                             settlement producer exists.
+     *                             The per-candidate sub-tx
+     *                             returns early with no audit
+     *                             INSERT and no conversion
+     *                             UPDATE. Companion
+     *                             `processing_reason_code` is
+     *                             `rejected_unverified_settlement_evidence`.
+     *   - 'failed'              : per-candidate sub-transaction
+     *                             threw; the durable candidate
+     *                             row records the failure for
+     *                             ops / retry
+     */
+    processingOutcome: text("processing_outcome")
+      .notNull()
+      .default("pending"),
+
+    /**
+     * Phase 20K checkpoint 4D2 -- wall-clock completion of the
+     * per-candidate sub-transaction. NULL while pending. Set
+     * to the sub-tx committed_at when the outcome moves to a
+     * terminal value.
+     */
+    processingCompletedAt: timestamp("processing_completed_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+
+    /**
+     * Phase 20K checkpoint 4D2 -- narrow reason_code for the
+     * candidate outcome. Mirrors the audit reason or the 4B
+     * drift reason. Never overwritten once set.
+     */
+    processingReasonCode: text("processing_reason_code"),
+
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    /**
+     * Database-level idempotency boundary for "same run + same
+     * candidate cannot be planned twice". The application layer
+     * also enforces this via `INSERT ... ON CONFLICT DO NOTHING`
+     * but the UNIQUE index is the durable guarantee.
+     */
+    unique("reconciliation_run_candidates_run_id_conversion_id_unique").on(
+      table.runId,
+      table.conversionId,
+    ),
+    check(
+      "reconciliation_run_candidates_network_check",
+      sql`${table.network} in ('shopee', 'manual')`,
+    ),
+    check(
+      "reconciliation_run_candidates_expected_previous_status_check",
+      sql`${table.expectedPreviousStatus} in ('pending', 'approved', 'rejected', 'payable', 'paid')`,
+    ),
+    check(
+      "reconciliation_run_candidates_intended_next_status_check",
+      sql`${table.intendedNextStatus} in ('pending', 'approved', 'rejected', 'payable', 'paid')`,
+    ),
+    check(
+      "reconciliation_run_candidates_previous_next_differ_check",
+      sql`${table.expectedPreviousStatus} <> ${table.intendedNextStatus}`,
+    ),
+    check(
+      "reconciliation_run_candidates_intended_next_status_not_paid_by_phase_20k_check",
+      sql`${table.intendedNextStatus} <> 'paid'`,
+    ),
+    check(
+      "reconciliation_run_candidates_planned_money_non_negative_check",
+      sql`${table.plannedMoneyNetworkCommission} >= 0`,
+    ),
+    check(
+      "reconciliation_run_candidates_cashback_bps_range_check",
+      sql`${table.plannedCashbackShareBps} is null or ${table.plannedCashbackShareBps} between 0 and 10000`,
+    ),
+    check(
+      "reconciliation_run_candidates_cashback_policy_allocation_check",
+      sql`${table.plannedCashbackShareBps} is null or ${table.plannedMoneyUserCashback} = floor(${table.plannedMoneyNetworkCommission}::numeric * ${table.plannedCashbackShareBps} / 10000)::bigint`,
+    ),
+    check(
+      "reconciliation_run_candidates_planned_idempotency_key_shape_check",
+      sql`${table.plannedIdempotencyKey} ~ '^[a-f0-9]{64}$'`,
+    ),
+    check(
+      "reconciliation_run_candidates_provenance_fingerprint_shape_check",
+      sql`char_length(trim(${table.provenanceFingerprint})) > 0`,
+    ),
+    index("reconciliation_run_candidates_conversion_id_idx").on(
+      table.conversionId,
+    ),
+    check(
+      "reconciliation_run_candidates_processing_outcome_check",
+      sql`${table.processingOutcome} in (
+        'pending',
+        'applied',
+        'skipped/idempotent',
+        'skipped/stale',
+        'failed'
+      )`,
+    ),
+    index("reconciliation_run_candidates_processing_outcome_idx").on(
+      table.processingOutcome,
+    ),
+    index("reconciliation_run_candidates_run_id_processing_outcome_idx").on(
+      table.runId,
+      table.processingOutcome,
+    ),
+  ],
+).enableRLS();
+
+export type ReconciliationRunCandidateRow =
+  typeof reconciliationRunCandidates.$inferSelect;
+export type NewReconciliationRunCandidateRow =
+  typeof reconciliationRunCandidates.$inferInsert;

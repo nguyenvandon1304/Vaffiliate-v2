@@ -850,6 +850,7 @@ export async function reconcileShopeeCsvRowWithPurchaseIntentAsync(
         status: "pending",
         orderAmount: decision.orderAmountVnd,
         networkCommission: decision.networkCommissionVnd,
+        cashbackShareBpsSnapshot: decision.cashbackShareBps,
         userCashback: decision.userCashbackVnd,
         platformProfit: decision.platformProfitVnd,
         occurredAt: transactionNow,

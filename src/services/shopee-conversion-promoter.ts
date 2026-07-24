@@ -83,6 +83,7 @@ export type PromotePromotion =
       batchId: string;
       orderAmountVnd: number;
       networkCommissionVnd: number;
+      cashbackShareBps: number;
       userCashbackVnd: number;
       platformProfitVnd: number;
       ingestionEvent: {
@@ -120,7 +121,7 @@ type StagedRowShape =
     };
 
 type CatalogShape =
-  | { ok: true }
+  | { ok: true; cashbackShareBps: number }
   | {
       ok: false;
       code:
@@ -185,7 +186,7 @@ function assertLockedCatalogShape(
     };
   }
 
-  return { ok: true };
+  return { ok: true, cashbackShareBps: snapshot.cashbackShareBps };
 }
 
 function checkStagedRowShape(
@@ -320,7 +321,7 @@ export function reduceShopeeCsvPromotion(args: {
   const networkCommissionVnd = Number(netCommissionBig);
 
   const bpsDenominator = BigInt(10000);
-  const cashbackShareBps = BigInt(catalog.cashbackShareBps ?? 0);
+  const cashbackShareBps = BigInt(catalogShape.cashbackShareBps);
   const userCashbackBig =
     (netCommissionBig * cashbackShareBps) / bpsDenominator;
   const platformProfitBig = netCommissionBig - userCashbackBig;
@@ -381,6 +382,7 @@ export function reduceShopeeCsvPromotion(args: {
     batchId: stagedRow.batchId,
     orderAmountVnd,
     networkCommissionVnd,
+    cashbackShareBps: catalogShape.cashbackShareBps,
     userCashbackVnd,
     platformProfitVnd,
     ingestionEvent: {
