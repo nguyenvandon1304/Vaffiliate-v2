@@ -5,10 +5,15 @@ import test from "node:test";
 import postgres from "postgres";
 
 const DATABASE_URL = process.env.DATABASE_URL?.trim();
-const EXPECTED_HOST = "aws-0-ap-southeast-1.pooler.supabase.com";
+const IS_GITHUB_ACTIONS = process.env.GITHUB_ACTIONS === "true";
+const EXPECTED_HOST = IS_GITHUB_ACTIONS
+  ? "127.0.0.1"
+  : "aws-0-ap-southeast-1.pooler.supabase.com";
 const EXPECTED_PORT = "5432";
 const EXPECTED_DATABASE = "postgres";
-const EXPECTED_URL_USERNAME = "postgres.ujjcwncejnxnawpnijbi";
+const EXPECTED_URL_USERNAME = IS_GITHUB_ACTIONS
+  ? "postgres"
+  : "postgres.ujjcwncejnxnawpnijbi";
 
 if (!DATABASE_URL) {
   throw new Error(
@@ -20,11 +25,31 @@ const parsedDatabaseUrl = new URL(DATABASE_URL);
 assert.ok(
   parsedDatabaseUrl.protocol === "postgres:" ||
     parsedDatabaseUrl.protocol === "postgresql:",
+  "DATABASE_URL must use PostgreSQL",
 );
-assert.equal(parsedDatabaseUrl.hostname.toLowerCase(), EXPECTED_HOST);
+
+const parsedHostname = parsedDatabaseUrl.hostname.toLowerCase();
+
+if (IS_GITHUB_ACTIONS) {
+  assert.ok(
+    parsedHostname === "127.0.0.1" ||
+      parsedHostname === "localhost" ||
+      parsedHostname === "::1",
+    `GitHub Actions must use loopback PostgreSQL, received ${parsedHostname}`,
+  );
+} else {
+  assert.equal(parsedHostname, EXPECTED_HOST);
+}
+
 assert.equal(parsedDatabaseUrl.port, EXPECTED_PORT);
-assert.equal(decodeURIComponent(parsedDatabaseUrl.pathname), `/${EXPECTED_DATABASE}`);
-assert.equal(decodeURIComponent(parsedDatabaseUrl.username), EXPECTED_URL_USERNAME);
+assert.equal(
+  decodeURIComponent(parsedDatabaseUrl.pathname),
+  `/${EXPECTED_DATABASE}`,
+);
+assert.equal(
+  decodeURIComponent(parsedDatabaseUrl.username),
+  EXPECTED_URL_USERNAME,
+);
 
 const PUBLISHER_ID = randomUUID();
 const RUN_ID = randomUUID();
