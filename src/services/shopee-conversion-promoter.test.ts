@@ -73,6 +73,7 @@ test("promoter returns a promote decision for a fully-attributed row", () => {
   assert.equal(decision.offerId, "offer-1");
   assert.equal(decision.orderAmountVnd, 250_000);
   assert.equal(decision.networkCommissionVnd, 25_000);
+  assert.equal(decision.cashbackShareBps, 6_000);
   assert.equal(decision.userCashbackVnd, 15_000);
   assert.equal(decision.platformProfitVnd, 10_000);
   assert.match(decision.sourceConversionKey, /^[a-f0-9]{64}$/);
@@ -87,7 +88,7 @@ test("promoter returns a promote decision for a fully-attributed row", () => {
 });
 
 test("promoter preserves the money invariant for every cashback share", () => {
-  for (const bps of [0, 2_500, 5_000, 6_000, 8_000, 10_000]) {
+  for (const bps of [0, 2_500, 5_000, 6_000, 7_000, 8_000, 10_000]) {
     const decision = reduceShopeeCsvPromotion({
       stagedRow: buildBaseStagedRow(),
       catalog: buildBaseCatalog({ cashbackShareBps: bps }),
@@ -105,6 +106,7 @@ test("promoter preserves the money invariant for every cashback share", () => {
       decision.userCashbackVnd + decision.platformProfitVnd,
       decision.networkCommissionVnd,
     );
+    assert.equal(decision.cashbackShareBps, bps);
   }
 });
 

@@ -62,6 +62,13 @@ import assert from "node:assert/strict";
 import test, { after } from "node:test";
 
 import postgres from "postgres";
+import { config as loadEnv } from "dotenv";
+
+// Tests are launched via `npm run test:integration` which uses
+// `--import dotenv/config`. As a belt-and-braces measure for ad-hoc
+// invocations we also call dotenv here so the script remains usable
+// when run via `node --import tsx --test scripts/...`.
+loadEnv({ path: ".env.local", quiet: true });
 
 // Fixture identifiers. Distinct from any other integration test's
 // fixtures so the suite is idempotent across reruns.

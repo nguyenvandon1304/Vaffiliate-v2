@@ -37,7 +37,9 @@ export type AdminActionKind =
   | "admin.role.revoke"
   | "admin.payout.execute"
   | "admin.conversion.refund"
-  | "admin.config.update";
+  | "admin.config.update"
+  | "admin.reconciliation.dry_run"
+  | "admin.reconciliation.commit";
 
 export interface AdminAction {
   readonly kind: AdminActionKind;

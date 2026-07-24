@@ -5,7 +5,7 @@ import postgres from "postgres";
 
 import * as schema from "@/db/schema";
 
-function getDatabaseUrl(): string {
+function getDatabaseUrlImpl(): string {
   const databaseUrl =
     process.env.DATABASE_URL?.trim();
 
@@ -16,6 +16,10 @@ function getDatabaseUrl(): string {
   }
 
   return databaseUrl;
+}
+
+export function getDatabaseUrl(): string {
+  return getDatabaseUrlImpl();
 }
 
 type PostgresClient =

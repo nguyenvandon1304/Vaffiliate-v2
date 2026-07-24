@@ -85,6 +85,9 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Repository test
+        run: npm run test:repository
+
       - name: PostgreSQL integration test
         env:
           NODE_OPTIONS: --conditions=react-server
