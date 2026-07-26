@@ -208,6 +208,8 @@ test("Phase 20K core reconciliation integration fixture", async (context) => {
       process.env.PHASE20K_TARGET_PROJECT_REF_SHA256,
     damagedProjectRefSha256:
       process.env.PHASE20K_DAMAGED_PROJECT_REF_SHA256,
+    noDamagedProjectAcknowledgement:
+      process.env.PHASE20K_NO_DAMAGED_PROJECT_ACK,
     acknowledgement: process.env.PHASE20K_ISOLATED_TARGET_ACK,
   });
   if (!targetGuard.approved) {
