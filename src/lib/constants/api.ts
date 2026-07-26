@@ -15,10 +15,6 @@ export const API_ENDPOINTS = {
     LIST: "/orders/list",
     FILTERS: "/orders/filters",
   },
-  FINANCE: {
-    SUMMARY: "/finance/summary",
-    TRANSACTIONS: "/finance/transactions",
-  },
   USER: {
     MORE_MENU: "/user/more-menu",
   },
