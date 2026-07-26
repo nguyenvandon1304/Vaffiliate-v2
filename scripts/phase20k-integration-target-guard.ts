@@ -3,6 +3,24 @@ import { createHash } from "node:crypto";
 export const PHASE20K_ISOLATED_TARGET_ACKNOWLEDGEMENT =
   "PHASE20K_ISOLATED_TARGET_APPROVED" as const;
 
+/**
+ * Explicit operator statement that no Supabase project is currently known
+ * to have been damaged by the Phase 20K integration-test process, so the
+ * damaged-target denylist is intentionally empty.
+ *
+ * This lives in its own variable rather than as a sentinel inside
+ * `PHASE20K_DAMAGED_PROJECT_REF_SHA256` so that field stays strictly a
+ * SHA-256 digest. A non-hash sentinel in the hash field would weaken the
+ * malformed-hash rejection, because any future typo could be mistaken for
+ * an intentional opt-out.
+ *
+ * "Empty denylist" must remain a deliberate declaration, never a default:
+ * an unset environment still fails closed with
+ * `missing_damaged_target_hash`.
+ */
+export const PHASE20K_NO_DAMAGED_PROJECT_ACKNOWLEDGEMENT =
+  "PHASE20K_NO_DAMAGED_PROJECT_CONFIRMED" as const;
+
 const PROJECT_REF_PATTERN = /^[a-z0-9]{20}$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
 const DIRECT_HOST_PATTERN = /^db\.([a-z0-9]{20})\.supabase\.co$/;
@@ -39,8 +57,19 @@ export type Phase20kTargetGuardReason =
   | "ambiguous_project_identity"
   | "missing_expected_target_hash"
   | "invalid_expected_target_hash"
-  | "missing_damaged_target_hash"
   | "invalid_damaged_target_hash"
+  /**
+   * Returned when neither a damaged-project hash nor the explicit
+   * empty-denylist acknowledgement is configured.
+   *
+   * The legacy name is retained for backward compatibility with existing
+   * callers and operator runbooks. It now semantically means "no
+   * damaged-project decision was supplied", not merely "the hash variable
+   * is unset".
+   */
+  | "missing_damaged_target_hash"
+  | "conflicting_damaged_target_decision"
+  | "invalid_no_damaged_project_acknowledgement"
   | "damaged_target_forbidden"
   | "target_not_approved"
   | "invalid_acknowledgement";
@@ -49,6 +78,12 @@ export interface Phase20kTargetGuardInput {
   readonly databaseUrl?: string | null;
   readonly expectedTargetProjectRefSha256?: string | null;
   readonly damagedProjectRefSha256?: string | null;
+  /**
+   * Set to {@link PHASE20K_NO_DAMAGED_PROJECT_ACKNOWLEDGEMENT} to declare
+   * the damaged-target denylist explicitly empty. Mutually exclusive with
+   * `damagedProjectRefSha256`.
+   */
+  readonly noDamagedProjectAcknowledgement?: string | null;
   readonly acknowledgement?: string | null;
 }
 
@@ -181,11 +216,30 @@ export function validatePhase20kIntegrationTarget(
     return denied("invalid_expected_target_hash");
   }
 
+  // Damaged-target decision. Exactly one of the two representations must
+  // be supplied: a real denylist hash, or an explicit statement that the
+  // denylist is empty. Supplying neither fails closed; supplying both is
+  // contradictory and is refused rather than silently preferring one.
   const damagedHash = normalizeHash(input.damagedProjectRefSha256);
-  if (!damagedHash) {
+  const noDamagedAck =
+    input.noDamagedProjectAcknowledgement?.trim() ?? "";
+  const hasNoDamagedAck = noDamagedAck.length > 0;
+
+  if (damagedHash && hasNoDamagedAck) {
+    return denied("conflicting_damaged_target_decision");
+  }
+  if (!damagedHash && !hasNoDamagedAck) {
+    // Legacy reason code, deliberately unchanged: existing callers and
+    // runbooks match on this string. It now covers the absence of either
+    // damaged-project representation.
     return denied("missing_damaged_target_hash");
   }
-  if (!SHA256_PATTERN.test(damagedHash)) {
+
+  if (hasNoDamagedAck) {
+    if (noDamagedAck !== PHASE20K_NO_DAMAGED_PROJECT_ACKNOWLEDGEMENT) {
+      return denied("invalid_no_damaged_project_acknowledgement");
+    }
+  } else if (!SHA256_PATTERN.test(damagedHash!)) {
     return denied("invalid_damaged_target_hash");
   }
 
@@ -202,7 +256,10 @@ export function validatePhase20kIntegrationTarget(
   }
 
   const identityHash = sha256SupabaseProjectRef(extracted.projectRef);
-  if (identityHash === damagedHash) {
+  // Only consult the denylist when one was actually supplied. Under an
+  // explicitly empty denylist there is nothing to forbid, so the target
+  // falls through to the unchanged approved-target comparison below.
+  if (damagedHash !== null && identityHash === damagedHash) {
     return denied("damaged_target_forbidden");
   }
   if (identityHash !== expectedHash) {
