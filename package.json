@@ -15,7 +15,11 @@
     "test:repository": "node --conditions=react-server --import tsx --test src/server/reconciliation/classify-source-evidence.test.ts src/server/reconciliation/reconciliation.repository.test.ts",
     "test:phase20k-safety": "node --import tsx --test scripts/phase20k-integration-target-guard.test.ts scripts/phase20k-empty-baseline.test.ts scripts/phase20k-fixture-ownership.test.ts",
     "test:integration": "node --conditions=react-server --import dotenv/config --import tsx --test scripts/affiliate-catalog-postgres.integration.test.ts scripts/shopee-conversion-promoter-postgres.integration.test.ts scripts/shopee-reconciliation-ingestion-postgres.integration.test.ts scripts/shopee-classify-on-purchase-postgres.integration.test.ts scripts/addlivetag-import-postgres.integration.test.ts scripts/phase20k-policy-constraints-postgres.integration.test.ts",
-    "test:integration:phase20k": "node --conditions=react-server --import dotenv/config --import tsx --test scripts/reconciliation-postgres.integration.test.ts"
+    "test:integration:phase20k": "node --conditions=react-server --import dotenv/config --import tsx --test scripts/reconciliation-postgres.integration.test.ts",
+    "test:integration:phase20m:preflight": "node --import dotenv/config --import tsx scripts/phase20m-integration-safety.ts",
+    "test:integration:phase20m:migrations": "node --import dotenv/config --import tsx scripts/phase20m-migration-validation.ts",
+    "test:integration:phase20m:apply": "node --import dotenv/config --import tsx scripts/phase20m-apply-migration.ts",
+    "test:integration:phase20m": "node --conditions=react-server --import dotenv/config --import tsx --test scripts/payout-domain-postgres.integration.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

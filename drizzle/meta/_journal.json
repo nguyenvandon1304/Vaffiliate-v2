@@ -197,6 +197,13 @@
       "when": 1783518652068,
       "tag": "0027_phase_20k_cashback_policy_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1783518652069,
+      "tag": "0028_phase_20m0_payout_domain",
+      "breakpoints": true
     }
   ]
 }

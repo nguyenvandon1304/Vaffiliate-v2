@@ -2602,3 +2602,361 @@ export type ReconciliationRunCandidateRow =
   typeof reconciliationRunCandidates.$inferSelect;
 export type NewReconciliationRunCandidateRow =
   typeof reconciliationRunCandidates.$inferInsert;
+
+// --- Payout domain ------------------------------------------------------------
+
+export const PAYOUT_REQUEST_STATUSES = [
+  "requested",
+  "approved",
+  "processing",
+  "review_required",
+  "paid",
+  "rejected",
+  "cancelled",
+  "failed",
+] as const;
+
+export type PayoutRequestStatus =
+  (typeof PAYOUT_REQUEST_STATUSES)[number];
+
+export const payoutRequests = pgTable(
+  "payout_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.userId, { onDelete: "restrict" }),
+    payoutAccountId: uuid("payout_account_id")
+      .notNull()
+      .references(() => payoutAccounts.id, { onDelete: "restrict" }),
+    status: text("status").notNull().default("requested"),
+    currency: text("currency").notNull().default("VND"),
+    idempotencyKey: uuid("idempotency_key").notNull(),
+    idempotencyOperation: text("idempotency_operation")
+      .notNull()
+      .default("create"),
+    requestPayloadFingerprint: text("request_payload_fingerprint").notNull(),
+    requestedAmount: bigint("requested_amount", { mode: "number" }).notNull(),
+    reservedAmount: bigint("reserved_amount", { mode: "number" }).notNull(),
+    approvedAmount: bigint("approved_amount", { mode: "number" })
+      .notNull()
+      .default(0),
+    paidAmount: bigint("paid_amount", { mode: "number" }).notNull().default(0),
+    releasedAmount: bigint("released_amount", { mode: "number" })
+      .notNull()
+      .default(0),
+    itemCount: integer("item_count").notNull(),
+    payoutMethodSnapshot: text("payout_method_snapshot").notNull(),
+    providerSnapshot: text("provider_snapshot").notNull(),
+    accountNameSnapshot: text("account_name_snapshot").notNull(),
+    accountNumberSnapshot: text("account_number_snapshot").notNull(),
+    accountNumberLast4Snapshot: text("account_number_last4_snapshot").notNull(),
+    payoutAccountStatusSnapshot: text("payout_account_status_snapshot").notNull(),
+    destinationFingerprint: text("destination_fingerprint").notNull(),
+    processorReference: text("processor_reference"),
+    outcomeReference: text("outcome_reference"),
+    paymentReference: text("payment_reference"),
+    nonpaymentReference: text("nonpayment_reference"),
+    ownerReasonCode: text("owner_reason_code"),
+    internalReasonCode: text("internal_reason_code"),
+    internalReason: text("internal_reason"),
+    version: integer("version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    approvedAt: timestamp("approved_at", { withTimezone: true, mode: "date" }),
+    processingAt: timestamp("processing_at", { withTimezone: true, mode: "date" }),
+    reviewRequiredAt: timestamp("review_required_at", {
+      withTimezone: true,
+      mode: "date",
+    }),
+    paidAt: timestamp("paid_at", { withTimezone: true, mode: "date" }),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true, mode: "date" }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true, mode: "date" }),
+    failedAt: timestamp("failed_at", { withTimezone: true, mode: "date" }),
+  },
+  (table) => [
+    unique("payout_requests_user_operation_idempotency_key_unique").on(
+      table.userId,
+      table.idempotencyOperation,
+      table.idempotencyKey,
+    ),
+    index("payout_requests_user_created_at_idx").on(table.userId, table.createdAt),
+    index("payout_requests_status_created_at_idx").on(table.status, table.createdAt),
+    index("payout_requests_payout_account_id_idx").on(table.payoutAccountId),
+    uniqueIndex("payout_requests_provider_processor_reference_unique")
+      .on(table.providerSnapshot, table.processorReference)
+      .where(sql`${table.processorReference} is not null`),
+    uniqueIndex("payout_requests_provider_payment_reference_unique")
+      .on(table.providerSnapshot, table.paymentReference)
+      .where(sql`${table.paymentReference} is not null`),
+    check(
+      "payout_requests_status_check",
+      sql`${table.status} in ('requested', 'approved', 'processing', 'review_required', 'paid', 'rejected', 'cancelled', 'failed')`,
+    ),
+    check("payout_requests_currency_check", sql`${table.currency} = 'VND'`),
+    check(
+      "payout_requests_idempotency_operation_check",
+      sql`${table.idempotencyOperation} = 'create'`,
+    ),
+    check(
+      "payout_requests_amounts_check",
+      sql`${table.requestedAmount} > 0
+        and ${table.reservedAmount} = ${table.requestedAmount}
+        and ${table.approvedAmount} >= 0
+        and ${table.paidAmount} >= 0
+        and ${table.releasedAmount} >= 0
+        and ${table.paidAmount} + ${table.releasedAmount} <= ${table.reservedAmount}
+        and not (${table.paidAmount} > 0 and ${table.releasedAmount} > 0)`,
+    ),
+    check(
+      "payout_requests_item_count_check",
+      sql`${table.itemCount} between 1 and 200`,
+    ),
+    check(
+      "payout_requests_snapshot_check",
+      sql`${table.payoutMethodSnapshot} = 'bank'
+        and ${table.payoutAccountStatusSnapshot} = 'verified'
+        and char_length(trim(${table.providerSnapshot})) > 0
+        and char_length(trim(${table.accountNameSnapshot})) > 0
+        and char_length(trim(${table.accountNumberSnapshot})) > 0
+        and char_length(${table.accountNumberLast4Snapshot}) between 1 and 4`,
+    ),
+    check(
+      "payout_requests_fingerprint_check",
+      sql`${table.requestPayloadFingerprint} ~ '^[a-f0-9]{64}$'
+        and ${table.destinationFingerprint} ~ '^[a-f0-9]{64}$'`,
+    ),
+    check("payout_requests_version_check", sql`${table.version} > 0`),
+    check(
+      "payout_requests_owner_reason_code_check",
+      sql`${table.ownerReasonCode} is null or ${table.ownerReasonCode} in ('user_cancelled', 'request_rejected', 'payment_under_review', 'payment_not_completed')`,
+    ),
+    check(
+      "payout_requests_reference_shape_check",
+      sql`(${table.processorReference} is null or (char_length(trim(${table.processorReference})) between 1 and 200 and ${table.processorReference} !~ '[[:cntrl:]]'))
+        and (${table.outcomeReference} is null or (char_length(trim(${table.outcomeReference})) between 1 and 200 and ${table.outcomeReference} !~ '[[:cntrl:]]'))
+        and (${table.paymentReference} is null or (char_length(trim(${table.paymentReference})) between 1 and 200 and ${table.paymentReference} !~ '[[:cntrl:]]'))
+        and (${table.nonpaymentReference} is null or (char_length(trim(${table.nonpaymentReference})) between 1 and 200 and ${table.nonpaymentReference} !~ '[[:cntrl:]]'))`,
+    ),
+    check(
+      "payout_requests_state_amount_check",
+      sql`(${table.status} in ('requested', 'approved', 'processing', 'review_required') and ${table.paidAmount} = 0 and ${table.releasedAmount} = 0)
+        or (${table.status} = 'paid' and ${table.paidAmount} = ${table.reservedAmount} and ${table.releasedAmount} = 0)
+        or (${table.status} in ('rejected', 'cancelled', 'failed') and ${table.paidAmount} = 0 and ${table.releasedAmount} = ${table.reservedAmount})`,
+    ),
+    check(
+      "payout_requests_approved_amount_check",
+      sql`(${table.status} in ('requested', 'cancelled') and ${table.approvedAmount} = 0)
+        or (${table.status} in ('approved', 'processing', 'review_required', 'paid', 'failed') and ${table.approvedAmount} = ${table.reservedAmount})
+        or (${table.status} = 'rejected' and ${table.approvedAmount} in (0, ${table.reservedAmount}))`,
+    ),
+    check(
+      "payout_requests_state_metadata_check",
+      sql`(${table.status} = 'requested' and ${table.ownerReasonCode} is null and ${table.approvedAt} is null and ${table.processingAt} is null and ${table.reviewRequiredAt} is null and ${table.paidAt} is null and ${table.rejectedAt} is null and ${table.cancelledAt} is null and ${table.failedAt} is null)
+        or (${table.status} = 'approved' and ${table.ownerReasonCode} is null and ${table.approvedAt} is not null and ${table.processingAt} is null and ${table.reviewRequiredAt} is null and ${table.paidAt} is null and ${table.rejectedAt} is null and ${table.cancelledAt} is null and ${table.failedAt} is null)
+        or (${table.status} = 'processing' and ${table.ownerReasonCode} is null and ${table.approvedAt} is not null and ${table.processingAt} is not null and ${table.reviewRequiredAt} is null and ${table.paidAt} is null and ${table.rejectedAt} is null and ${table.cancelledAt} is null and ${table.failedAt} is null and ${table.processorReference} is not null)
+        or (${table.status} = 'review_required' and ${table.ownerReasonCode} = 'payment_under_review' and ${table.approvedAt} is not null and ${table.processingAt} is not null and ${table.reviewRequiredAt} is not null and ${table.paidAt} is null and ${table.rejectedAt} is null and ${table.cancelledAt} is null and ${table.failedAt} is null and ${table.processorReference} is not null and ${table.outcomeReference} is not null)
+        or (${table.status} = 'paid' and ${table.ownerReasonCode} is null and ${table.approvedAt} is not null and ${table.processingAt} is not null and ${table.paidAt} is not null and ${table.rejectedAt} is null and ${table.cancelledAt} is null and ${table.failedAt} is null and ${table.processorReference} is not null and ${table.paymentReference} is not null)
+        or (${table.status} = 'rejected' and ${table.ownerReasonCode} = 'request_rejected' and ${table.processingAt} is null and ${table.reviewRequiredAt} is null and ${table.paidAt} is null and ${table.rejectedAt} is not null and ${table.cancelledAt} is null and ${table.failedAt} is null)
+        or (${table.status} = 'cancelled' and ${table.ownerReasonCode} = 'user_cancelled' and ${table.approvedAt} is null and ${table.processingAt} is null and ${table.reviewRequiredAt} is null and ${table.paidAt} is null and ${table.rejectedAt} is null and ${table.cancelledAt} is not null and ${table.failedAt} is null)
+        or (${table.status} = 'failed' and ${table.ownerReasonCode} = 'payment_not_completed' and ${table.approvedAt} is not null and ${table.processingAt} is not null and ${table.paidAt} is null and ${table.rejectedAt} is null and ${table.cancelledAt} is null and ${table.failedAt} is not null and ${table.processorReference} is not null and ${table.nonpaymentReference} is not null)`,
+    ),
+    check(
+      "payout_requests_timestamp_order_check",
+      sql`(${table.approvedAt} is null or ${table.approvedAt} >= ${table.createdAt})
+        and (${table.processingAt} is null or (${table.approvedAt} is not null and ${table.processingAt} >= ${table.approvedAt}))
+        and (${table.reviewRequiredAt} is null or (${table.processingAt} is not null and ${table.reviewRequiredAt} >= ${table.processingAt}))
+        and (${table.paidAt} is null or (${table.processingAt} is not null and ${table.paidAt} >= ${table.processingAt}))
+        and (${table.rejectedAt} is null or ${table.rejectedAt} >= ${table.createdAt})
+        and (${table.cancelledAt} is null or ${table.cancelledAt} >= ${table.createdAt})
+        and (${table.failedAt} is null or (${table.processingAt} is not null and ${table.failedAt} >= ${table.processingAt}))`,
+    ),
+  ],
+).enableRLS();
+
+export const payoutRequestItems = pgTable(
+  "payout_request_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    payoutRequestId: uuid("payout_request_id")
+      .notNull()
+      .references(() => payoutRequests.id, { onDelete: "restrict" }),
+    conversionId: uuid("conversion_id")
+      .notNull()
+      .references(() => conversions.id, { onDelete: "restrict" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.userId, { onDelete: "restrict" }),
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    currency: text("currency").notNull().default("VND"),
+    conversionStatusSnapshot: text("conversion_status_snapshot").notNull(),
+    settlementStatusSnapshot: text("settlement_status_snapshot"),
+    sourceConversionKeySnapshot: text("source_conversion_key_snapshot"),
+    cashbackShareBpsSnapshot: integer("cashback_share_bps_snapshot"),
+    conversionPayableAtSnapshot: timestamp("conversion_payable_at_snapshot", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    reservedAt: timestamp("reserved_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+    releasedAt: timestamp("released_at", { withTimezone: true, mode: "date" }),
+    paidAt: timestamp("paid_at", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("payout_request_items_request_conversion_unique").on(
+      table.payoutRequestId,
+      table.conversionId,
+    ),
+    uniqueIndex("payout_request_items_conversion_unreleased_unique")
+      .on(table.conversionId)
+      .where(sql`${table.releasedAt} is null`),
+    index("payout_request_items_request_id_idx").on(table.payoutRequestId),
+    index("payout_request_items_user_created_at_idx").on(table.userId, table.createdAt),
+    index("payout_request_items_conversion_id_idx").on(table.conversionId),
+    check("payout_request_items_amount_check", sql`${table.amount} > 0`),
+    check("payout_request_items_currency_check", sql`${table.currency} = 'VND'`),
+    check(
+      "payout_request_items_status_snapshot_check",
+      sql`${table.conversionStatusSnapshot} = 'payable' and (${table.settlementStatusSnapshot} is null or ${table.settlementStatusSnapshot} = 'payable')`,
+    ),
+    check(
+      "payout_request_items_source_key_check",
+      sql`${table.sourceConversionKeySnapshot} is null or ${table.sourceConversionKeySnapshot} ~ '^[a-f0-9]{64}$'`,
+    ),
+    check(
+      "payout_request_items_bps_check",
+      sql`${table.cashbackShareBpsSnapshot} is null or ${table.cashbackShareBpsSnapshot} between 0 and 10000`,
+    ),
+    check(
+      "payout_request_items_lifecycle_check",
+      sql`not (${table.releasedAt} is not null and ${table.paidAt} is not null)
+        and (${table.releasedAt} is null or ${table.releasedAt} >= ${table.reservedAt})
+        and (${table.paidAt} is null or ${table.paidAt} >= ${table.reservedAt})`,
+    ),
+  ],
+).enableRLS();
+
+export const payoutEvents = pgTable(
+  "payout_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    payoutRequestId: uuid("payout_request_id")
+      .notNull()
+      .references(() => payoutRequests.id, { onDelete: "restrict" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.userId, { onDelete: "restrict" }),
+    sequenceNo: integer("sequence_no").notNull(),
+    eventType: text("event_type").notNull(),
+    previousStatus: text("previous_status"),
+    nextStatus: text("next_status").notNull(),
+    actorKind: text("actor_kind").notNull(),
+    actorUserId: uuid("actor_user_id"),
+    actorRole: text("actor_role"),
+    idempotencyScope: text("idempotency_scope").notNull(),
+    idempotencyKey: uuid("idempotency_key").notNull(),
+    payloadFingerprint: text("payload_fingerprint").notNull(),
+    correlationId: uuid("correlation_id").notNull(),
+    requestVersion: integer("request_version").notNull(),
+    requestedAmount: bigint("requested_amount", { mode: "number" }).notNull(),
+    reservedAmount: bigint("reserved_amount", { mode: "number" }).notNull(),
+    approvedAmount: bigint("approved_amount", { mode: "number" }).notNull(),
+    paidAmount: bigint("paid_amount", { mode: "number" }).notNull(),
+    releasedAmount: bigint("released_amount", { mode: "number" }).notNull(),
+    beforeSnapshot: jsonb("before_snapshot").$type<Record<string, unknown>>(),
+    afterSnapshot: jsonb("after_snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull(),
+    ownerReasonCode: text("owner_reason_code"),
+    internalReasonCode: text("internal_reason_code"),
+    internalReason: text("internal_reason"),
+    evidenceReference: text("evidence_reference"),
+    createdAt: timestamp("created_at", { withTimezone: true, mode: "date" })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("payout_events_request_sequence_unique").on(
+      table.payoutRequestId,
+      table.sequenceNo,
+    ),
+    unique("payout_events_scope_key_unique").on(
+      table.idempotencyScope,
+      table.idempotencyKey,
+    ),
+    index("payout_events_request_sequence_idx").on(
+      table.payoutRequestId,
+      table.sequenceNo,
+    ),
+    index("payout_events_user_created_at_idx").on(table.userId, table.createdAt),
+    index("payout_events_created_at_idx").on(table.createdAt),
+    check("payout_events_sequence_check", sql`${table.sequenceNo} > 0`),
+    check(
+      "payout_events_event_type_check",
+      sql`${table.eventType} in ('request_created', 'request_approved', 'request_rejected', 'request_cancelled', 'processing_started', 'outcome_uncertain', 'payment_confirmed', 'nonpayment_confirmed')`,
+    ),
+    check(
+      "payout_events_status_check",
+      sql`(${table.eventType} = 'request_created' and ${table.previousStatus} is null and ${table.nextStatus} = 'requested')
+        or (${table.eventType} = 'request_approved' and ${table.previousStatus} = 'requested' and ${table.nextStatus} = 'approved')
+        or (${table.eventType} = 'request_rejected' and ${table.previousStatus} in ('requested', 'approved') and ${table.nextStatus} = 'rejected')
+        or (${table.eventType} = 'request_cancelled' and ${table.previousStatus} = 'requested' and ${table.nextStatus} = 'cancelled')
+        or (${table.eventType} = 'processing_started' and ${table.previousStatus} = 'approved' and ${table.nextStatus} = 'processing')
+        or (${table.eventType} = 'outcome_uncertain' and ${table.previousStatus} = 'processing' and ${table.nextStatus} = 'review_required')
+        or (${table.eventType} = 'payment_confirmed' and ${table.previousStatus} in ('processing', 'review_required') and ${table.nextStatus} = 'paid')
+        or (${table.eventType} = 'nonpayment_confirmed' and ${table.previousStatus} in ('processing', 'review_required') and ${table.nextStatus} = 'failed')`,
+    ),
+    check(
+      "payout_events_actor_check",
+      sql`(${table.eventType} in ('request_created', 'request_cancelled') and ${table.actorKind} = 'user' and ${table.actorUserId} is not null and ${table.actorRole} is null)
+        or (${table.eventType} in ('request_approved', 'request_rejected') and ${table.actorKind} = 'admin' and ${table.actorUserId} is not null and ${table.actorRole} in ('admin', 'super_admin'))
+        or (${table.eventType} in ('processing_started', 'outcome_uncertain', 'payment_confirmed', 'nonpayment_confirmed') and ${table.actorKind} = 'system' and ${table.actorUserId} is null and ${table.actorRole} is null)`,
+    ),
+    check(
+      "payout_events_idempotency_check",
+      sql`char_length(trim(${table.idempotencyScope})) > 0
+        and ${table.payloadFingerprint} ~ '^[a-f0-9]{64}$'
+        and ${table.correlationId} = ${table.payoutRequestId}`,
+    ),
+    check(
+      "payout_events_snapshot_check",
+      sql`jsonb_typeof(${table.afterSnapshot}) = 'object'
+        and (${table.beforeSnapshot} is null or jsonb_typeof(${table.beforeSnapshot}) = 'object')`,
+    ),
+    check(
+      "payout_events_money_check",
+      sql`${table.requestedAmount} > 0
+        and ${table.reservedAmount} = ${table.requestedAmount}
+        and ${table.approvedAmount} >= 0
+        and ${table.paidAmount} >= 0
+        and ${table.releasedAmount} >= 0`,
+    ),
+    check(
+      "payout_events_owner_reason_code_check",
+      sql`(${table.eventType} = 'request_cancelled' and ${table.ownerReasonCode} = 'user_cancelled')
+        or (${table.eventType} = 'request_rejected' and ${table.ownerReasonCode} = 'request_rejected')
+        or (${table.eventType} = 'outcome_uncertain' and ${table.ownerReasonCode} = 'payment_under_review')
+        or (${table.eventType} = 'nonpayment_confirmed' and ${table.ownerReasonCode} = 'payment_not_completed')
+        or (${table.eventType} in ('request_created', 'request_approved', 'processing_started', 'payment_confirmed') and ${table.ownerReasonCode} is null)`,
+    ),
+    check(
+      "payout_events_evidence_reference_check",
+      sql`${table.evidenceReference} is null or (char_length(trim(${table.evidenceReference})) between 1 and 200 and ${table.evidenceReference} !~ '[[:cntrl:]]')`,
+    ),
+  ],
+).enableRLS();
+
+export type PayoutRequestRow = typeof payoutRequests.$inferSelect;
+export type NewPayoutRequestRow = typeof payoutRequests.$inferInsert;
+export type PayoutRequestItemRow = typeof payoutRequestItems.$inferSelect;
+export type NewPayoutRequestItemRow = typeof payoutRequestItems.$inferInsert;
+export type PayoutEventRow = typeof payoutEvents.$inferSelect;
+export type NewPayoutEventRow = typeof payoutEvents.$inferInsert;
