@@ -8,6 +8,7 @@ import {
   mapPayoutMutationResult,
   mapPayoutRequestItem,
   mapPayoutRequestSummary,
+  mapVerifiedPayoutAccountOption,
   parseDecimalVndString,
 } from "./validation";
 import {
@@ -16,6 +17,8 @@ import {
   payoutRequestViewRow,
   payoutRpcResponse,
 } from "./payout.test-helpers";
+
+const RAW_ACCOUNT_NUMBER = "4" + "1".repeat(15);
 
 test("payout DTO mapping preserves money above Number.MAX_SAFE_INTEGER", () => {
   const value = "90071992547409931234567890";
@@ -63,7 +66,7 @@ test("payout mappers validate statuses, UUIDs, and timestamps", () => {
 test("owner DTOs whitelist fields and discard sensitive database data", () => {
   const request = mapPayoutRequestSummary(
     payoutRequestViewRow({
-      account_number_snapshot: "4111111111111111",
+      account_number_snapshot: RAW_ACCOUNT_NUMBER,
       destination_fingerprint: "sensitive-fingerprint",
       internal_reason: "sensitive-reason",
     }),
@@ -79,7 +82,7 @@ test("owner DTOs whitelist fields and discard sensitive database data", () => {
   const serialized = JSON.stringify({ request, event });
 
   for (const forbidden of [
-    "4111111111111111",
+    RAW_ACCOUNT_NUMBER,
     "sensitive-fingerprint",
     "sensitive-reason",
     "sensitive-actor",
@@ -88,5 +91,65 @@ test("owner DTOs whitelist fields and discard sensitive database data", () => {
     "after_snapshot",
   ]) {
     assert.equal(serialized.includes(forbidden), false);
+  }
+});
+
+test("verified payout-account mapper returns only a UUID and masked destination", () => {
+  const rawAccountNumber = "1".repeat(12) + "3456";
+  const option = mapVerifiedPayoutAccountOption({
+    id: "22222222-2222-4222-8222-222222222222",
+    method: "bank",
+    provider: "TESTBANK",
+    account_number: rawAccountNumber,
+    status: "verified",
+    user_id: "private-owner-id",
+    account_name: "PRIVATE ACCOUNT HOLDER",
+    verification_evidence: { internal: true },
+  });
+  const serialized = JSON.stringify(option);
+
+  assert.deepEqual(option, {
+    payoutAccountId: "22222222-2222-4222-8222-222222222222",
+    method: "bank",
+    providerLabel: "TESTBANK",
+    maskedDestination: "****3456",
+    verification: "verified",
+  });
+  for (const forbidden of [
+    rawAccountNumber,
+    "private-owner-id",
+    "PRIVATE ACCOUNT HOLDER",
+    "verification_evidence",
+  ]) {
+    assert.equal(serialized.includes(forbidden), false);
+  }
+});
+
+test("verified payout-account mapper rejects malformed or ineligible rows", () => {
+  const rawAccountNumber = "1".repeat(12) + "3456";
+  const base = {
+    id: "22222222-2222-4222-8222-222222222222",
+    method: "bank",
+    provider: "TESTBANK",
+    account_number: rawAccountNumber,
+    status: "verified",
+  };
+
+  for (const row of [
+    { ...base, id: "not-a-uuid" },
+    { ...base, status: "unverified" },
+    { ...base, status: "disabled" },
+    { ...base, status: "rejected" },
+    { ...base, method: "wallet" },
+    { ...base, provider: "" },
+    { ...base, provider: "A".repeat(121) },
+    { ...base, account_number: "raw-account" },
+  ]) {
+    assert.throws(
+      () => mapVerifiedPayoutAccountOption(row),
+      (error) =>
+        error instanceof PayoutApplicationError &&
+        error.code === "PAYOUT_RESPONSE_INVALID",
+    );
   }
 });

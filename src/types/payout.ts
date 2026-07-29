@@ -48,6 +48,15 @@ export interface MaskedPayoutDestination {
   readonly accountNumberMasked: string;
 }
 
+/** Owner-safe verified destination used to create a payout request. */
+export interface VerifiedPayoutAccountOption {
+  readonly payoutAccountId: string;
+  readonly method: "bank";
+  readonly providerLabel: string;
+  readonly maskedDestination: string;
+  readonly verification: "verified";
+}
+
 export interface PayoutRequestSummary {
   readonly id: string;
   readonly status: PayoutStatus;
