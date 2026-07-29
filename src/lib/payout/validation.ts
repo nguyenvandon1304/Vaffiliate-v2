@@ -11,6 +11,7 @@ import {
   type PayoutRequestItem,
   type PayoutRequestSummary,
   type PayoutStatus,
+  type VerifiedPayoutAccountOption,
 } from "@/types/payout";
 
 import { PayoutApplicationError } from "./errors";
@@ -144,6 +145,25 @@ function maskedDestinationFromRpc(value: unknown): MaskedPayoutDestination {
     provider: safeText(row.provider),
     accountName: safeText(row.accountName),
     accountNumberMasked: masked,
+  };
+}
+
+export function mapVerifiedPayoutAccountOption(
+  value: unknown,
+): VerifiedPayoutAccountOption {
+  const row = record(value);
+  if (row.method !== "bank" || row.status !== "verified") invalidResponse();
+  const accountNumber = safeText(row.account_number).trim();
+  const providerLabel = safeText(row.provider).trim();
+  if (!/^\d{6,34}$/.test(accountNumber)) invalidResponse();
+  if (providerLabel.length > 120) invalidResponse();
+
+  return {
+    payoutAccountId: responseUuid(row.id),
+    method: "bank",
+    providerLabel,
+    maskedDestination: `****${accountNumber.slice(-4)}`,
+    verification: "verified",
   };
 }
 
