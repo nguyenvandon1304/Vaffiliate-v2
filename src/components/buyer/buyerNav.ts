@@ -145,7 +145,9 @@ export function isBuyerNavItemActive(
       norm === item.href ||
       isPrefixOfChild(norm, item.href) ||
       norm === "/app/account" ||
-      isPrefixOfChild(norm, "/app/account")
+      isPrefixOfChild(norm, "/app/account") ||
+      norm === "/app/payouts" ||
+      isPrefixOfChild(norm, "/app/payouts")
     );
   }
 
