@@ -196,4 +196,10 @@ test("/app/account alias activates the account item", () => {
   if (!isBuyerNavItemActive(account, "/app/profile")) {
     throw new Error("account item must be active for canonical /app/profile");
   }
+  if (!isBuyerNavItemActive(account, "/app/payouts")) {
+    throw new Error("account item must be active for /app/payouts");
+  }
+  if (!isBuyerNavItemActive(account, "/app/payouts/request-id")) {
+    throw new Error("account item must be active for payout detail routes");
+  }
 });

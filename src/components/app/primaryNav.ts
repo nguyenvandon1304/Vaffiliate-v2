@@ -60,6 +60,13 @@ function isCashbackRoute(pathname: string): boolean {
   );
 }
 
+function isFinanceRoute(pathname: string): boolean {
+  return (
+    isPathActive("/app/finance", pathname) ||
+    isPathActive("/app/payouts", pathname)
+  );
+}
+
 function isMoreRoute(pathname: string): boolean {
   if (
     pathname === "/app/more" ||
@@ -95,6 +102,10 @@ export function isPrimaryNavItemActive(
     return isCashbackRoute(pathname);
   }
 
+  if (item.id === "wallet") {
+    return isFinanceRoute(pathname);
+  }
+
   return isPathActive(item.href, pathname);
 }
 
@@ -111,6 +122,10 @@ export function isDesktopPrimaryNavItemActive(
     return pathname === "/app";
   }
 
+  if (item.id === "wallet") {
+    return isFinanceRoute(pathname);
+  }
+
   return isPathActive(item.href, pathname);
 }
 
@@ -124,6 +139,10 @@ export function isMobileNavItemActive(
 
   if (item.id === "cashback") {
     return isCashbackRoute(pathname);
+  }
+
+  if (item.id === "wallet") {
+    return isFinanceRoute(pathname);
   }
 
   if (item.id === "more") {

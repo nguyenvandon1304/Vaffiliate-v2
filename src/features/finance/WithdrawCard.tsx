@@ -1,22 +1,14 @@
+import Link from "next/link";
+
 import Card from "@/components/ui/Card";
 
 /**
- * Phase 20M-R -- truthful, non-interactive payout surface.
+ * Phase 20M.3A -- entry point to the owner payout workflow.
  *
- * No payout-request model exists in the schema, so there is nothing this
- * surface could legitimately submit to. It therefore renders as plain text
- * rather than a disabled button: a greyed-out button implies the action
- * exists and is merely unavailable right now, which overstates what the
- * product can actually do.
- *
- * The previous copy promised a minimum-withdrawal threshold. No such
- * constant exists anywhere in the schema or the codebase, so it has been
- * removed rather than restated. Nothing here claims a fee, a minimum, an
- * eligibility rule or a processing time, because none of those are defined
- * in the domain yet.
- *
- * This is a Server Component: with no interactive element left, there is no
- * reason to ship it to the client.
+ * The finance overview remains read-only. This card only links to the
+ * authenticated payout route, where the approved server boundary selects
+ * all eligible cashback and accepts a verified destination. It makes no fee,
+ * minimum, timing, or partial-payout claim.
  */
 export default function WithdrawCard() {
   return (
@@ -25,9 +17,15 @@ export default function WithdrawCard() {
         Yêu cầu thanh toán
       </h2>
       <p className="mt-2 text-sm leading-6 text-[color:var(--text-muted)]">
-        Tính năng yêu cầu thanh toán chưa khả dụng. Cashback ở trạng thái có
-        thể rút sẽ được giữ nguyên cho đến khi tính năng này được mở.
+        Tạo yêu cầu cho toàn bộ cashback đang đủ điều kiện và theo dõi từng
+        trạng thái xử lý.
       </p>
+      <Link
+        href="/app/payouts"
+        className="mt-4 inline-flex min-h-11 items-center justify-center rounded-[var(--radius-lg)] bg-[color:var(--brand)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow-sm)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)] focus-visible:ring-offset-2 active:translate-y-px"
+      >
+        Mở yêu cầu thanh toán
+      </Link>
     </Card>
   );
 }

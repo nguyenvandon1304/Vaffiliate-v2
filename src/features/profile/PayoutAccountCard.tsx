@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import type {
   PayoutAccount,
   PayoutAccountStatus,
@@ -102,6 +104,13 @@ export default function PayoutAccountCard({
           Hãy nhập thông tin ngân hàng trong biểu mẫu chỉnh sửa.
         </p>
       )}
+
+      <Link
+        href="/app/payouts"
+        className="mt-4 inline-flex min-h-10 items-center justify-center rounded-[var(--radius-lg)] border border-[color:var(--line)] bg-white px-4 py-2 text-sm font-semibold text-[color:var(--brand-strong)] transition-colors hover:bg-[rgba(216,138,82,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--brand)] focus-visible:ring-offset-2"
+      >
+        Xem yêu cầu thanh toán
+      </Link>
     </div>
   );
 }
