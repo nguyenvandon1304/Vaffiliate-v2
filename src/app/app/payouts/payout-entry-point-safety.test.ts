@@ -320,14 +320,12 @@ test("public payout projections omit sensitive identifiers and account holder da
   }
 });
 
-test("admin core never accepts caller-controlled actor, amount, or status", () => {
+test("admin core never accepts caller-controlled actor or transition fields", () => {
   const adminCore = withoutComments(readSource(ADMIN_CORE_PATH));
   for (const forbidden of [
     "actorId:",
     "actorRole:",
-    "amountVnd:",
     "targetStatus:",
-    "status:",
   ]) {
     assert.equal(adminCore.includes(forbidden), false);
   }

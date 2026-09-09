@@ -5,6 +5,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AppRole } from "@/lib/auth/roles";
 import { mapPayoutError } from "@/lib/payout/errors";
 import {
+  mapAdminPayoutRequestDetail,
+  mapAdminPayoutRequestListResult,
   mapPayoutMutationResult,
   parsePayoutReason,
   parsePayoutReasonCode,
@@ -12,6 +14,9 @@ import {
   parsePayoutUuid,
 } from "@/lib/payout/validation";
 import type {
+  AdminPayoutRequestDetail,
+  AdminPayoutRequestListInput,
+  AdminPayoutRequestListResult,
   ConfirmPayoutNonpaymentInput,
   ConfirmPayoutPaymentInput,
   MarkPayoutReviewRequiredInput,
@@ -41,6 +46,51 @@ function transitionIds(input: PayoutTransitionInput) {
     payoutRequestId: parsePayoutUuid(input.payoutRequestId),
     idempotencyKey: parsePayoutUuid(input.idempotencyKey),
   };
+}
+
+/**
+ * Phase 20M.3A2 -- admin read calls.
+ *
+ * These never take an actor role. The database resolves the role from
+ * `auth.users.raw_app_meta_data ->> 'app_role'` inside the RPC, so the
+ * only thing this layer forwards is the verified actor id the service
+ * obtained from `authorizedContext`.
+ */
+async function callPayoutReadRpc(
+  client: SupabaseClient,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  const { data, error } = await client.rpc(name, args);
+  if (error) throw mapPayoutError(error);
+  return data;
+}
+
+export async function listPayoutRequestsForAdminWithClientAsync(
+  client: SupabaseClient,
+  actorUserId: string,
+  input: AdminPayoutRequestListInput & { readonly limit: number },
+): Promise<AdminPayoutRequestListResult> {
+  const data = await callPayoutReadRpc(client, "list_payout_requests_admin", {
+    p_actor_user_id: parsePayoutUuid(actorUserId),
+    p_status: input.status ?? null,
+    p_cursor_created_at: input.cursor?.createdAt ?? null,
+    p_cursor_id: input.cursor ? parsePayoutUuid(input.cursor.id) : null,
+    p_limit: input.limit,
+  });
+  return mapAdminPayoutRequestListResult(data, input.limit);
+}
+
+export async function getPayoutRequestForAdminWithClientAsync(
+  client: SupabaseClient,
+  actorUserId: string,
+  payoutRequestId: string,
+): Promise<AdminPayoutRequestDetail> {
+  const data = await callPayoutReadRpc(client, "get_payout_request_admin", {
+    p_actor_user_id: parsePayoutUuid(actorUserId),
+    p_payout_request_id: parsePayoutUuid(payoutRequestId),
+  });
+  return mapAdminPayoutRequestDetail(data);
 }
 
 export async function approvePayoutRequestWithClientAsync(

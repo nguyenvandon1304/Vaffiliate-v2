@@ -2,6 +2,9 @@ import {
   PAYOUT_EVENT_TYPES,
   PAYOUT_OWNER_REASON_CODES,
   PAYOUT_STATUSES,
+  type AdminPayoutRequestDetail,
+  type AdminPayoutRequestListItem,
+  type AdminPayoutRequestListResult,
   type DecimalVndString,
   type MaskedPayoutDestination,
   type PayoutEventSummary,
@@ -248,6 +251,67 @@ export function mapPayoutMutationResult(value: unknown): PayoutMutationResult {
     eventCreatedAt: timestamp(row.eventCreatedAt),
     requestCreatedAt: timestamp(row.requestCreatedAt),
     replayed: row.replayed,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * Phase 20M.3A2 -- admin read mappers
+ * ------------------------------------------------------------------ */
+
+export function mapAdminPayoutRequestListItem(
+  value: unknown,
+): AdminPayoutRequestListItem {
+  const row = record(value);
+  return {
+    id: responseUuid(row.id),
+    userId: responseUuid(row.user_id),
+    status: payoutStatus(row.status),
+    currency: vndCurrency(row.currency),
+    requestedAmountVnd: parseDecimalVndString(row.requested_amount_vnd),
+    reservedAmountVnd: parseDecimalVndString(row.reserved_amount_vnd),
+    approvedAmountVnd: parseDecimalVndString(row.approved_amount_vnd),
+    paidAmountVnd: parseDecimalVndString(row.paid_amount_vnd),
+    releasedAmountVnd: parseDecimalVndString(row.released_amount_vnd),
+    itemCount: integer(row.item_count, 1),
+    destination: maskedDestinationFromView(row),
+    ownerReasonCode: ownerReasonCode(row.owner_reason_code),
+    createdAt: timestamp(row.created_at),
+    updatedAt: timestamp(row.updated_at),
+  };
+}
+
+/**
+ * The list RPC returns `{ items: [...] }`. The next cursor is derived
+ * here rather than in the database so the contract stays one-way: a
+ * full page implies there may be more, and the cursor is always the
+ * last row of the page.
+ */
+export function mapAdminPayoutRequestListResult(
+  value: unknown,
+  requestedLimit: number,
+): AdminPayoutRequestListResult {
+  const row = record(value);
+  if (!Array.isArray(row.items)) invalidResponse();
+  const items = row.items.map(mapAdminPayoutRequestListItem);
+  const last = items.at(-1);
+  const nextCursor =
+    last !== undefined && items.length >= requestedLimit
+      ? { createdAt: last.createdAt, id: last.id }
+      : null;
+  return { items, nextCursor };
+}
+
+export function mapAdminPayoutRequestDetail(
+  value: unknown,
+): AdminPayoutRequestDetail {
+  const row = record(value);
+  if (!Array.isArray(row.items) || !Array.isArray(row.events)) {
+    invalidResponse();
+  }
+  return {
+    request: mapAdminPayoutRequestListItem(row.request),
+    items: row.items.map(mapPayoutRequestItem),
+    events: row.events.map(mapPayoutEventSummary),
   };
 }
 

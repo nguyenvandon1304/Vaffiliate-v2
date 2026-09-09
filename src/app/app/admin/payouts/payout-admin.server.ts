@@ -11,6 +11,8 @@ import {
   markPayoutReviewRequiredAsync,
   rejectPayoutRequestAsync,
   startPayoutProcessingAsync,
+  listAdminPayoutRequestsAsync,
+  getAdminPayoutRequestDetailAsync,
 } from "@/services/payout-admin.service";
 
 import { createPayoutAdminEntryPoint } from "./payout-admin-entry-point-core";
@@ -18,6 +20,8 @@ import { createPayoutAdminEntryPoint } from "./payout-admin-entry-point-core";
 export const payoutAdminEntryPoint = createPayoutAdminEntryPoint({
   requireAdmin,
   service: {
+    listRequests: listAdminPayoutRequestsAsync,
+    getRequestDetail: getAdminPayoutRequestDetailAsync,
     approve: approvePayoutRequestAsync,
     reject: rejectPayoutRequestAsync,
     startProcessing: startPayoutProcessingAsync,

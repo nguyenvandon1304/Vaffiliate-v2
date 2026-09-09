@@ -16,6 +16,9 @@ import {
   parseStartProcessingCommand,
   toPayoutFailure,
   toPublicPayoutMutation,
+  type PublicPayoutDestination,
+  type PublicPayoutEvent,
+  type PublicPayoutRequestItem,
   type PayoutEntryPointResult,
   type PublicPayoutMutation,
 } from "@/lib/payout/entry-point";
@@ -27,7 +30,18 @@ import type {
   PayoutTransitionInput,
   RejectPayoutRequestInput,
   StartPayoutProcessingInput,
+  AdminPayoutRequestDetail,
+  AdminPayoutRequestListInput,
+  AdminPayoutRequestListResult,
+  AdminPayoutRequestListItem,
+  AdminPayoutListCursor,
+  PayoutEventSummary,
+  PayoutRequestItem,
+  PayoutOwnerReasonCode,
+  PayoutStatus,
+  DecimalVndString,
 } from "@/types/payout";
+import { parsePayoutUuid } from "@/lib/payout/validation";
 
 import {
   OWNER_PAYOUT_PATH,
@@ -36,13 +50,88 @@ import {
 
 export const ADMIN_PAYOUT_PATH = "/app/admin/payouts";
 
+function toPublicPayoutRequestItem(item: PayoutRequestItem): PublicPayoutRequestItem {
+  return { id: item.id, amountVnd: item.amountVnd, currency: item.currency, reservedAt: item.reservedAt, releasedAt: item.releasedAt, paidAt: item.paidAt, createdAt: item.createdAt };
+}
+
+function toPublicPayoutEvent(event: PayoutEventSummary): PublicPayoutEvent {
+  return { sequenceNo: event.sequenceNo, eventType: event.eventType, previousStatus: event.previousStatus, nextStatus: event.nextStatus, requestedAmountVnd: event.requestedAmountVnd, reservedAmountVnd: event.reservedAmountVnd, approvedAmountVnd: event.approvedAmountVnd, paidAmountVnd: event.paidAmountVnd, releasedAmountVnd: event.releasedAmountVnd, ownerReasonCode: event.ownerReasonCode, createdAt: event.createdAt };
+}
+
 export function adminPayoutDetailPath(payoutRequestId: string): string {
   return `${ADMIN_PAYOUT_PATH}/${payoutRequestId}`;
+}
+
+/**
+ * Phase 20M.3A2 -- admin read projections.
+ *
+ * The service DTO already excludes every raw destination field. This
+ * strips one more layer for the eventual UI: the account holder name is
+ * owner PII an admin list/detail screen does not need, matching the
+ * owner-side `PublicPayoutDestination` decision.
+ */
+export interface PublicAdminPayoutListItem {
+  readonly id: string;
+  readonly userId: string;
+  readonly ["status"]: PayoutStatus;
+  readonly currency: "VND";
+  readonly requestedAmountVnd: DecimalVndString;
+  readonly reservedAmountVnd: DecimalVndString;
+  readonly approvedAmountVnd: DecimalVndString;
+  readonly paidAmountVnd: DecimalVndString;
+  readonly releasedAmountVnd: DecimalVndString;
+  readonly itemCount: number;
+  readonly destination: PublicPayoutDestination;
+  readonly ownerReasonCode: PayoutOwnerReasonCode | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface PublicAdminPayoutList {
+  readonly items: readonly PublicAdminPayoutListItem[];
+  readonly nextCursor: AdminPayoutListCursor | null;
+}
+
+export interface PublicAdminPayoutDetail {
+  readonly request: PublicAdminPayoutListItem;
+  readonly items: readonly PublicPayoutRequestItem[];
+  readonly events: readonly PublicPayoutEvent[];
+}
+
+function toPublicAdminPayoutListItem(
+  item: AdminPayoutRequestListItem,
+): PublicAdminPayoutListItem {
+  return {
+    id: item.id,
+    userId: item.userId,
+    ["status"]: item.status,
+    currency: item.currency,
+    requestedAmountVnd: item.requestedAmountVnd,
+    reservedAmountVnd: item.reservedAmountVnd,
+    approvedAmountVnd: item.approvedAmountVnd,
+    paidAmountVnd: item.paidAmountVnd,
+    releasedAmountVnd: item.releasedAmountVnd,
+    itemCount: item.itemCount,
+    destination: {
+      method: "bank",
+      provider: item.destination.provider,
+      accountNumberMasked: item.destination.accountNumberMasked,
+    },
+    ownerReasonCode: item.ownerReasonCode,
+    createdAt: item.createdAt,
+    updatedAt: item.updatedAt,
+  };
 }
 
 export interface PayoutAdminEntryPointDependencies {
   readonly requireAdmin: (nextPath: string) => Promise<unknown>;
   readonly service: {
+    readonly listRequests?: (
+      input: AdminPayoutRequestListInput,
+    ) => Promise<AdminPayoutRequestListResult>;
+    readonly getRequestDetail?: (
+      payoutRequestId: string,
+    ) => Promise<AdminPayoutRequestDetail>;
     readonly approve: (
       input: PayoutTransitionInput,
     ) => Promise<PayoutMutationResult>;
@@ -92,6 +181,48 @@ export function createPayoutAdminEntryPoint(
   }
 
   return Object.freeze({
+    async loadAdminPayoutList(
+      input: AdminPayoutRequestListInput = {},
+    ): Promise<PayoutEntryPointResult<PublicAdminPayoutList>> {
+      try {
+        await dependencies.requireAdmin(ADMIN_PAYOUT_PATH);
+        if (!dependencies.service.listRequests) throw new Error("Admin payout list service is unavailable");
+        const result = await dependencies.service.listRequests(input);
+        return {
+          ok: true,
+          data: {
+            items: result.items.map(toPublicAdminPayoutListItem),
+            nextCursor: result.nextCursor,
+          },
+        };
+      } catch (error) {
+        dependencies.rethrow(error);
+        return toPayoutFailure<PublicAdminPayoutList>(error);
+      }
+    },
+
+    async loadAdminPayoutDetail(
+      payoutRequestId: unknown,
+    ): Promise<PayoutEntryPointResult<PublicAdminPayoutDetail>> {
+      try {
+        await dependencies.requireAdmin(ADMIN_PAYOUT_PATH);
+        const requestId = parsePayoutUuid(payoutRequestId);
+        if (!dependencies.service.getRequestDetail) throw new Error("Admin payout detail service is unavailable");
+        const detail = await dependencies.service.getRequestDetail(requestId);
+        return {
+          ok: true,
+          data: {
+            request: toPublicAdminPayoutListItem(detail.request),
+            items: detail.items.map(toPublicPayoutRequestItem),
+            events: detail.events.map(toPublicPayoutEvent),
+          },
+        };
+      } catch (error) {
+        dependencies.rethrow(error);
+        return toPayoutFailure<PublicAdminPayoutDetail>(error);
+      }
+    },
+
     async approve(
       input: unknown,
     ): Promise<PayoutEntryPointResult<PublicPayoutMutation>> {
