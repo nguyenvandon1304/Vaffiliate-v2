@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getSafePostLoginRedirect } from "@/lib/auth/post-login-redirect";
-import { buildPasswordResetRedirect } from "@/lib/auth/password-reset";
+import { requestPasswordResetRedirect } from "@/lib/auth/password-reset";
 import { createClient } from "@/lib/supabase/server";
 
 function readRequiredString(
@@ -179,12 +179,9 @@ export async function logout() {
 }
 
 export async function requestPasswordReset(formData: FormData) {
-  const email = readRequiredString(formData, "email");
-  if (!email) redirect("/login?error=missing-email");
-  const origin = await getRequestOrigin();
-  const supabase = await createClient();
-  await supabase.auth.resetPasswordForEmail(email.toLowerCase(), {
-    redirectTo: buildPasswordResetRedirect(origin),
+  const destination = await requestPasswordResetRedirect(formData, {
+    getOrigin: getRequestOrigin,
+    createClient,
   });
-  redirect("/login?message=reset-email-sent");
+  redirect(destination);
 }

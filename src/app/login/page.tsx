@@ -12,6 +12,9 @@ type LoginPageProps = {
 };
 
 const errorMessages: Record<string, string> = {
+  "missing-email": "Vui lòng nhập email để yêu cầu đặt lại mật khẩu.",
+  "reset-email-failed":
+    "Chưa thể xử lý yêu cầu đặt lại mật khẩu. Vui lòng thử lại sau.",
   "missing-fields":
     "Vui lòng nhập đầy đủ email và mật khẩu.",
   "invalid-credentials":
