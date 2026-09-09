@@ -2,8 +2,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { AppRole } from "@/lib/auth/roles";
 import { PayoutApplicationError } from "@/lib/payout/errors";
+import { parsePayoutUuid } from "@/lib/payout/validation";
 import type { TrustedPayoutAdminActor } from "@/repositories/payout-admin.repository";
+import { PAYOUT_STATUSES } from "@/types/payout";
 import type {
+  AdminPayoutListCursor,
+  AdminPayoutRequestDetail,
+  AdminPayoutRequestListInput,
+  AdminPayoutRequestListResult,
+  PayoutStatus,
   ConfirmPayoutNonpaymentInput,
   ConfirmPayoutPaymentInput,
   MarkPayoutReviewRequiredInput,
@@ -18,7 +25,27 @@ export interface TrustedAdminSession {
   readonly role: AppRole | null;
 }
 
+/**
+ * Phase 20M.3A2 -- admin read limits.
+ *
+ * The database clamps to 100 as well; validating here keeps a bad limit
+ * from reaching the RPC at all and gives the caller the same
+ * `PAYOUT_INPUT_INVALID` contract as every other payout input error.
+ */
+export const ADMIN_PAYOUT_LIST_DEFAULT_LIMIT = 25;
+export const ADMIN_PAYOUT_LIST_MAX_LIMIT = 100;
+
 interface PayoutAdminRepository {
+  readonly listForAdmin?: (
+    client: SupabaseClient,
+    actorUserId: string,
+    input: AdminPayoutRequestListInput & { readonly limit: number },
+  ) => Promise<AdminPayoutRequestListResult>;
+  readonly getForAdmin?: (
+    client: SupabaseClient,
+    actorUserId: string,
+    payoutRequestId: string,
+  ) => Promise<AdminPayoutRequestDetail>;
   readonly approve: (
     client: SupabaseClient,
     actor: TrustedPayoutAdminActor,
@@ -70,7 +97,75 @@ export function createPayoutAdminService(
     };
   }
 
+  function listLimit(value: number | undefined): number {
+    if (value === undefined) return ADMIN_PAYOUT_LIST_DEFAULT_LIMIT;
+    if (
+      !Number.isSafeInteger(value) ||
+      value < 1 ||
+      value > ADMIN_PAYOUT_LIST_MAX_LIMIT
+    ) {
+      throw new PayoutApplicationError("PAYOUT_INPUT_INVALID");
+    }
+    return value;
+  }
+
+  function listCursor(
+    cursor: AdminPayoutListCursor | undefined,
+  ): AdminPayoutListCursor | undefined {
+    if (cursor === undefined) return undefined;
+    parsePayoutUuid(cursor.id);
+    if (
+      typeof cursor.createdAt !== "string" ||
+      !Number.isFinite(Date.parse(cursor.createdAt))
+    ) {
+      throw new PayoutApplicationError("PAYOUT_INPUT_INVALID");
+    }
+    return cursor;
+  }
+
+  function listStatus(
+    status: PayoutStatus | undefined,
+  ): PayoutStatus | undefined {
+    if (status === undefined) return undefined;
+    if (!(PAYOUT_STATUSES as readonly string[]).includes(status)) {
+      throw new PayoutApplicationError("PAYOUT_INPUT_INVALID");
+    }
+    return status;
+  }
+
   return Object.freeze({
+    async listRequests(
+      input: AdminPayoutRequestListInput = {},
+    ): Promise<AdminPayoutRequestListResult> {
+      const limit = listLimit(input.limit);
+      const cursor = listCursor(input.cursor);
+      const status = listStatus(input.status);
+      const context = await authorizedContext();
+      if (!dependencies.repository.listForAdmin) {
+        throw new PayoutApplicationError("PAYOUT_UNEXPECTED_ERROR");
+      }
+      return dependencies.repository.listForAdmin(
+        context.client,
+        context.actor.userId,
+        { status, cursor, limit },
+      );
+    },
+
+    async getRequestDetail(
+      payoutRequestId: string,
+    ): Promise<AdminPayoutRequestDetail> {
+      const requestId = parsePayoutUuid(payoutRequestId);
+      const context = await authorizedContext();
+      if (!dependencies.repository.getForAdmin) {
+        throw new PayoutApplicationError("PAYOUT_UNEXPECTED_ERROR");
+      }
+      return dependencies.repository.getForAdmin(
+        context.client,
+        context.actor.userId,
+        requestId,
+      );
+    },
+
     async approve(input: PayoutTransitionInput): Promise<PayoutMutationResult> {
       const context = await authorizedContext();
       return dependencies.repository.approve(context.client, context.actor, {

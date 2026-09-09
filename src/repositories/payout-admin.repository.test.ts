@@ -17,7 +17,75 @@ import {
   markPayoutReviewRequiredWithClientAsync,
   rejectPayoutRequestWithClientAsync,
   startPayoutProcessingWithClientAsync,
+  listPayoutRequestsForAdminWithClientAsync,
+  getPayoutRequestForAdminWithClientAsync,
 } from "./payout-admin.repository";
+
+const adminReadRow = {
+  id: TEST_REQUEST_ID,
+  user_id: TEST_ACTOR_ID,
+  status: "requested",
+  currency: "VND",
+  requested_amount_vnd: "100000",
+  reserved_amount_vnd: "100000",
+  approved_amount_vnd: "0",
+  paid_amount_vnd: "0",
+  released_amount_vnd: "0",
+  item_count: 1,
+  payout_method_snapshot: "bank",
+  provider_snapshot: "Test Bank",
+  account_name_snapshot: "TEST OWNER",
+  account_number_masked: "1234",
+  owner_reason_code: null,
+  created_at: "2026-01-01T00:00:00.000Z",
+  updated_at: "2026-01-01T00:00:00.000Z",
+};
+
+test("admin read RPCs preserve account name and pagination contract", async () => {
+  const calls: Array<{ name: string; args: Record<string, unknown> }> = [];
+  const client = {
+    async rpc(name: string, args: Record<string, unknown>) {
+      calls.push({ name, args });
+      if (name === "list_payout_requests_admin") {
+        return { data: { items: [adminReadRow] }, error: null };
+      }
+      return { data: { request: adminReadRow, items: [], events: [] }, error: null };
+    },
+  } as unknown as SupabaseClient;
+
+  const list = await listPayoutRequestsForAdminWithClientAsync(client, TEST_ACTOR_ID, {
+    limit: 1,
+    status: "requested",
+    cursor: { createdAt: "2025-12-31T00:00:00.000Z", id: TEST_REQUEST_ID },
+  });
+  assert.equal(list.items[0]?.destination.accountName, "TEST OWNER");
+  assert.deepEqual(calls[0]?.args, {
+    p_actor_user_id: TEST_ACTOR_ID,
+    p_status: "requested",
+    p_cursor_created_at: "2025-12-31T00:00:00.000Z",
+    p_cursor_id: TEST_REQUEST_ID,
+    p_limit: 1,
+  });
+
+  const detail = await getPayoutRequestForAdminWithClientAsync(client, TEST_ACTOR_ID, TEST_REQUEST_ID);
+  assert.equal(detail.request.destination.accountName, "TEST OWNER");
+  assert.deepEqual(calls[1]?.args, {
+    p_actor_user_id: TEST_ACTOR_ID,
+    p_payout_request_id: TEST_REQUEST_ID,
+  });
+});
+
+test("admin read mappers reject RPC payloads missing account_name_snapshot", async () => {
+  const client = {
+    async rpc(name: string) {
+      const row = { ...adminReadRow };
+      delete (row as Record<string, unknown>).account_name_snapshot;
+      return { data: name === "list_payout_requests_admin" ? { items: [row] } : { request: row, items: [], events: [] }, error: null };
+    },
+  } as unknown as SupabaseClient;
+  await assert.rejects(() => listPayoutRequestsForAdminWithClientAsync(client, TEST_ACTOR_ID, { limit: 25 }));
+  await assert.rejects(() => getPayoutRequestForAdminWithClientAsync(client, TEST_ACTOR_ID, TEST_REQUEST_ID));
+});
 
 test("privileged repository calls the six exact RPCs with approved payloads", async () => {
   const calls: Array<{ name: string; args: Record<string, unknown> }> = [];

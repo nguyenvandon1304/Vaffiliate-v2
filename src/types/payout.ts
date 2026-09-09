@@ -133,6 +133,58 @@ export interface PayoutMutationResult {
   readonly replayed: boolean;
 }
 
+/* ------------------------------------------------------------------ *
+ * Phase 20M.3A2 -- admin read projections
+ *
+ * Separate from the owner types on purpose: an administrator reads
+ * across users, so the list item carries `userId`, and the amounts an
+ * admin needs are the reconciliation-relevant ones. Every field here
+ * is already safe to hand to a server component -- the destination
+ * arrives masked from the database, and no raw account number,
+ * destination fingerprint, provider reference, or internal reason
+ * code is part of the shape.
+ * ------------------------------------------------------------------ */
+
+export interface AdminPayoutRequestListItem {
+  readonly id: string;
+  readonly userId: string;
+  readonly status: PayoutStatus;
+  readonly currency: "VND";
+  readonly requestedAmountVnd: DecimalVndString;
+  readonly reservedAmountVnd: DecimalVndString;
+  readonly approvedAmountVnd: DecimalVndString;
+  readonly paidAmountVnd: DecimalVndString;
+  readonly releasedAmountVnd: DecimalVndString;
+  readonly itemCount: number;
+  readonly destination: MaskedPayoutDestination;
+  readonly ownerReasonCode: PayoutOwnerReasonCode | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+/** Keyset cursor. Both halves are required; a partial cursor is rejected. */
+export interface AdminPayoutListCursor {
+  readonly createdAt: string;
+  readonly id: string;
+}
+
+export interface AdminPayoutRequestListInput {
+  readonly status?: PayoutStatus;
+  readonly cursor?: AdminPayoutListCursor;
+  readonly limit?: number;
+}
+
+export interface AdminPayoutRequestListResult {
+  readonly items: readonly AdminPayoutRequestListItem[];
+  readonly nextCursor: AdminPayoutListCursor | null;
+}
+
+export interface AdminPayoutRequestDetail {
+  readonly request: AdminPayoutRequestListItem;
+  readonly items: readonly PayoutRequestItem[];
+  readonly events: readonly PayoutEventSummary[];
+}
+
 export interface CreatePayoutRequestInput {
   readonly payoutAccountId: string;
   readonly idempotencyKey: string;

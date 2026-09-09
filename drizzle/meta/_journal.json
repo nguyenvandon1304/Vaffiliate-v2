@@ -204,6 +204,13 @@
       "when": 1783518652069,
       "tag": "0028_phase_20m0_payout_domain",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1783518652070,
+      "tag": "0029_phase_20m3a2_admin_payout_read_boundary",
+      "breakpoints": true
     }
   ]
 }

@@ -6,6 +6,8 @@ import {
   approvePayoutRequestWithClientAsync,
   confirmPayoutNonpaymentWithClientAsync,
   confirmPayoutPaymentWithClientAsync,
+  getPayoutRequestForAdminWithClientAsync,
+  listPayoutRequestsForAdminWithClientAsync,
   markPayoutReviewRequiredWithClientAsync,
   rejectPayoutRequestWithClientAsync,
   startPayoutProcessingWithClientAsync,
@@ -16,6 +18,8 @@ const productionService = createPayoutAdminService({
   requireAdmin,
   createServiceRoleClient,
   repository: {
+    listForAdmin: listPayoutRequestsForAdminWithClientAsync,
+    getForAdmin: getPayoutRequestForAdminWithClientAsync,
     approve: approvePayoutRequestWithClientAsync,
     reject: rejectPayoutRequestWithClientAsync,
     startProcessing: startPayoutProcessingWithClientAsync,
@@ -25,6 +29,9 @@ const productionService = createPayoutAdminService({
   },
 });
 
+export const listAdminPayoutRequestsAsync = productionService.listRequests;
+export const getAdminPayoutRequestDetailAsync =
+  productionService.getRequestDetail;
 export const approvePayoutRequestAsync = productionService.approve;
 export const rejectPayoutRequestAsync = productionService.reject;
 export const startPayoutProcessingAsync = productionService.startProcessing;
