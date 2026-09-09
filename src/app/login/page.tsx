@@ -21,6 +21,8 @@ const errorMessages: Record<string, string> = {
 const successMessages: Record<string, string> = {
   "check-email":
     "Hãy kiểm tra email và xác nhận tài khoản trước khi đăng nhập.",
+  "reset-email-sent":
+    "Nếu email tồn tại, chúng tôi đã gửi liên kết đặt lại mật khẩu.",
 };
 
 function readSearchParam(
@@ -161,7 +163,7 @@ export default async function LoginPage({
 
               <div className="flex items-center justify-between gap-3 text-sm">
                 <Link
-                  href="#"
+                  href="/reset-password/request"
                   className="text-[color:var(--brand-strong)]"
                 >
                   Quên mật khẩu?
