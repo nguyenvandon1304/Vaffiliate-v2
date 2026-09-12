@@ -12,6 +12,9 @@ type LoginPageProps = {
 };
 
 const errorMessages: Record<string, string> = {
+  "missing-email": "Vui lòng nhập email để yêu cầu đặt lại mật khẩu.",
+  "reset-email-failed":
+    "Chưa thể xử lý yêu cầu đặt lại mật khẩu. Vui lòng thử lại sau.",
   "missing-fields":
     "Vui lòng nhập đầy đủ email và mật khẩu.",
   "invalid-credentials":
@@ -21,6 +24,8 @@ const errorMessages: Record<string, string> = {
 const successMessages: Record<string, string> = {
   "check-email":
     "Hãy kiểm tra email và xác nhận tài khoản trước khi đăng nhập.",
+  "reset-email-sent":
+    "Nếu email tồn tại, chúng tôi đã gửi liên kết đặt lại mật khẩu.",
 };
 
 function readSearchParam(
@@ -161,7 +166,7 @@ export default async function LoginPage({
 
               <div className="flex items-center justify-between gap-3 text-sm">
                 <Link
-                  href="#"
+                  href="/reset-password/request"
                   className="text-[color:var(--brand-strong)]"
                 >
                   Quên mật khẩu?

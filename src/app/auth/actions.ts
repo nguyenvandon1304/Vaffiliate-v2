@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getSafePostLoginRedirect } from "@/lib/auth/post-login-redirect";
+import { requestPasswordResetRedirect } from "@/lib/auth/password-reset";
 import { createClient } from "@/lib/supabase/server";
 
 function readRequiredString(
@@ -175,4 +176,12 @@ export async function logout() {
   await supabase.auth.signOut();
   revalidatePath("/", "layout");
   redirect("/login");
+}
+
+export async function requestPasswordReset(formData: FormData) {
+  const destination = await requestPasswordResetRedirect(formData, {
+    getOrigin: getRequestOrigin,
+    createClient,
+  });
+  redirect(destination);
 }
