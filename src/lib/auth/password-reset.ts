@@ -1,5 +1,7 @@
 export function buildPasswordResetRedirect(origin: string): string {
-  return `${new URL(origin).origin}/reset-password`;
+  const callbackUrl = new URL("/auth/callback", new URL(origin).origin);
+  callbackUrl.searchParams.set("next", "/reset-password");
+  return callbackUrl.toString();
 }
 
 interface PasswordResetDependencies {

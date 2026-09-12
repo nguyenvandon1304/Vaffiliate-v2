@@ -3,11 +3,11 @@ import test from "node:test";
 import { buildPasswordResetRedirect, requestPasswordResetRedirect } from "./password-reset";
 
 test("password reset redirect uses configured site origin", () => {
-  assert.equal(buildPasswordResetRedirect("https://vaffiliate-v2-dev.vercel.app/"), "https://vaffiliate-v2-dev.vercel.app/reset-password");
+  assert.equal(buildPasswordResetRedirect("https://vaffiliate-v2-dev.vercel.app/"), "https://vaffiliate-v2-dev.vercel.app/auth/callback?next=%2Freset-password");
 });
 
 test("password reset redirect strips a path from the configured URL", () => {
-  assert.equal(buildPasswordResetRedirect("https://example.com/account"), "https://example.com/reset-password");
+  assert.equal(buildPasswordResetRedirect("https://example.com/account"), "https://example.com/auth/callback?next=%2Freset-password");
 });
 
 function resetForm(email = "  Buyer@Example.com  ") {
@@ -29,7 +29,7 @@ test("successful recovery request uses normalized email and configured redirect"
   });
   assert.deepEqual(calls, [{
     email: "buyer@example.com",
-    options: { redirectTo: "https://vaffiliate-v2-dev.vercel.app/reset-password" },
+    options: { redirectTo: "https://vaffiliate-v2-dev.vercel.app/auth/callback?next=%2Freset-password" },
   }]);
   assert.equal(destination, "/login?message=reset-email-sent");
 });
