@@ -16,6 +16,7 @@ import {
   composePublicCatalog,
 } from "./public-deal-catalog.source";
 import { MockOfferFeedAdapter } from "./sources/mock-offer-feed.adapter";
+import { AddlivetagOfferFeedAdapter } from "./sources/addlivetag-offer-feed.adapter";
 import type { PublicDeal, PublicPromoDeal } from "@/services/public-deals.types";
 import type { RawOffer } from "./sources/public-offer-feed.types";
 
@@ -203,4 +204,50 @@ test("buildPublicDealCatalog surfaces the same safe list when adapter returns ok
       (f) => f.reason === "vendor-outage",
     ),
   );
+});
+
+test("Addlivetag offer adapter maps the documented campaign response", async () => {
+  let requestedUrl = "";
+  const adapter = new AddlivetagOfferFeedAdapter({
+    fetchImpl: async (input) => {
+      requestedUrl = input instanceof URL ? input.toString() : String(input);
+      return new Response(JSON.stringify({
+        status: "success",
+        dataSource: "api",
+        offers: [{
+          name: "Ưu đãi chiến dịch",
+          type: 2,
+          commissionRate: 0.07,
+          image: "https://cf.shopee.vn/file/campaign.jpg",
+          link: "https://shopee.vn/ma-giam-gia",
+          startTime: 1893456000,
+          endTime: 1924992000,
+        }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    },
+  });
+
+  const result = await adapter.fetchOffers();
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.offers.length, 1);
+    assert.equal(result.offers[0].title, "Ưu đãi chiến dịch");
+    assert.equal(result.offers[0].destinationUrl, "https://shopee.vn/ma-giam-gia");
+    assert.equal(result.offers[0].commissionRate, 0.07);
+    assert.equal(result.offers[0].validFrom, "2030-01-01T00:00:00.000Z");
+  }
+  const requestUrl = new URL(requestedUrl);
+  assert.equal(requestUrl.searchParams.get("page"), "1");
+  assert.equal(requestUrl.searchParams.get("limit"), "50");
+});
+
+test("Addlivetag offer adapter fails closed on provider errors", async () => {
+  const adapter = new AddlivetagOfferFeedAdapter({
+    fetchImpl: async () => new Response("temporarily unavailable", { status: 503 }),
+  });
+  assert.deepEqual(await adapter.fetchOffers(), {
+    ok: false,
+    source: "addlivetag",
+    reason: "http-503",
+  });
 });

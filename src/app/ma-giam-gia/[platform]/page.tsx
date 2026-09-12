@@ -20,8 +20,8 @@ import {
 import { SHOPEE_GUIDE_FAQS } from "@/lib/seo/coupon-guide-content";
 import {
   listCategories,
-  listDealsByCategory,
-  listDealsByPlatform,
+  listDealsByCategoryAsync,
+  listDealsByPlatformAsync,
   listPlatforms,
   parseCategorySlug,
 } from "@/services/public-deals.service";
@@ -93,8 +93,8 @@ export default async function PlatformDealsPage({
 
   const deals =
     category === "all"
-      ? listDealsByPlatform(platform)
-      : listDealsByCategory(platform, category);
+      ? await listDealsByPlatformAsync(platform)
+      : await listDealsByCategoryAsync(platform, category);
 
   const isShopee = platform === "shopee";
 

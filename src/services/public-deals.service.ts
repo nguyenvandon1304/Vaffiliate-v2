@@ -24,8 +24,10 @@ import {
 } from "@/lib/mock/public-deals";
 import {
   composePublicCatalog,
+  buildPublicDealCatalog,
   type PublicDealCatalogSource,
 } from "@/lib/deals/public-deal-catalog.source";
+import { AddlivetagOfferFeedAdapter } from "@/lib/deals/sources/addlivetag-offer-feed.adapter";
 
 import type {
   DealAction,
@@ -62,6 +64,51 @@ export function parseCategorySlug(raw: unknown): DealCategorySlug {
 }
 
 let cachedSnapshot: PublicDealCatalogSource | null = null;
+let cachedLiveSnapshot: Promise<PublicDealCatalogSource> | null = null;
+
+function createLiveAdapter(): AddlivetagOfferFeedAdapter {
+  const disabled = process.env.PUBLIC_DEALS_LIVE_ENABLED === "false";
+  return new AddlivetagOfferFeedAdapter({
+    baseUrl:
+      process.env.ADDLIVETAG_OFFERS_ENDPOINT?.trim() ||
+      "https://data.addlivetag.com/offers/shopee-offer.php",
+    disableNetworkCalls: disabled,
+  });
+}
+
+export function getPublicDealCatalogSnapshotAsync(): Promise<PublicDealCatalogSource> {
+  if (!cachedLiveSnapshot) {
+    cachedLiveSnapshot = buildPublicDealCatalog({
+      adapters: [createLiveAdapter()],
+    });
+  }
+  return cachedLiveSnapshot;
+}
+
+export async function listFeaturedDealsAsync(): Promise<ReadonlyArray<PublicDeal>> {
+  const snap = await getPublicDealCatalogSnapshotAsync();
+  return snap.all.filter((d) => d.status === "active" && d.isFeatured === true);
+}
+
+export async function listDealsByPlatformAsync(
+  platform: PublicDeal["platform"],
+): Promise<ReadonlyArray<PublicDeal>> {
+  const snap = await getPublicDealCatalogSnapshotAsync();
+  return snap.all.filter((d) => d.platform === platform);
+}
+
+export async function listDealsByCategoryAsync(
+  platform: PublicDeal["platform"],
+  category: DealCategorySlug,
+): Promise<ReadonlyArray<PublicDeal>> {
+  const snap = await getPublicDealCatalogSnapshotAsync();
+  if (category === "all") {
+    return snap.all.filter((d) => d.platform === platform && d.status === "active");
+  }
+  return snap.all.filter(
+    (d) => d.platform === platform && d.status === "active" && d.categorySlug === category,
+  );
+}
 
 /**
  * Build (or reuse) the public deal catalog snapshot used by every
@@ -86,6 +133,7 @@ export function getPublicDealCatalogSnapshotSync(): PublicDealCatalogSource {
  */
 export function resetPublicDealCatalogSnapshot(): void {
   cachedSnapshot = null;
+  cachedLiveSnapshot = null;
 }
 
 export function listFeaturedDeals(): ReadonlyArray<PublicDeal> {

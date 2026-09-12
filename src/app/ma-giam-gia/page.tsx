@@ -22,8 +22,8 @@ import {
 } from "@/lib/seo/jsonld";
 import { COUPON_GUIDE_FAQS } from "@/lib/seo/coupon-guide-content";
 import {
-  listDealsByPlatform,
-  listFeaturedDeals,
+  listDealsByPlatformAsync,
+  listFeaturedDealsAsync,
   listPlatforms,
 } from "@/services/public-deals.service";
 
@@ -34,9 +34,11 @@ export const metadata = buildPublicRouteMetadata({
   canonicalPath: "/ma-giam-gia",
 });
 
-export default function PublicDealsPage() {
-  const featured = listFeaturedDeals();
-  const shopee = listDealsByPlatform("shopee");
+export default async function PublicDealsPage() {
+  const [featured, shopee] = await Promise.all([
+    listFeaturedDealsAsync(),
+    listDealsByPlatformAsync("shopee"),
+  ]);
   const platforms = listPlatforms();
 
   return (
